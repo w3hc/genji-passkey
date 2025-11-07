@@ -1,0 +1,11 @@
+/* Keep only necessary resets */
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+/* Prevent Chrome auto-translate popup globally */
+html {
+  translate: no;
+}
