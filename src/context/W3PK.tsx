@@ -10,34 +10,29 @@ import React, {
   useEffect,
 } from 'react'
 import { useToast } from '@chakra-ui/react'
-import {
-  createWeb3Passkey,
-  StealthKeys,
-  generateStealthAddress as generateStealthAddressFromMetaAddress,
-} from 'w3pk'
+import { createWeb3Passkey, StealthKeys } from 'w3pk'
 
 interface SecurityScore {
-  total: number // 0-100
-  level: string // e.g., "vulnerable", "protected"
-  nextMilestone?: string // e.g., "Create encrypted backup to reach \"protected\" (40+ pts)"
-  breakdown?: Record<string, number> // e.g., { encryptedBackup: 0, passkeyActive: 20, ... }
-  // Add other potential fields if the SDK returns more details
+  total: number
+  level: string
+  nextMilestone?: string
+  breakdown?: Record<string, number>
+}
+
+interface PasskeySync {
+  enabled: boolean
+  deviceCount: number
+}
+
+interface RecoveryPhrase {
+  verified: boolean
 }
 
 interface BackupStatus {
   securityScore: SecurityScore
-  passkeySync?: {
-    // Add other fields as needed
-    enabled: boolean
-    deviceCount: number
-    // ...
-  }
-  recoveryPhrase?: {
-    verified: boolean
-    // ...
-  }
-  // Add other potential fields reported by getBackupStatus
-  // e.g., backupExists?: boolean;
+  passkeySync?: PasskeySync
+  recoveryPhrase?: RecoveryPhrase
+  backupExists?: boolean
 }
 
 interface W3pkUser {
@@ -52,6 +47,12 @@ interface DerivedWallet {
   privateKey?: string
 }
 
+interface StealthAddressResult {
+  stealthAddress: string
+  ephemeralPublicKey: string
+  viewTag: string
+}
+
 interface W3pkType {
   isAuthenticated: boolean
   user: W3pkUser | null
@@ -61,34 +62,16 @@ interface W3pkType {
   logout: () => void
   signMessage: (message: string) => Promise<string | null>
   deriveWallet: (index: number) => Promise<DerivedWallet>
-  generateStealthAddress: () => Promise<{
-    stealthAddress: string
-    stealthPrivateKey: string
-    ephemeralPublicKey: string
-  } | null>
-  generateStealthAddressFor: (recipientMetaAddress: string) => Promise<{
-    stealthAddress: string
-    ephemeralPublicKey: string
-    viewTag: string
-  } | null>
+  generateStealthAddress: () => Promise<StealthAddressResult | null>
   getStealthKeys: () => Promise<StealthKeys | null>
   getBackupStatus: () => Promise<BackupStatus>
   createZipBackup: (password: string) => Promise<Blob>
 }
 
-// TODO: remove logging
-interface DebugInfo {
-  username: string
-  w3pkVersion?: string
-  challenge?: string
-  credentialId?: string
-  attestationObject?: string
-  clientDataJSON?: string
-  error?: {
-    name: string
-    message: string
-    stack?: string
-  }
+interface AuthStateData {
+  isAuthenticated: boolean
+  user: W3pkUser
+  expiresAt: number
 }
 
 const W3PK = createContext<W3pkType>({
@@ -96,17 +79,16 @@ const W3PK = createContext<W3pkType>({
   user: null,
   isLoading: false,
   login: async () => {},
-  register: async (_username: string) => {},
+  register: async () => {},
   logout: () => {},
-  signMessage: async (_message: string) => null,
-  deriveWallet: async (_index: number) => ({ address: '', privateKey: '' }),
+  signMessage: async () => null,
+  deriveWallet: async () => ({ address: '', privateKey: '' }),
   generateStealthAddress: async () => null,
-  generateStealthAddressFor: async (_recipientMetaAddress: string) => null,
   getStealthKeys: async () => null,
-  getBackupStatus: async (): Promise<BackupStatus> => {
+  getBackupStatus: async () => {
     throw new Error('getBackupStatus not initialized')
   },
-  createZipBackup: async (_password: string): Promise<Blob> => {
+  createZipBackup: async () => {
     throw new Error('createZipBackup not initialized')
   },
 })
@@ -117,6 +99,10 @@ interface W3pkProviderProps {
   children: ReactNode
 }
 
+const AUTH_STATE_KEY = 'w3pk_auth_state'
+const AUTH_EXPIRY_MS = 24 * 60 * 60 * 1000 // 24 hours
+const REGISTRATION_TIMEOUT_MS = 45000 // 45 seconds
+
 export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [user, setUser] = useState<W3pkUser | null>(null)
@@ -124,103 +110,92 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
   const [isMounted, setIsMounted] = useState(false)
   const toast = useToast()
 
-  // Helper function to check if error is user-cancelled WebAuthn
-  const isUserCancelledError = (error: any): boolean => {
-    return (
-      error?.name === 'NotAllowedError' ||
-      error?.message?.includes('NotAllowedError') ||
-      error?.message?.includes('timed out') ||
-      error?.message?.includes('not allowed')
-    )
-  }
+  const isUserCancelledError = useCallback((error: unknown): boolean => {
+    if (error && typeof error === 'object' && 'name' in error && 'message' in error) {
+      const err = error as { name: string; message: string }
+      return (
+        err.name === 'NotAllowedError' ||
+        err.message.includes('NotAllowedError') ||
+        err.message.includes('timed out') ||
+        err.message.includes('not allowed')
+      )
+    }
+    return false
+  }, [])
 
   useEffect(() => {
     setIsMounted(true)
   }, [])
 
-  // Stable callback to prevent w3pk re-creation
-  const handleAuthStateChanged = useCallback((isAuth: boolean, w3pkUser?: any) => {
-    if (isAuth && w3pkUser) {
+  const handleAuthStateChanged = useCallback((isAuth: boolean, w3pkUser?: unknown) => {
+    if (isAuth && w3pkUser && typeof w3pkUser === 'object') {
+      const userObj = w3pkUser as Record<string, string>
       const userData: W3pkUser = {
-        id: w3pkUser.id,
-        username: w3pkUser.username,
-        displayName: w3pkUser.displayName,
-        ethereumAddress: w3pkUser.ethereumAddress,
+        id: userObj.id,
+        username: userObj.username,
+        displayName: userObj.displayName,
+        ethereumAddress: userObj.ethereumAddress,
       }
       setUser(userData)
       setIsAuthenticated(true)
 
-      // Store authentication state in localStorage with expiration (24 hours)
       if (typeof window !== 'undefined' && window.localStorage) {
-        const authStateData = {
+        const authStateData: AuthStateData = {
           isAuthenticated: true,
           user: userData,
-          expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+          expiresAt: Date.now() + AUTH_EXPIRY_MS,
         }
-        localStorage.setItem('w3pk_auth_state', JSON.stringify(authStateData))
+        localStorage.setItem(AUTH_STATE_KEY, JSON.stringify(authStateData))
       }
     } else {
       setUser(null)
       setIsAuthenticated(false)
 
-      // Clear stored authentication state
       if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.removeItem('w3pk_auth_state')
+        localStorage.removeItem(AUTH_STATE_KEY)
       }
     }
   }, [])
 
-  // Initialize w3pk SDK with stealth address capabilities only
   const w3pk = useMemo(
     () =>
       createWeb3Passkey({
-        stealthAddresses: {}, // Enable stealth address generation
+        stealthAddresses: {},
         debug: process.env.NODE_ENV === 'development',
         onAuthStateChanged: handleAuthStateChanged,
       }),
     [handleAuthStateChanged]
   )
 
-  // Check for existing authentication state on mount
   useEffect(() => {
-    const checkExistingAuth = async () => {
+    const checkExistingAuth = async (): Promise<void> => {
       if (!isMounted || !w3pk) return
 
       try {
-        console.log('Checking for existing authentication state...')
-
-        // Check if w3pk already has an authenticated user
         if (w3pk.isAuthenticated && w3pk.user) {
-          console.log('Found existing w3pk authentication, restoring state...')
           handleAuthStateChanged(true, w3pk.user)
           return
         }
 
-        // Check for stored authentication state in localStorage (if available)
         if (typeof window !== 'undefined' && window.localStorage) {
-          const storedAuthState = localStorage.getItem('w3pk_auth_state')
+          const storedAuthState = localStorage.getItem(AUTH_STATE_KEY)
           if (storedAuthState) {
             try {
-              const authData = JSON.parse(storedAuthState)
+              const authData = JSON.parse(storedAuthState) as AuthStateData
               if (authData.isAuthenticated && authData.user && authData.expiresAt > Date.now()) {
-                console.log('Found valid stored authentication, restoring...')
                 handleAuthStateChanged(true, authData.user)
                 return
               } else {
-                console.log('Stored authentication expired, clearing...')
-                localStorage.removeItem('w3pk_auth_state')
+                localStorage.removeItem(AUTH_STATE_KEY)
               }
-            } catch (parseError) {
-              console.error('Failed to parse stored auth state:', parseError)
-              localStorage.removeItem('w3pk_auth_state')
+            } catch {
+              localStorage.removeItem(AUTH_STATE_KEY)
             }
           }
         }
 
-        console.log('No existing authentication found')
         handleAuthStateChanged(false)
-      } catch (error) {
-        console.error('Error checking authentication state:', error)
+      } catch {
         handleAuthStateChanged(false)
       }
     }
@@ -228,62 +203,24 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
     checkExistingAuth()
   }, [isMounted, w3pk, handleAuthStateChanged])
 
-  // TODO: remove logging
-  const sendDebugInfo = async (debugInfo: DebugInfo) => {
-    try {
-      const response = await fetch('/api/debug', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(debugInfo),
-      })
-
-      if (!response.ok) {
-        console.error(
-          '[W3PK] Failed to send debug info to server:',
-          response.status,
-          response.statusText
-        )
-      } else {
-        console.log('[W3PK] Debug info successfully sent to server.')
-      }
-    } catch (fetchError) {
-      console.error('[W3PK] Error sending debug info to server:', fetchError)
-    }
-  }
-
-  const register = async (username: string) => {
-    // TODO: remove logging
-    let capturedChallenge: string | undefined = undefined
-    let capturedCredentialId: string | undefined = undefined
-    let capturedAttestationObject: string | undefined = undefined
-    let capturedClientDataJSON: string | undefined = undefined
-
+  const register = async (username: string): Promise<void> => {
     try {
       setIsLoading(true)
-      console.log('=== Starting Registration with w3pk ===')
-      console.log('Username:', username)
-      console.log('w3pk instance:', w3pk)
-      // Add timeout wrapper to detect hanging registration
-      const registrationPromise = w3pk.register({
-        username,
-      })
 
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => {
-          console.error('[W3PK] Registration timeout - w3pk.register() did not complete')
-          reject(
-            new Error(
-              'Registration timed out. Please try again or check browser console for errors.'
-            )
-          )
-        }, 45000)
+      const registrationPromise = w3pk.register({ username })
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(
+          () =>
+            reject(
+              new Error(
+                'Registration timed out. Please try again or check browser console for errors.'
+              )
+            ),
+          REGISTRATION_TIMEOUT_MS
+        )
       )
 
       await Promise.race([registrationPromise, timeoutPromise])
-
-      console.log('Registration successful')
 
       toast({
         title: 'Done! 🎉',
@@ -293,54 +230,28 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
         duration: 3000,
         isClosable: true,
       })
-    } catch (error: any) {
-      console.error('Registration failed:', error)
-      console.error('Error details:', {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-      })
-
-      // TODO: remove logging
-      const debugInfo: DebugInfo = {
-        username,
-        error: {
-          name: error.name || 'UnknownError',
-          message: error.message || 'Registration failed',
-          stack: error.stack || 'No stack trace',
-        },
-      }
-
-      if (error.message?.includes('atob')) {
-        console.warn('[W3PK] Detected potential internal atob error in w3pk SDK.')
-        console.log('[W3PK] Sending debug info for username:', username)
-        await sendDebugInfo(debugInfo)
-      } else {
-        await sendDebugInfo(debugInfo)
-      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to register with w3pk'
 
       toast({
         title: 'Registration Failed',
-        description: error.message || 'Failed to register with w3pk',
+        description: errorMessage,
         status: 'error',
         duration: 8000,
         isClosable: true,
       })
       throw error
     } finally {
-      console.log('[W3PK] Registration cleanup, setting loading to false')
       setIsLoading(false)
     }
   }
 
-  const login = async () => {
+  const login = async (): Promise<void> => {
     try {
       setIsLoading(true)
-      console.log('=== Starting Login with w3pk ===')
 
       const result = await w3pk.login()
-      console.log('Login successful, user:', result.username)
-
       const hasWallet = w3pk.isAuthenticated
       const displayName = result.displayName || result.username || 'Anon'
 
@@ -348,18 +259,19 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
         title: 'Login Successful! ✅',
         description: hasWallet
           ? `Oh! It's you, ${displayName}! Welcome back! Your wallet is available.`
-          : `Welcome back, ${displayName}! Welcome back! No wallet found on this device.`,
+          : `Welcome back, ${displayName}! No wallet found on this device.`,
         status: hasWallet ? 'success' : 'warning',
         duration: 5000,
         isClosable: true,
       })
-    } catch (error: any) {
-      console.error('Authentication failed:', error)
-
+    } catch (error) {
       if (!isUserCancelledError(error)) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Failed to authenticate with w3pk'
+
         toast({
           title: 'Authentication Failed',
-          description: error.message || 'Failed to authenticate with w3pk',
+          description: errorMessage,
           status: 'error',
           duration: 5000,
           isClosable: true,
@@ -368,6 +280,12 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
       throw error
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const ensureAuthentication = async (): Promise<void> => {
+    if (!w3pk.hasActiveSession()) {
+      await w3pk.login()
     }
   }
 
@@ -384,30 +302,17 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
     }
 
     try {
-      console.log('=== Starting Message Signing with w3pk ===')
-
-      // Check if we have an active session, if not, require fresh authentication
-      const hasSession = w3pk.hasActiveSession()
-      if (!hasSession) {
-        console.log('No active session, requiring fresh authentication...')
-        await w3pk.login()
-        console.log('Fresh authentication completed')
-      } else {
-        console.log('Active session detected, using existing session')
-      }
-
+      await ensureAuthentication()
       const signature = await w3pk.signMessage(message)
-      console.log('Message signed successfully')
-
       return signature
-    } catch (error: any) {
-      console.error('Message signing failed:', error)
-
-      // Don't show toast for user-cancelled errors
+    } catch (error) {
       if (!isUserCancelledError(error)) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Failed to sign message with w3pk'
+
         toast({
           title: 'Signing Failed',
-          description: error.message || 'Failed to sign message with w3pk',
+          description: errorMessage,
           status: 'error',
           duration: 5000,
           isClosable: true,
@@ -422,38 +327,22 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
       throw new Error('Not authenticated. Please log in first.')
     }
 
+    const tag = `WALLET_${index}`
+
     try {
-      console.log(`=== Deriving Wallet at Index ${index} ===`)
-
-      // Check if we have an active session
-      const hasSession = w3pk.hasActiveSession()
-      if (!hasSession) {
-        console.log('No active session, requiring fresh authentication...')
-        await w3pk.login()
-        console.log('Fresh authentication completed')
-      } else {
-        console.log('Active session detected, using existing session')
-      }
-
-      const derivedWallet = await w3pk.deriveWallet(index)
-      console.log(`Wallet derived successfully at index ${index}:`, derivedWallet.address)
-
+      await ensureAuthentication()
+      const derivedWallet = await w3pk.deriveWallet(tag)
       return derivedWallet
-    } catch (error: any) {
-      console.error(`Wallet derivation failed at index ${index}:`, error)
-
-      // If it's an auth error, try to login once and retry
-      if (error.message?.includes('Not authenticated') || error.message?.includes('login')) {
-        console.log('Authentication required, prompting for login...')
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.message.includes('Not authenticated') || error.message.includes('login'))
+      ) {
         try {
           await w3pk.login()
-          const derivedWallet = await w3pk.deriveWallet(index)
-          console.log(`Wallet derived successfully after re-authentication at index ${index}`)
+          const derivedWallet = await w3pk.deriveWallet(tag)
           return derivedWallet
-        } catch (retryError: any) {
-          console.error('Retry after authentication failed:', retryError)
-
-          // Don't show toast for user-cancelled errors
+        } catch (retryError) {
           if (!isUserCancelledError(retryError)) {
             toast({
               title: 'Authentication Required',
@@ -467,11 +356,13 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
         }
       }
 
-      // Don't show toast for user-cancelled errors
       if (!isUserCancelledError(error)) {
+        const errorMessage =
+          error instanceof Error ? error.message : `Failed to derive wallet at index ${index}`
+
         toast({
           title: 'Derivation Failed',
-          description: error.message || `Failed to derive wallet at index ${index}`,
+          description: errorMessage,
           status: 'error',
           duration: 5000,
           isClosable: true,
@@ -481,7 +372,95 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
     }
   }
 
-  const logout = () => {
+  const generateStealthAddress = async (): Promise<StealthAddressResult | null> => {
+    if (!user) {
+      toast({
+        title: 'Not Authenticated',
+        description: 'Please log in first.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+      return null
+    }
+
+    if (!w3pk.stealth) {
+      toast({
+        title: 'Stealth Addresses Not Available',
+        description: 'Stealth address module is not enabled',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+      return null
+    }
+
+    try {
+      await ensureAuthentication()
+      const result = await w3pk.stealth.generateStealthAddress()
+      return result
+    } catch (error) {
+      if (!isUserCancelledError(error)) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Failed to generate stealth address'
+
+        toast({
+          title: 'Generation Failed',
+          description: errorMessage,
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        })
+      }
+      return null
+    }
+  }
+
+  const getStealthKeys = async (): Promise<StealthKeys | null> => {
+    if (!user) {
+      toast({
+        title: 'Not Authenticated',
+        description: 'Please log in first.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+      return null
+    }
+
+    if (!w3pk.stealth) {
+      toast({
+        title: 'Stealth Addresses Not Available',
+        description: 'Stealth address module is not enabled',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+      return null
+    }
+
+    try {
+      await ensureAuthentication()
+      const keys = await w3pk.stealth.getKeys()
+      return keys
+    } catch (error) {
+      if (!isUserCancelledError(error)) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Failed to get stealth keys'
+
+        toast({
+          title: 'Failed to Get Keys',
+          description: errorMessage,
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        })
+      }
+      return null
+    }
+  }
+
+  const logout = (): void => {
     w3pk.logout()
 
     toast({
@@ -493,196 +472,9 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
     })
   }
 
-  const generateStealthAddress = async (): Promise<{
-    stealthAddress: string
-    stealthPrivateKey: string
-    ephemeralPublicKey: string
-  } | null> => {
-    if (!user) {
-      toast({
-        title: 'Not Authenticated',
-        description: 'Please log in first',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      })
-      return null
-    }
-
-    try {
-      console.log('=== Generating Stealth Address with w3pk ===')
-
-      if (!w3pk.stealth) {
-        throw new Error('Stealth address module not initialized')
-      }
-
-      // Generate stealth address (returns stealthAddress, ephemeralPublicKey, viewTag)
-      const stealthResult = await w3pk.stealth.generateStealthAddress()
-      console.log('Stealth address generated:', stealthResult.stealthAddress)
-
-      // Get user's stealth keys to compute the private key
-      const keys = await w3pk.stealth.getKeys()
-      console.log('Retrieved stealth keys')
-
-      // Import computeStealthPrivateKey from w3pk
-      const { computeStealthPrivateKey } = await import('w3pk')
-
-      // Compute the stealth private key
-      const stealthPrivateKey = computeStealthPrivateKey(
-        keys.viewingKey,
-        keys.spendingKey,
-        stealthResult.ephemeralPublicKey
-      )
-      console.log('Stealth private key computed')
-
-      return {
-        stealthAddress: stealthResult.stealthAddress,
-        stealthPrivateKey,
-        ephemeralPublicKey: stealthResult.ephemeralPublicKey,
-      }
-    } catch (error: any) {
-      console.error('Stealth address generation failed:', error)
-      toast({
-        title: 'Stealth Address Failed',
-        description: error.message || 'Failed to generate stealth address',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      })
-      return null
-    }
-  }
-
-  const generateStealthAddressFor = async (
-    recipientMetaAddress: string
-  ): Promise<{
-    stealthAddress: string
-    ephemeralPublicKey: string
-    viewTag: string
-  } | null> => {
-    if (!user) {
-      toast({
-        title: 'Not Authenticated',
-        description: 'Please log in first',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      })
-      return null
-    }
-
-    try {
-      console.log('=== Generating Stealth Address for Recipient ===')
-      console.log('Recipient meta-address:', recipientMetaAddress)
-
-      // Call the ERC-5564 compliant generateStealthAddress function with recipient's meta-address
-      const result = generateStealthAddressFromMetaAddress(recipientMetaAddress)
-
-      console.log('Stealth address generated:', result.stealthAddress)
-      console.log('Ephemeral public key:', result.ephemeralPubKey)
-      console.log('View tag:', result.viewTag)
-
-      return {
-        stealthAddress: result.stealthAddress,
-        ephemeralPublicKey: result.ephemeralPubKey,
-        viewTag: result.viewTag,
-      }
-    } catch (error: any) {
-      console.error('Stealth address generation failed:', error)
-      toast({
-        title: 'Generation Failed',
-        description: error.message || 'Failed to generate stealth address',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      })
-      return null
-    }
-  }
-
-  const getStealthKeys = async (): Promise<StealthKeys | null> => {
-    if (!user) {
-      toast({
-        title: 'Not Authenticated',
-        description: 'Please log in first',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      })
-      return null
-    }
-
-    try {
-      console.log('=== Getting Stealth Keys with w3pk ===')
-
-      if (!w3pk.stealth) {
-        throw new Error('Stealth address module not initialized')
-      }
-
-      // Check if we have an active session
-      const hasSession = w3pk.hasActiveSession()
-      if (!hasSession) {
-        console.log('No active session, requiring fresh authentication...')
-        await w3pk.login()
-        console.log('Fresh authentication completed')
-      } else {
-        console.log('Active session detected, using existing session')
-      }
-
-      const stealthKeys = await w3pk.stealth.getKeys()
-      console.log('Stealth keys retrieved successfully')
-      // @ts-ignore - stealthMetaAddress is in new ERC-5564 implementation
-      console.log('Meta address:', stealthKeys.stealthMetaAddress || stealthKeys.metaAddress)
-
-      return stealthKeys
-    } catch (error: any) {
-      console.error('Failed to get stealth keys:', error)
-
-      // If it's an auth error, try to login once and retry
-      if (error.message?.includes('Not authenticated') || error.message?.includes('login')) {
-        console.log('Authentication required, prompting for login...')
-        try {
-          await w3pk.login()
-          if (!w3pk.stealth) {
-            throw new Error('Stealth address module not initialized')
-          }
-          const stealthKeys = await w3pk.stealth.getKeys()
-          console.log('Stealth keys retrieved successfully after re-authentication')
-          return stealthKeys
-        } catch (retryError: any) {
-          console.error('Retry after authentication failed:', retryError)
-
-          // Don't show toast for user-cancelled errors
-          if (!isUserCancelledError(retryError)) {
-            toast({
-              title: 'Authentication Required',
-              description: 'Please authenticate to access stealth keys',
-              status: 'error',
-              duration: 5000,
-              isClosable: true,
-            })
-          }
-          return null
-        }
-      }
-
-      // Don't show toast for user-cancelled errors
-      if (!isUserCancelledError(error)) {
-        toast({
-          title: 'Stealth Keys Failed',
-          description: error.message || 'Failed to get stealth keys',
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
-        })
-      }
-      return null
-    }
-  }
-
   const getBackupStatus = async (): Promise<BackupStatus> => {
     if (!isAuthenticated || !user) {
-      throw new Error('User not authenticated in context. Cannot check backup status.')
+      throw new Error('User not authenticated. Cannot check backup status.')
     }
 
     if (!w3pk || typeof w3pk.getBackupStatus !== 'function') {
@@ -691,53 +483,32 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
 
     try {
       setIsLoading(true)
-      console.log('=== Getting Backup Status with w3pk SDK ===')
 
-      // Check if the SDK has an active session (this might be sufficient for getBackupStatus)
-      const hasSession = w3pk.hasActiveSession?.() // Check if method exists
-      console.log('Active session check (getBackupStatus):', hasSession)
-
-      let result: BackupStatus
       try {
-        // Attempt the call directly first
-        result = await w3pk.getBackupStatus()
+        const result = await w3pk.getBackupStatus()
+        return result
       } catch (initialError) {
-        console.error('Initial getBackupStatus failed:', initialError)
-
-        // If it fails due to auth requirement, attempt to login first
         if (
-          (initialError as Error).message?.includes('Must be authenticated') ||
-          (initialError as Error).message?.includes('login')
+          initialError instanceof Error &&
+          (initialError.message.includes('Must be authenticated') ||
+            initialError.message.includes('login'))
         ) {
-          console.log('Authentication required, prompting for fresh login...')
-          try {
-            await w3pk.login() // Attempt fresh login (likely WebAuthn)
-            console.log('Fresh authentication successful, retrying getBackupStatus...')
-            result = await w3pk.getBackupStatus() // Retry the operation
-          } catch (retryError) {
-            console.error('Retry after authentication failed:', retryError)
-            if (!isUserCancelledError(retryError)) {
-              toast({
-                title: 'Authentication Required',
-                description: 'Please authenticate to check backup status',
-                status: 'error',
-                duration: 5000,
-                isClosable: true,
-              })
-            }
-            throw retryError // Re-throw the retry error
-          }
-        } else {
-          // If the initial error wasn't auth-related, re-throw it
-          throw initialError
+          await w3pk.login()
+          const result = await w3pk.getBackupStatus()
+          return result
         }
+        throw initialError
       }
-
-      console.log('Backup Status retrieved:', result)
-      return result
     } catch (error) {
-      console.error('Error getting backup status:', error)
-      // Re-throw the error so the calling component can handle it (e.g., show toast)
+      if (!isUserCancelledError(error)) {
+        toast({
+          title: 'Authentication Required',
+          description: 'Please authenticate to check backup status',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        })
+      }
       throw error
     } finally {
       setIsLoading(false)
@@ -746,7 +517,7 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
 
   const createZipBackup = async (password: string): Promise<Blob> => {
     if (!isAuthenticated || !user) {
-      throw new Error('User not authenticated in context. Cannot create backup.')
+      throw new Error('User not authenticated. Cannot create backup.')
     }
 
     if (!w3pk || typeof w3pk.createZipBackup !== 'function') {
@@ -755,53 +526,32 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
 
     try {
       setIsLoading(true)
-      console.log('=== Creating ZIP Backup with w3pk SDK ===')
 
-      // Check if the SDK has an active session (this might be required for createZipBackup too)
-      const hasSession = w3pk.hasActiveSession?.() // Check if method exists
-      console.log('Active session check (createZipBackup):', hasSession)
-
-      let result: Blob
       try {
-        // Attempt the call directly first, passing the password
-        result = await w3pk.createZipBackup(password)
+        const result = await w3pk.createZipBackup(password)
+        return result
       } catch (initialError) {
-        console.error('Initial createZipBackup failed:', initialError)
-
-        // If it fails due to auth requirement, attempt to login first
         if (
-          (initialError as Error).message?.includes('Must be authenticated') ||
-          (initialError as Error).message?.includes('login')
+          initialError instanceof Error &&
+          (initialError.message.includes('Must be authenticated') ||
+            initialError.message.includes('login'))
         ) {
-          console.log('Authentication required, prompting for fresh login...')
-          try {
-            await w3pk.login() // Attempt fresh login (likely WebAuthn)
-            console.log('Fresh authentication successful, retrying createZipBackup...')
-            result = await w3pk.createZipBackup(password) // Retry the operation with password
-          } catch (retryError) {
-            console.error('Retry after authentication failed:', retryError)
-            if (!isUserCancelledError(retryError)) {
-              toast({
-                title: 'Authentication Required',
-                description: 'Please authenticate to create backup',
-                status: 'error',
-                duration: 5000,
-                isClosable: true,
-              })
-            }
-            throw retryError // Re-throw the retry error
-          }
-        } else {
-          // If the initial error wasn't auth-related, re-throw it
-          throw initialError
+          await w3pk.login()
+          const result = await w3pk.createZipBackup(password)
+          return result
         }
+        throw initialError
       }
-
-      console.log('ZIP Backup blob created successfully.')
-      return result
     } catch (error) {
-      console.error('Error creating backup:', error)
-      // Re-throw the error so the calling component can handle it
+      if (!isUserCancelledError(error)) {
+        toast({
+          title: 'Authentication Required',
+          description: 'Please authenticate to create backup',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        })
+      }
       throw error
     } finally {
       setIsLoading(false)
@@ -820,10 +570,9 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
         signMessage,
         deriveWallet,
         generateStealthAddress,
-        generateStealthAddressFor,
         getStealthKeys,
-        getBackupStatus, // Add the new method
-        createZipBackup, // Add the new method
+        getBackupStatus,
+        createZipBackup,
       }}
     >
       {children}
