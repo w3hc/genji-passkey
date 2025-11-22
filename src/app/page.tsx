@@ -11,10 +11,12 @@ import {
   useToast,
 } from '@chakra-ui/react'
 import { useW3PK } from '@/context/W3PK'
+import { useTranslation } from '@/hooks/useTranslation'
 import { useState, useEffect } from 'react'
 
 export default function Home() {
   const { isAuthenticated, user, login, signMessage, deriveWalletWithCustomTag } = useW3PK()
+  const t = useTranslation()
   const [mainAddress, setMainAddress] = useState<string>('')
   const [openbarAddress, setOpenbarAddress] = useState<string>('')
   const [openbarPrivateKey, setOpenbarPrivateKey] = useState<string>('')
@@ -96,23 +98,22 @@ export default function Home() {
           {isAuthenticated ? (
             <>
               <Heading as="h1" size="xl" mb={4}>
-                Welcome!
+                {t.home.title}
               </Heading>
               <Text mb={6} color="gray.400">
-                It&apos;s a pleasure to have you here!
+                {t.home.subtitle}
               </Text>
               <Box h="20px" />
             </>
           ) : (
             <>
               <Heading as="h1" size="xl" mb={4}>
-                Hello Anon!
+                {t.home.greeting}
               </Heading>
               <Text mb={6} color="gray.400">
-                Sit back, relax, and build something cool!
+                {t.home.greetingSubtitle}
               </Text>
               <Text fontSize="sm" color="gray.500">
-                Please{' '}
                 <Button
                   variant="link"
                   as="span"
@@ -124,7 +125,7 @@ export default function Home() {
                   onClick={login}
                   fontSize="sm"
                 >
-                  login
+                  {t.common.pleaseLogin}{' '}
                 </Button>
               </Text>
             </>

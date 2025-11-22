@@ -286,13 +286,20 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
         const errorMessage =
           error instanceof Error ? error.message : 'Failed to authenticate with w3pk'
 
-        toast({
-          title: 'Authentication Failed',
-          description: errorMessage,
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
-        })
+        // Silence passkey not available errors
+        const isPasskeyNotAvailable = errorMessage.includes('not available on this device') ||
+                                       errorMessage.includes('not available') ||
+                                       errorMessage.includes('restore your wallet from a backup')
+
+        if (!isPasskeyNotAvailable) {
+          toast({
+            title: 'Authentication Failed',
+            description: errorMessage,
+            status: 'error',
+            duration: 5000,
+            isClosable: true,
+          })
+        }
       }
       throw error
     } finally {
