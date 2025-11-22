@@ -194,7 +194,7 @@ export default function Header() {
                   _hover={{ color: 'white', textDecoration: 'underline' }}
                   onClick={onOpen}
                 >
-                  Register
+                  {t.common.register}
                 </Button>
                 <Button
                   bg="#8c1c84"
@@ -243,12 +243,12 @@ export default function Header() {
               <MenuList minWidth="auto">
                 <Link href="/about" color="white">
                   <MenuItem fontSize="md" px={4} py={3}>
-                    About
+                    {t.navigation.about}
                   </MenuItem>
                 </Link>
                 <Link href="/settings" color="white">
                   <MenuItem fontSize="md" px={4} py={3}>
-                    Settings
+                    {t.navigation.settings}
                   </MenuItem>
                 </Link>
               </MenuList>

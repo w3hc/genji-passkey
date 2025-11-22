@@ -57,6 +57,7 @@ import {
   FiUpload,
 } from 'react-icons/fi'
 import { useW3PK } from '../../../src/context/W3PK'
+import { useTranslation } from '@/hooks/useTranslation'
 import Spinner from '../../../src/components/Spinner'
 import PasswordModal from '../../components/PasswordModal'
 import { detectBrowser, isWebAuthnAvailable } from '../../../src/utils/browserDetection'
@@ -79,6 +80,7 @@ interface StoredAccount {
 }
 
 const SettingsPage = () => {
+  const t = useTranslation()
   const [backupStatus, setBackupStatus] = useState<string | null>(null)
   const [isCheckingStatus, setIsCheckingStatus] = useState(false)
   const [isCreatingBackup, setIsCreatingBackup] = useState(false)
@@ -362,10 +364,10 @@ const SettingsPage = () => {
         <VStack spacing={8} align="stretch">
           <Box textAlign="center">
             <Heading as="h1" size="xl" mb={4}>
-              Settings
+              {t.settings.title}
             </Heading>
             <Text fontSize="lg" color="gray.400">
-              Please login to access your settings
+              {t.settings.loginRequired}
             </Text>
           </Box>
 
@@ -969,7 +971,7 @@ const SettingsPage = () => {
         <VStack spacing={8} align="stretch">
           <Box textAlign="center">
             <Heading as="h1" size="xl" mb={4}>
-              Settings
+              {t.settings.title}
             </Heading>
             <Text fontSize="lg" color="gray.400">
               Manage your accounts, backups, and recovery options
