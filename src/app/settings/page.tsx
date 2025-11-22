@@ -1,7 +1,7 @@
 // app/settings/page.tsx
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Box,
   Button,
@@ -214,11 +214,7 @@ const SettingsPage = () => {
   }
 
   // Load accounts from localStorage
-  useEffect(() => {
-    loadAccounts()
-  }, [])
-
-  const loadAccounts = () => {
+  const loadAccounts = useCallback(() => {
     try {
       const storedAccounts: StoredAccount[] = []
 
@@ -285,7 +281,11 @@ const SettingsPage = () => {
     } catch (error) {
       console.error('Error loading accounts:', error)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    loadAccounts()
+  }, [loadAccounts])
 
   const handleDeleteAccount = (account: StoredAccount) => {
     setAccountToDelete(account)
@@ -380,12 +380,12 @@ const SettingsPage = () => {
     return (
       <Container maxW="container.md" py={20}>
         <VStack spacing={8} align="stretch">
-          <Box textAlign="center" mb={4}>
-            <Heading as="h1" size="2xl" mb={4}>
+          <Box textAlign="center">
+            <Heading as="h1" size="xl" mb={4}>
               Settings
             </Heading>
             <Text fontSize="lg" color="gray.400">
-              Please log in to access your settings
+              Please login to access your settings
             </Text>
           </Box>
 
@@ -854,13 +854,13 @@ const SettingsPage = () => {
 
   return (
     <>
-      <Container maxW="container.lg" py={10}>
+      <Container maxW="container.md" py={20}>
         <VStack spacing={8} align="stretch">
           <Box textAlign="center">
-            <Heading as="h1" size="2xl" mb={4}>
+            <Heading as="h1" size="xl" mb={4}>
               Settings
             </Heading>
-            <Text fontSize="xl" color="gray.400" mb={6}>
+            <Text fontSize="lg" color="gray.400">
               Manage your accounts, backups, and recovery options
             </Text>
           </Box>

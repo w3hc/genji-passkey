@@ -40,6 +40,4 @@ next-env.d.ts
 NOTES.md
 /zhankai
 /docs
-
-# Activity logs (contains user data)
-logs.md
+MAILING_LIST.txt
