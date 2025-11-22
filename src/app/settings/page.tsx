@@ -977,15 +977,15 @@ const SettingsPage = () => {
           </Box>
 
           <Tabs colorScheme="purple" variant="enclosed" size="lg">
-            <TabList>
-              <Tab>Accounts</Tab>
-              <Tab>Backup</Tab>
-              <Tab>Recovery</Tab>
-              <Tab>Sync</Tab>
+            <TabList role="tablist">
+              <Tab role="tab" aria-controls="accounts-panel">Accounts</Tab>
+              <Tab role="tab" aria-controls="backup-panel">Backup</Tab>
+              <Tab role="tab" aria-controls="recovery-panel">Recovery</Tab>
+              <Tab role="tab" aria-controls="sync-panel">Sync</Tab>
             </TabList>
 
             <TabPanels>
-              <TabPanel>
+              <TabPanel id="accounts-panel" role="tabpanel">
                 <VStack spacing={6} align="stretch">
                   <Box>
                     <Heading as="h2" size="lg" mb={4}>
@@ -1075,7 +1075,7 @@ const SettingsPage = () => {
                 </VStack>
               </TabPanel>
 
-              <TabPanel>
+              <TabPanel id="backup-panel" role="tabpanel">
                 <VStack spacing={8} align="stretch">
                   {/* Header */}
                   <Box>
@@ -1287,7 +1287,7 @@ const SettingsPage = () => {
                 </VStack>
               </TabPanel>
 
-              <TabPanel>
+              <TabPanel id="recovery-panel" role="tabpanel">
                 <VStack spacing={8} align="stretch">
                   <Box>
                     <Heading size="lg" mb={4}>
@@ -1500,7 +1500,7 @@ const SettingsPage = () => {
                 </VStack>
               </TabPanel>
 
-              <TabPanel>
+              <TabPanel id="sync-panel" role="tabpanel">
                 <VStack spacing={8} align="stretch">
                   <Box>
                     <Heading size="lg" mb={4}>
@@ -1739,10 +1739,10 @@ const SettingsPage = () => {
 
         <Modal isOpen={isOpen} onClose={onClose} isCentered>
           <ModalOverlay bg="blackAlpha.600" />
-          <ModalContent bg="gray.800" color="white">
-            <ModalHeader>Remove Account</ModalHeader>
+          <ModalContent bg="gray.800" color="white" role="alertdialog" aria-labelledby="delete-modal-title" aria-describedby="delete-modal-desc">
+            <ModalHeader id="delete-modal-title">Remove Account</ModalHeader>
             <ModalCloseButton />
-            <ModalBody>
+            <ModalBody id="delete-modal-desc">
               <VStack spacing={4} align="stretch">
                 <Text>
                   Are you sure you want to remove the account{' '}

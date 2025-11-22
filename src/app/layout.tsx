@@ -21,10 +21,15 @@ export default function RootLayout({
         <meta name="google" content="notranslate" />
       </head>
       <body className={inter.className}>
+        <a href="#main-content" className="skip-link">
+          Skip to main content
+        </a>
         <ContextProvider>
           <LanguageProvider>
             <Header />
-            <Box pt="72px">{children}</Box>
+            <Box as="main" id="main-content" pt="72px">
+              {children}
+            </Box>
           </LanguageProvider>
         </ContextProvider>
       </body>
