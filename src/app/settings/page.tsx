@@ -1,7 +1,7 @@
 // app/settings/page.tsx
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Box,
   Button,
@@ -214,11 +214,7 @@ const SettingsPage = () => {
   }
 
   // Load accounts from localStorage
-  useEffect(() => {
-    loadAccounts()
-  }, [])
-
-  const loadAccounts = () => {
+  const loadAccounts = useCallback(() => {
     try {
       const storedAccounts: StoredAccount[] = []
 
@@ -285,7 +281,11 @@ const SettingsPage = () => {
     } catch (error) {
       console.error('Error loading accounts:', error)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    loadAccounts()
+  }, [loadAccounts])
 
   const handleDeleteAccount = (account: StoredAccount) => {
     setAccountToDelete(account)
