@@ -113,7 +113,8 @@ export default function Home() {
               </Text>
               <Text fontSize="sm" color="gray.500">
                 Please{' '}
-                <Text
+                <Button
+                  variant="link"
                   as="span"
                   color="gray.500"
                   textDecorationStyle="dotted"
@@ -121,9 +122,10 @@ export default function Home() {
                   cursor="pointer"
                   _hover={{ color: 'gray.300' }}
                   onClick={login}
+                  fontSize="sm"
                 >
                   login
-                </Text>
+                </Button>
               </Text>
             </>
           )}

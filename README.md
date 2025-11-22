@@ -1,8 +1,10 @@
+[![WCAG 2.1 AA](https://img.shields.io/badge/WCAG-2.1%20AA-green.svg)](https://www.w3.org/WAI/WCAG21/quickref/?versions=2.1&levels=aa)
+
 # Genji Passkey
 
-Next.js Web3 starter with passkey auth.
+Next.js Web3 starter with passkey auth and [WCAG 2.1 AA compliant accessibility](https://www.levelaccess.com/understanding-wcag-emea/).
 
-Live demo: **https://w3pk.w3hc.org**
+Live demo: **https://genji.w3hc.org**
 
 - [Next.js](https://nextjs.org/) `v16.0.0`
 - [w3pk](https://github.com/w3hc/w3pk) `v0.7.6`

@@ -165,7 +165,7 @@ export default function Header() {
   return (
     <>
       <Box as="header" py={4} position="fixed" w="100%" top={0} zIndex={10}>
-        <Flex justify="space-between" align="center" px={4}>
+        <Flex as="nav" aria-label="Main navigation" justify="space-between" align="center" px={4}>
           <Box
             transform={`translateX(-${leftSlideValue}px)`}
             transition="transform 0.5s ease-in-out"
@@ -187,15 +187,15 @@ export default function Header() {
           >
             {!isAuthenticated ? (
               <Flex align="center" gap={3}>
-                <Text
+                <Button
+                  variant="link"
                   fontSize="sm"
                   color="gray.300"
-                  cursor="pointer"
                   _hover={{ color: 'white', textDecoration: 'underline' }}
                   onClick={onOpen}
                 >
                   Register
-                </Text>
+                </Button>
                 <Button
                   bg="#8c1c84"
                   color="white"
@@ -280,8 +280,11 @@ export default function Header() {
               </Text>
               <FormControl isInvalid={isUsernameInvalid}>
                 {' '}
-                <FormLabel>Username</FormLabel>
+                <FormLabel htmlFor="username-input">Username</FormLabel>
                 <Input
+                  id="username-input"
+                  aria-describedby={isUsernameInvalid && username.trim() ? 'username-error' : undefined}
+                  aria-invalid={isUsernameInvalid && username.trim() ? true : undefined}
                   value={username}
                   onChange={e => setUsername(e.target.value)}
                   placeholder="Enter your username"
@@ -293,14 +296,14 @@ export default function Header() {
                     borderColor: '#8c1c84',
                     boxShadow: '0 0 0 1px #8c1c84',
                   }}
-                  onKeyPress={e => {
+                  onKeyDown={e => {
                     if (e.key === 'Enter' && username.trim()) {
                       handleRegister()
                     }
                   }}
                 />
                 {isUsernameInvalid && username.trim() && (
-                  <FormErrorMessage>
+                  <FormErrorMessage id="username-error">
                     Username must be 3-50 characters long and contain only letters, numbers,
                     underscores, and hyphens. It must start and end with a letter or number.
                   </FormErrorMessage>

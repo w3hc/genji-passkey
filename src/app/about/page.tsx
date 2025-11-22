@@ -258,7 +258,7 @@ export default function About() {
         <Box pt={6} pb={12}>
           {/* Social Links */}
           <HStack spacing={4} justify="center" py={4} borderColor="gray.800" bg="gray.950">
-            <Link href="https://github.com/w3hc/w3pk" target="_blank" rel="noopener noreferrer">
+            <Link href="https://github.com/w3hc/w3pk" target="_blank" rel="noopener noreferrer" aria-label="View w3pk on GitHub (opens in new tab)">
               <Flex
                 align="center"
                 gap={2}
@@ -285,6 +285,7 @@ export default function About() {
               href="https://www.npmjs.com/package/w3pk"
               target="_blank"
               rel="noopener noreferrer"
+              aria-label="View w3pk on NPM (opens in new tab)"
             >
               <Flex
                 align="center"

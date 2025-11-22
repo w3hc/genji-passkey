@@ -134,22 +134,24 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
               placeholder="Enter your password"
               value={password}
               onChange={handlePasswordChange}
+              aria-describedby="password-requirements password-status"
+              aria-invalid={passwordTouched && !isPasswordStrong ? true : undefined}
               autoFocus
             />
             {passwordTouched && !isPasswordStrong && (
-              <FormErrorMessage>
+              <FormErrorMessage id="password-status">
                 Password does not meet all requirements
               </FormErrorMessage>
             )}
             {passwordTouched && isPasswordStrong && (
-              <FormHelperText color="green.400">
+              <FormHelperText id="password-status" color="green.400">
                 Strong password!
               </FormHelperText>
             )}
           </FormControl>
 
           {/* Password Requirements */}
-          <Box mt={4}>
+          <Box mt={4} id="password-requirements" aria-live="polite" aria-atomic="false">
             <Text fontSize="sm" fontWeight="bold" mb={2} color="white">
               Password must include:
             </Text>
@@ -160,6 +162,7 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
                   color={hasMinLength ? 'green.500' : 'gray.400'}
                 />
                 At least 12 characters
+                <span className="sr-only">{hasMinLength ? ' (satisfied)' : ' (required)'}</span>
               </ListItem>
               <ListItem color="white">
                 <ListIcon
@@ -167,6 +170,7 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
                   color={hasUpperCase ? 'green.500' : 'gray.400'}
                 />
                 One uppercase letter
+                <span className="sr-only">{hasUpperCase ? ' (satisfied)' : ' (required)'}</span>
               </ListItem>
               <ListItem color="white">
                 <ListIcon
@@ -174,6 +178,7 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
                   color={hasLowerCase ? 'green.500' : 'gray.400'}
                 />
                 One lowercase letter
+                <span className="sr-only">{hasLowerCase ? ' (satisfied)' : ' (required)'}</span>
               </ListItem>
               <ListItem color="white">
                 <ListIcon
@@ -181,6 +186,7 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
                   color={hasNumber ? 'green.500' : 'gray.400'}
                 />
                 One number
+                <span className="sr-only">{hasNumber ? ' (satisfied)' : ' (required)'}</span>
               </ListItem>
               <ListItem color="white">
                 <ListIcon
@@ -188,6 +194,7 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
                   color={hasSpecialChar ? 'green.500' : 'gray.400'}
                 />
                 One special character
+                <span className="sr-only">{hasSpecialChar ? ' (satisfied)' : ' (required)'}</span>
               </ListItem>
             </List>
           </Box>
