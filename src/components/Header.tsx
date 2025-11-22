@@ -241,9 +241,9 @@ export default function Header() {
                 size="sm"
               />
               <MenuList minWidth="auto">
-                <Link href="/sig" color="white">
+                <Link href="/about" color="white">
                   <MenuItem fontSize="md" px={4} py={3}>
-                    Sign message
+                    About
                   </MenuItem>
                 </Link>
                 <Link href="/settings" color="white">

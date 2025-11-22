@@ -385,7 +385,7 @@ const SettingsPage = () => {
               Settings
             </Heading>
             <Text fontSize="lg" color="gray.400">
-              Please log in to access your settings
+              Please login to access your settings
             </Text>
           </Box>
 
