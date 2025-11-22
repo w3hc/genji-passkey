@@ -24,51 +24,51 @@ export default function Home() {
   const toast = useToast()
 
   useEffect(() => {
-    const loadMainAddress = async () => {
-      if (isAuthenticated && user && !mainAddress) {
-        setIsLoadingMain(true)
-        try {
-          // const derivedWallet = await deriveWalletWithCustomTag('MAIN')
-          // setMainAddress(derivedWallet.address)
-          setMainAddress('0x890c216Be91830eC049530EA42F707ADC1C5eD39')
-        } catch (error) {
-          console.error('Failed to derive MAIN address:', error)
-        } finally {
-          setIsLoadingMain(false)
-        }
-      }
-    }
+    const loadAddresses = async () => {
+      if (isAuthenticated && user && (!mainAddress || !openbarAddress)) {
+        // Add a small delay to ensure W3PK session is fully established
+        await new Promise(resolve => setTimeout(resolve, 100))
 
-    loadMainAddress()
-  }, [isAuthenticated, user, deriveWalletWithCustomTag, mainAddress])
-
-  useEffect(() => {
-    const loadOpenbarAddress = async () => {
-      if (isAuthenticated && user && !openbarAddress) {
-        setIsLoadingOpenbar(true)
-        try {
-          const derivedWallet = await deriveWalletWithCustomTag('OPENBAR')
-          setOpenbarAddress(derivedWallet.address)
-          if (derivedWallet.privateKey) {
-            setOpenbarPrivateKey(derivedWallet.privateKey)
+        // Load MAIN address
+        if (!mainAddress) {
+          setIsLoadingMain(true)
+          try {
+            const derivedWallet = await deriveWalletWithCustomTag('MAIN')
+            setMainAddress(derivedWallet.address)
+          } catch (error) {
+            console.error('Failed to derive MAIN address:', error)
+          } finally {
+            setIsLoadingMain(false)
           }
-        } catch (error) {
-          console.error('Failed to derive OPENBAR address:', error)
-          toast({
-            title: 'Failed to Load OPENBAR Address',
-            description: error instanceof Error ? error.message : 'Unknown error occurred',
-            status: 'error',
-            duration: 5000,
-            isClosable: true,
-          })
-        } finally {
-          setIsLoadingOpenbar(false)
+        }
+
+        // Load OPENBAR address
+        if (!openbarAddress) {
+          setIsLoadingOpenbar(true)
+          try {
+            const derivedWallet = await deriveWalletWithCustomTag('OPENBAR')
+            setOpenbarAddress(derivedWallet.address)
+            if (derivedWallet.privateKey) {
+              setOpenbarPrivateKey(derivedWallet.privateKey)
+            }
+          } catch (error) {
+            console.error('Failed to derive OPENBAR address:', error)
+            toast({
+              title: 'Failed to Load OPENBAR Address',
+              description: error instanceof Error ? error.message : 'Unknown error occurred',
+              status: 'error',
+              duration: 5000,
+              isClosable: true,
+            })
+          } finally {
+            setIsLoadingOpenbar(false)
+          }
         }
       }
     }
 
-    loadOpenbarAddress()
-  }, [isAuthenticated, user, deriveWalletWithCustomTag, openbarAddress, toast])
+    loadAddresses()
+  }, [isAuthenticated, user, deriveWalletWithCustomTag, mainAddress, openbarAddress, toast])
 
   const handleSignMessage = async (addressType: string, address: string) => {
     const message = `Sign this message from ${addressType} address: ${address}`

@@ -380,8 +380,8 @@ const SettingsPage = () => {
     return (
       <Container maxW="container.md" py={20}>
         <VStack spacing={8} align="stretch">
-          <Box textAlign="center" mb={4}>
-            <Heading as="h1" size="2xl" mb={4}>
+          <Box textAlign="center">
+            <Heading as="h1" size="xl" mb={4}>
               Settings
             </Heading>
             <Text fontSize="lg" color="gray.400">
@@ -854,13 +854,13 @@ const SettingsPage = () => {
 
   return (
     <>
-      <Container maxW="container.lg" py={10}>
+      <Container maxW="container.md" py={20}>
         <VStack spacing={8} align="stretch">
           <Box textAlign="center">
-            <Heading as="h1" size="2xl" mb={4}>
+            <Heading as="h1" size="xl" mb={4}>
               Settings
             </Heading>
-            <Text fontSize="xl" color="gray.400" mb={6}>
+            <Text fontSize="lg" color="gray.400">
               Manage your accounts, backups, and recovery options
             </Text>
           </Box>
