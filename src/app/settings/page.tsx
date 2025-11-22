@@ -54,6 +54,7 @@ import {
   FiDownload,
   FiDatabase,
   FiHardDrive,
+  FiUpload,
 } from 'react-icons/fi'
 import { useW3PK } from '../../../src/context/W3PK'
 import Spinner from '../../../src/components/Spinner'
@@ -82,11 +83,13 @@ const SettingsPage = () => {
   const [isCheckingStatus, setIsCheckingStatus] = useState(false)
   const [isCreatingBackup, setIsCreatingBackup] = useState(false)
   const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [showRestorePasswordModal, setShowRestorePasswordModal] = useState(false)
+  const [selectedBackupFile, setSelectedBackupFile] = useState<string | null>(null)
+  const [isRestoring, setIsRestoring] = useState(false)
   const [accounts, setAccounts] = useState<StoredAccount[]>([])
   const [accountToDelete, setAccountToDelete] = useState<StoredAccount | null>(null)
   const { isOpen, onOpen, onClose } = useDisclosure()
 
-  // Storage inspection state
   const [localStorageData, setLocalStorageData] = useState<LocalStorageItem[]>([])
   const [indexedDBData, setIndexedDBData] = useState<IndexedDBInfo[]>([])
   const [isInspectingLocalStorage, setIsInspectingLocalStorage] = useState(false)
@@ -95,9 +98,8 @@ const SettingsPage = () => {
   const [showIndexedDBModal, setShowIndexedDBModal] = useState(false)
 
   const toast = useToast()
-  const { isAuthenticated, user, getBackupStatus, createZipBackup, logout } = useW3PK()
+  const { isAuthenticated, user, getBackupStatus, createZipBackup, restoreFromBackup, logout } = useW3PK()
 
-  // Handler functions (defined before the early return)
   const handleInspectLocalStorage = async () => {
     setIsInspectingLocalStorage(true)
     try {
@@ -156,7 +158,6 @@ const SettingsPage = () => {
   const handleClearLocalStorageItem = async (key: string) => {
     const success = clearLocalStorageItem(key)
     if (success) {
-      // Refresh the localStorage data
       const updatedData = localStorageData.filter(item => item.key !== key)
       setLocalStorageData(updatedData)
 
@@ -181,7 +182,6 @@ const SettingsPage = () => {
   const handleClearIndexedDBRecord = async (dbName: string, storeName: string, key: string) => {
     const success = await clearIndexedDBRecord(dbName, storeName, key)
     if (success) {
-      // Refresh the IndexedDB data
       const updatedData = indexedDBData.map(db => {
         if (db.name === dbName) {
           return {
@@ -213,28 +213,19 @@ const SettingsPage = () => {
     }
   }
 
-  // Load accounts from localStorage
   const loadAccounts = useCallback(() => {
     try {
       const storedAccounts: StoredAccount[] = []
 
-      // Check localStorage for w3pk stored data
       if (typeof window !== 'undefined' && window.localStorage) {
-        // Look for w3pk-related keys
         const keys = Object.keys(localStorage)
-        const w3pkKeys = keys.filter(key => key.startsWith('w3pk_') || key.includes('passkey'))
 
-        console.log('Found w3pk keys:', w3pkKeys)
-
-        // Try to extract account information
         keys.forEach(key => {
           try {
             const value = localStorage.getItem(key)
             if (value) {
-              // Try to parse as JSON
               try {
                 const parsed = JSON.parse(value)
-                // Check if it looks like user data
                 if (parsed.username && parsed.ethereumAddress) {
                   storedAccounts.push({
                     username: parsed.username,
@@ -242,9 +233,7 @@ const SettingsPage = () => {
                     id: parsed.id || parsed.username,
                     displayName: parsed.displayName,
                   })
-                }
-                // Check for nested user data
-                else if (parsed.user && parsed.user.username && parsed.user.ethereumAddress) {
+                } else if (parsed.user && parsed.user.username && parsed.user.ethereumAddress) {
                   storedAccounts.push({
                     username: parsed.user.username,
                     ethereumAddress: parsed.user.ethereumAddress,
@@ -253,16 +242,16 @@ const SettingsPage = () => {
                   })
                 }
               } catch (e) {
-                // Not JSON or doesn't contain user data
+                // Not JSON
               }
             }
           } catch (e) {
-            console.error('Error checking key:', key, e)
+            // Skip invalid keys
           }
         })
       }
 
-      // Add current user if authenticated and not already in the list
+
       if (user && !storedAccounts.find(acc => acc.ethereumAddress === user.ethereumAddress)) {
         storedAccounts.push({
           username: user.username,
@@ -272,7 +261,6 @@ const SettingsPage = () => {
         })
       }
 
-      // Remove duplicates based on ethereum address
       const uniqueAccounts = Array.from(
         new Map(storedAccounts.map(acc => [acc.ethereumAddress, acc])).values()
       )
@@ -296,17 +284,14 @@ const SettingsPage = () => {
     if (!accountToDelete) return
 
     try {
-      // Clear all localStorage data related to w3pk for this account
       if (typeof window !== 'undefined' && window.localStorage) {
         const keys = Object.keys(localStorage)
         const keysToRemove: string[] = []
 
-        // Find keys that contain the account information
         keys.forEach(key => {
           try {
             const value = localStorage.getItem(key)
             if (value) {
-              // Check if this key contains the account we want to delete
               if (
                 value.includes(accountToDelete.ethereumAddress) ||
                 value.includes(accountToDelete.username) ||
@@ -320,10 +305,8 @@ const SettingsPage = () => {
           }
         })
 
-        // Remove all identified keys
         keysToRemove.forEach(key => {
           localStorage.removeItem(key)
-          console.log('Removed key:', key)
         })
 
         toast({
@@ -348,7 +331,6 @@ const SettingsPage = () => {
           }, 2000)
         }
 
-        // Reload accounts
         loadAccounts()
       }
     } catch (error) {
@@ -367,11 +349,9 @@ const SettingsPage = () => {
   }
 
   if (!isAuthenticated || !getBackupStatus || !createZipBackup) {
-    // Detect browser information
     const browserInfo = detectBrowser()
     const webAuthnAvailable = isWebAuthnAvailable()
 
-    // Determine alert status based on browser compatibility
     let alertStatus: 'info' | 'warning' | 'error' = 'warning'
     if (browserInfo.warningLevel === 'error') alertStatus = 'error'
     else if (browserInfo.warningLevel === 'warning') alertStatus = 'warning'
@@ -389,7 +369,6 @@ const SettingsPage = () => {
             </Text>
           </Box>
 
-          {/* Browser Information Card */}
           <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
             <HStack mb={4}>
               <Icon as={InfoIcon} color="#8c1c84" boxSize={6} />
@@ -451,7 +430,6 @@ const SettingsPage = () => {
             </VStack>
           </Box>
 
-          {/* Compatibility Warning/Recommendation */}
           {browserInfo.recommendation && (
             <Alert
               status={alertStatus}
@@ -479,7 +457,6 @@ const SettingsPage = () => {
             </Alert>
           )}
 
-          {/* WebAuthn Not Available Warning */}
           {!webAuthnAvailable && (
             <Alert status="error" bg="red.900" borderRadius="lg" opacity={0.9}>
               <AlertIcon />
@@ -502,7 +479,6 @@ const SettingsPage = () => {
             </Alert>
           )}
 
-          {/* Additional Android Browser Recommendations */}
           {browserInfo.os === 'Android' && (
             <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
               <Heading size="sm" mb={3} color="#8c1c84">
@@ -555,7 +531,6 @@ const SettingsPage = () => {
             </Box>
           )}
 
-          {/* Storage Inspection Tools */}
           <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
             <Heading size="sm" mb={3} color="#8c1c84">
               Debug & Inspect Storage
@@ -589,7 +564,6 @@ const SettingsPage = () => {
             </SimpleGrid>
           </Box>
 
-          {/* LocalStorage Results */}
           {localStorageData.length > 0 && (
             <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="purple.600">
               <HStack mb={4} justify="space-between">
@@ -664,7 +638,6 @@ const SettingsPage = () => {
             </Box>
           )}
 
-          {/* IndexedDB Results */}
           {indexedDBData.length > 0 && (
             <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="purple.600">
               <HStack mb={4} justify="space-between">
@@ -744,7 +717,6 @@ const SettingsPage = () => {
             </Box>
           )}
 
-          {/* Login Prompt */}
           <Box bg="whiteAlpha.50" p={6} borderRadius="md" textAlign="center">
             <Alert status="info" bg="transparent" color="blue.200">
               <AlertIcon />
@@ -763,7 +735,6 @@ const SettingsPage = () => {
     setBackupStatus(null)
     try {
       const statusObject = await getBackupStatus()
-      console.log('Retrieved status object:', statusObject)
 
       if (
         statusObject &&
@@ -775,7 +746,6 @@ const SettingsPage = () => {
         const statusString = `Security Score: ${scoreValue}/100 (Level: ${scoreLevel})`
         setBackupStatus(statusString)
       } else {
-        console.error('Unexpected status object structure:', statusObject)
         setBackupStatus('Error: Unexpected status data format.')
       }
 
@@ -786,7 +756,6 @@ const SettingsPage = () => {
         isClosable: true,
       })
     } catch (error) {
-      console.error('Error getting backup status:', error)
       toast({
         title: 'Error retrieving status.',
         description: (error as Error).message || 'An unexpected error occurred.',
@@ -823,12 +792,32 @@ const SettingsPage = () => {
 
     try {
       const backupBlob = await createZipBackup(password)
-      const link = document.createElement('a')
-      link.href = URL.createObjectURL(backupBlob)
-      link.download = `w3pk_backup_${user?.username || 'user'}_${new Date().toISOString().slice(0, 10)}.zip`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
+
+      let fileExtension = '.zip'
+      let mimeType = 'application/zip'
+
+      try {
+        const fullText = await backupBlob.text()
+        JSON.parse(fullText)
+        fileExtension = '.json'
+        mimeType = 'application/json'
+
+        const jsonBlob = new Blob([fullText], { type: mimeType })
+
+        const link = document.createElement('a')
+        link.href = URL.createObjectURL(jsonBlob)
+        link.download = `w3pk_backup_${user?.username || 'user'}_${new Date().toISOString().slice(0, 10)}${fileExtension}`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      } catch {
+        const link = document.createElement('a')
+        link.href = URL.createObjectURL(backupBlob)
+        link.download = `w3pk_backup_${user?.username || 'user'}_${new Date().toISOString().slice(0, 10)}${fileExtension}`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      }
 
       toast({
         title: 'Backup Created Successfully!',
@@ -837,7 +826,6 @@ const SettingsPage = () => {
         isClosable: true,
       })
     } catch (error) {
-      console.error('Error creating backup:', error)
       toast({
         title: 'Error creating backup.',
         description: (error as Error).message || 'An unexpected error occurred.',
@@ -850,6 +838,129 @@ const SettingsPage = () => {
 
   const handleModalClose = () => {
     setShowPasswordModal(false)
+  }
+
+  const handleRestoreBackup = () => {
+    const fileInput = document.createElement('input')
+    fileInput.type = 'file'
+    fileInput.accept = '.zip,.json,.enc'
+    fileInput.onchange = async (e: Event) => {
+      const target = e.target as HTMLInputElement
+      const file = target.files?.[0]
+      if (!file) return
+
+      try {
+        const textContent = await file.text()
+
+        try {
+          JSON.parse(textContent)
+          setSelectedBackupFile(textContent)
+          setShowRestorePasswordModal(true)
+          return
+        } catch (jsonError) {
+          // Not JSON, try ZIP
+        }
+
+        if (file.name.endsWith('.zip')) {
+          const JSZip = (await import('jszip')).default
+
+          const arrayBuffer = await file.arrayBuffer()
+
+          try {
+            const zip = await JSZip.loadAsync(arrayBuffer)
+
+            const encFileName = Object.keys(zip.files).find(name =>
+              name.endsWith('.txt.enc') && !name.startsWith('__MACOSX') && !zip.files[name].dir
+            )
+
+            if (!encFileName) {
+              throw new Error('No encrypted recovery file found in ZIP backup')
+            }
+
+            const encryptedContent = await zip.files[encFileName].async('string')
+
+            setSelectedBackupFile(encryptedContent)
+            setShowRestorePasswordModal(true)
+          } catch (zipError) {
+            setSelectedBackupFile(textContent)
+            setShowRestorePasswordModal(true)
+          }
+        } else {
+          setSelectedBackupFile(textContent)
+          setShowRestorePasswordModal(true)
+        }
+      } catch (error) {
+        toast({
+          title: 'Error reading file',
+          description: (error as Error).message || 'Failed to read backup file',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        })
+      }
+    }
+    fileInput.click()
+  }
+
+  const handleRestorePasswordSubmit = async (password: string) => {
+    setShowRestorePasswordModal(false)
+
+    if (!selectedBackupFile) {
+      toast({
+        title: 'No backup file selected',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+      return
+    }
+
+    setIsRestoring(true)
+    try {
+      let backupToRestore = selectedBackupFile
+
+      try {
+        const backupObj = JSON.parse(selectedBackupFile)
+
+        if (backupObj['recovery-phrase.txt.enc']) {
+          const encryptedContent = backupObj['recovery-phrase.txt.enc']
+          backupToRestore = encryptedContent
+        } else if (!backupObj.version && (backupObj.encrypted || backupObj.mnemonic)) {
+          toast({
+            title: 'Incompatible Backup Version',
+            description: 'This backup was created with an older version of w3pk. Please create a new backup with the current version.',
+            status: 'warning',
+            duration: 8000,
+            isClosable: true,
+          })
+          setIsRestoring(false)
+          return
+        }
+      } catch (e) {
+        // Not JSON or parsing error
+      }
+
+      const result = await restoreFromBackup(backupToRestore, password)
+
+      toast({
+        title: 'Wallet Restored!',
+        description: `Successfully restored wallet: ${result.ethereumAddress.slice(0, 6)}...${result.ethereumAddress.slice(-4)}`,
+        status: 'success',
+        duration: 5000,
+        isClosable: true,
+      })
+
+      setSelectedBackupFile(null)
+    } catch (error) {
+      // Error toast shown in restoreFromBackup
+    } finally {
+      setIsRestoring(false)
+    }
+  }
+
+  const handleRestoreModalClose = () => {
+    setShowRestorePasswordModal(false)
+    setSelectedBackupFile(null)
   }
 
   return (
@@ -874,7 +985,6 @@ const SettingsPage = () => {
             </TabList>
 
             <TabPanels>
-              {/* Accounts Tab */}
               <TabPanel>
                 <VStack spacing={6} align="stretch">
                   <Box>
@@ -965,7 +1075,6 @@ const SettingsPage = () => {
                 </VStack>
               </TabPanel>
 
-              {/* Backup Tab */}
               <TabPanel>
                 <VStack spacing={8} align="stretch">
                   {/* Header */}
@@ -1042,8 +1151,7 @@ const SettingsPage = () => {
                     )}
                   </Box>
 
-                  {/* Actions */}
-                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+                  <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6}>
                     <Box
                       bg="gray.900"
                       p={6}
@@ -1068,7 +1176,7 @@ const SettingsPage = () => {
                         isLoading={isCheckingStatus}
                         spinner={<Spinner size="16px" />}
                         loadingText="Checking..."
-                        isDisabled={isCheckingStatus || isCreatingBackup}
+                        isDisabled={isCheckingStatus || isCreatingBackup || isRestoring}
                         width="full"
                       >
                         Check Status
@@ -1099,15 +1207,45 @@ const SettingsPage = () => {
                         isLoading={isCreatingBackup}
                         spinner={<Spinner size="16px" />}
                         loadingText="Creating..."
-                        isDisabled={isCheckingStatus || isCreatingBackup}
+                        isDisabled={isCheckingStatus || isCreatingBackup || isRestoring}
                         width="full"
                       >
                         Create Backup
                       </Button>
                     </Box>
+
+                    <Box
+                      bg="gray.900"
+                      p={6}
+                      borderRadius="lg"
+                      border="1px solid"
+                      borderColor="gray.700"
+                      _hover={{ borderColor: '#8c1c84', transform: 'translateY(-2px)' }}
+                      transition="all 0.2s"
+                    >
+                      <Icon as={FiUpload} color="#8c1c84" boxSize={6} mb={3} />
+                      <Heading size="sm" mb={3}>
+                        Restore from Backup
+                      </Heading>
+                      <Text fontSize="sm" color="gray.400" mb={4}>
+                        Restore your wallet from an encrypted backup file
+                      </Text>
+                      <Button
+                        bg="#8c1c84"
+                        color="white"
+                        _hover={{ bg: '#6d1566' }}
+                        onClick={handleRestoreBackup}
+                        isLoading={isRestoring}
+                        spinner={<Spinner size="16px" />}
+                        loadingText="Restoring..."
+                        isDisabled={isCheckingStatus || isCreatingBackup || isRestoring}
+                        width="full"
+                      >
+                        Restore Backup
+                      </Button>
+                    </Box>
                   </SimpleGrid>
 
-                  {/* Info Box */}
                   <Box
                     bg="gray.900"
                     p={6}
@@ -1149,7 +1287,6 @@ const SettingsPage = () => {
                 </VStack>
               </TabPanel>
 
-              {/* Recovery Tab */}
               <TabPanel>
                 <VStack spacing={8} align="stretch">
                   <Box>
@@ -1176,7 +1313,6 @@ const SettingsPage = () => {
                   </Alert>
 
                   <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                    {/* Layer 1: Passkey Sync */}
                     <Box
                       bg="gray.900"
                       p={6}
@@ -1217,7 +1353,6 @@ const SettingsPage = () => {
                       </List>
                     </Box>
 
-                    {/* Layer 2: Encrypted Backup */}
                     <Box
                       bg="gray.900"
                       p={6}
@@ -1258,7 +1393,6 @@ const SettingsPage = () => {
                       </List>
                     </Box>
 
-                    {/* Layer 3: Social Recovery */}
                     <Box
                       bg="gray.900"
                       p={6}
@@ -1299,7 +1433,6 @@ const SettingsPage = () => {
                       </List>
                     </Box>
 
-                    {/* Manual Mnemonic */}
                     <Box
                       bg="gray.900"
                       p={6}
@@ -1367,7 +1500,6 @@ const SettingsPage = () => {
                 </VStack>
               </TabPanel>
 
-              {/* Sync Tab */}
               <TabPanel>
                 <VStack spacing={8} align="stretch">
                   <Box>
@@ -1394,7 +1526,6 @@ const SettingsPage = () => {
                     </Box>
                   </Alert>
 
-                  {/* Platform Sync Info */}
                   <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
                     <Box
                       bg="gray.900"
@@ -1533,7 +1664,6 @@ const SettingsPage = () => {
                     </Box>
                   </SimpleGrid>
 
-                  {/* Important Notes */}
                   <Box
                     bg="gray.900"
                     p={6}
@@ -1599,7 +1729,14 @@ const SettingsPage = () => {
           description={`Please enter your password to create the backup. This is required by the w3pk SDK to access your encrypted wallet data.`}
         />
 
-        {/* Delete Confirmation Modal */}
+        <PasswordModal
+          isOpen={showRestorePasswordModal}
+          onClose={handleRestoreModalClose}
+          onSubmit={handleRestorePasswordSubmit}
+          title={`Enter Password to Restore Backup`}
+          description={`Please enter the password you used when creating this backup file.`}
+        />
+
         <Modal isOpen={isOpen} onClose={onClose} isCentered>
           <ModalOverlay bg="blackAlpha.600" />
           <ModalContent bg="gray.800" color="white">
@@ -1640,7 +1777,6 @@ const SettingsPage = () => {
           </ModalContent>
         </Modal>
 
-        {/* LocalStorage Inspection Modal */}
         <Modal
           isOpen={showLocalStorageModal}
           onClose={() => setShowLocalStorageModal(false)}
@@ -1728,7 +1864,6 @@ const SettingsPage = () => {
           </ModalContent>
         </Modal>
 
-        {/* IndexedDB Inspection Modal */}
         <Modal
           isOpen={showIndexedDBModal}
           onClose={() => setShowIndexedDBModal(false)}

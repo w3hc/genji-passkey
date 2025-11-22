@@ -65,6 +65,7 @@ interface W3pkType {
   deriveWalletWithCustomTag: (tag: string) => Promise<DerivedWallet>
   getBackupStatus: () => Promise<BackupStatus>
   createZipBackup: (password: string) => Promise<Blob>
+  restoreFromBackup: (backupData: string, password: string) => Promise<{ mnemonic: string; ethereumAddress: string }>
 }
 
 interface AuthStateData {
@@ -87,6 +88,9 @@ const W3PK = createContext<W3pkType>({
   },
   createZipBackup: async () => {
     throw new Error('createZipBackup not initialized')
+  },
+  restoreFromBackup: async () => {
+    throw new Error('restoreFromBackup not initialized')
   },
 })
 
@@ -567,6 +571,41 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
     }
   }
 
+  const restoreFromBackup = async (backupData: string, password: string): Promise<{ mnemonic: string; ethereumAddress: string }> => {
+    if (!w3pk || typeof w3pk.restoreFromBackup !== 'function') {
+      throw new Error('w3pk SDK does not support restoreFromBackup.')
+    }
+
+    try {
+      setIsLoading(true)
+
+      const result = await w3pk.restoreFromBackup(backupData, password)
+
+      toast({
+        title: 'Backup Restored Successfully!',
+        description: `Wallet restored: ${result.ethereumAddress}`,
+        status: 'success',
+        duration: 5000,
+        isClosable: true,
+      })
+
+      return result
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to restore from backup'
+
+      toast({
+        title: 'Restore Failed',
+        description: errorMessage,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      })
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <W3PK.Provider
       value={{
@@ -581,6 +620,7 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
         deriveWalletWithCustomTag,
         getBackupStatus,
         createZipBackup,
+        restoreFromBackup,
       }}
     >
       {children}
