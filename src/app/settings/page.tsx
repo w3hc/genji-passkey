@@ -84,8 +84,21 @@ const SettingsPage = () => {
   const [showLocalStorageModal, setShowLocalStorageModal] = useState(false)
   const [showIndexedDBModal, setShowIndexedDBModal] = useState(false)
 
-  const { isAuthenticated, user, getBackupStatus, createZipBackup, restoreFromBackup, logout } =
-    useW3PK()
+  const [index0Address, setIndex0Address] = useState<string>('')
+  const [mainAddress, setMainAddress] = useState<string>('')
+  const [openbarAddress, setOpenbarAddress] = useState<string>('')
+  const [isLoadingAddresses, setIsLoadingAddresses] = useState(false)
+
+  const {
+    isAuthenticated,
+    user,
+    getBackupStatus,
+    createZipBackup,
+    restoreFromBackup,
+    logout,
+    deriveWallet,
+    deriveWalletWithCustomTag,
+  } = useW3PK()
 
   const handleInspectLocalStorage = async () => {
     setIsInspectingLocalStorage(true)
@@ -252,6 +265,62 @@ const SettingsPage = () => {
   useEffect(() => {
     loadAccounts()
   }, [loadAccounts])
+
+  useEffect(() => {
+    const loadAddressesAndStatus = async () => {
+      if (isAuthenticated && user && deriveWallet && deriveWalletWithCustomTag) {
+        // Load addresses
+        setIsLoadingAddresses(true)
+        try {
+          const [index0Wallet, mainWallet, openbarWallet] = await Promise.all([
+            deriveWallet(0),
+            deriveWalletWithCustomTag('MAIN'),
+            deriveWalletWithCustomTag('OPENBAR'),
+          ])
+          setIndex0Address(index0Wallet.address)
+          setMainAddress(mainWallet.address)
+          setOpenbarAddress(openbarWallet.address)
+        } catch (error) {
+          console.error('Failed to load addresses:', error)
+        } finally {
+          setIsLoadingAddresses(false)
+        }
+
+        // Load security status automatically
+        if (getBackupStatus && !backupStatus && !isCheckingStatus) {
+          setIsCheckingStatus(true)
+          try {
+            const statusObject = await getBackupStatus()
+
+            if (
+              statusObject &&
+              statusObject.securityScore &&
+              typeof statusObject.securityScore.total === 'number'
+            ) {
+              const scoreValue = statusObject.securityScore.total
+              const scoreLevel = statusObject.securityScore.level || 'unknown'
+              const statusString = `Security Score: ${scoreValue}/100 (Level: ${scoreLevel})`
+              setBackupStatus(statusString)
+            }
+          } catch (error) {
+            console.error('Error loading backup status:', error)
+          } finally {
+            setIsCheckingStatus(false)
+          }
+        }
+      }
+    }
+
+    loadAddressesAndStatus()
+  }, [
+    isAuthenticated,
+    user,
+    deriveWallet,
+    deriveWalletWithCustomTag,
+    getBackupStatus,
+    backupStatus,
+    isCheckingStatus,
+  ])
 
   const handleDeleteAccount = (account: StoredAccount) => {
     setAccountToDelete(account)
@@ -938,14 +1007,16 @@ const SettingsPage = () => {
             gap={2}
             border="1px solid"
             borderColor="gray.700"
+            flexWrap={{ base: 'wrap', md: 'nowrap' }}
           >
             <TabsTrigger
               value="accounts"
-              px={6}
+              px={{ base: 3, md: 6 }}
               py={3}
               borderRadius="lg"
               fontWeight="medium"
               transition="all 0.2s"
+              fontSize={{ base: 'sm', md: 'md' }}
               _selected={{
                 bg: brandColors.primary,
                 color: 'white',
@@ -959,11 +1030,12 @@ const SettingsPage = () => {
             </TabsTrigger>
             <TabsTrigger
               value="backup"
-              px={6}
+              px={{ base: 3, md: 6 }}
               py={3}
               borderRadius="lg"
               fontWeight="medium"
               transition="all 0.2s"
+              fontSize={{ base: 'sm', md: 'md' }}
               _selected={{
                 bg: brandColors.primary,
                 color: 'white',
@@ -977,11 +1049,12 @@ const SettingsPage = () => {
             </TabsTrigger>
             <TabsTrigger
               value="sync"
-              px={6}
+              px={{ base: 3, md: 6 }}
               py={3}
               borderRadius="lg"
               fontWeight="medium"
               transition="all 0.2s"
+              fontSize={{ base: 'sm', md: 'md' }}
               _selected={{
                 bg: brandColors.primary,
                 color: 'white',
@@ -995,11 +1068,12 @@ const SettingsPage = () => {
             </TabsTrigger>
             <TabsTrigger
               value="recovery"
-              px={6}
+              px={{ base: 3, md: 6 }}
               py={3}
               borderRadius="lg"
               fontWeight="medium"
               transition="all 0.2s"
+              fontSize={{ base: 'sm', md: 'md' }}
               _selected={{
                 bg: brandColors.primary,
                 color: 'white',
@@ -1126,20 +1200,66 @@ const SettingsPage = () => {
                       {user?.displayName || user?.username}
                     </Text>
                   </HStack>
-                  <HStack>
-                    <Text fontSize="xs" color="gray.500">
-                      Address:
-                    </Text>
-                    <Code fontSize="xs" bg="gray.800" color="gray.300" px={2} py={1}>
-                      {user?.ethereumAddress}
-                    </Code>
-                  </HStack>
-                  <HStack>
-                    <Icon as={MdLock} color="blue.300" boxSize={3} />
-                    <Text fontSize="xs" color="blue.300">
-                      Your private key is encrypted client-side and never sent to the server
-                    </Text>
-                  </HStack>
+
+                  {isLoadingAddresses ? (
+                    <HStack justify="center" py={2}>
+                      <Spinner size="sm" />
+                      <Text fontSize="xs" color="gray.400">
+                        Loading addresses...
+                      </Text>
+                    </HStack>
+                  ) : (
+                    <>
+                      <Box>
+                        <Text fontSize="xs" color="gray.500" mb={1}>
+                          Index #0 address:
+                        </Text>
+                        <Code
+                          fontSize="xs"
+                          bg="gray.800"
+                          color="gray.300"
+                          px={2}
+                          py={1}
+                          display="block"
+                          wordBreak="break-all"
+                        >
+                          {index0Address || 'Loading...'}
+                        </Code>
+                      </Box>
+                      <Box>
+                        <Text fontSize="xs" color="gray.500" mb={1}>
+                          MAIN-tagged address:
+                        </Text>
+                        <Code
+                          fontSize="xs"
+                          bg="gray.800"
+                          color="gray.300"
+                          px={2}
+                          py={1}
+                          display="block"
+                          wordBreak="break-all"
+                        >
+                          {mainAddress || 'Loading...'}
+                        </Code>
+                      </Box>
+                      <Box>
+                        <Text fontSize="xs" color="gray.500" mb={1}>
+                          OPENBAR-tagged address:
+                        </Text>
+                        <Code
+                          fontSize="xs"
+                          bg="gray.800"
+                          color="gray.300"
+                          px={2}
+                          py={1}
+                          display="block"
+                          wordBreak="break-all"
+                        >
+                          {openbarAddress || 'Loading...'}
+                        </Code>
+                      </Box>
+                    </>
+                  )}
                 </VStack>
               </Box>
 
@@ -1158,7 +1278,7 @@ const SettingsPage = () => {
                   </HStack>
                 ) : (
                   <Text color="gray.300" fontSize="lg">
-                    {backupStatus || 'Click on the "Check Status" button'}
+                    {backupStatus || 'Loading...'}
                   </Text>
                 )}
               </Box>
@@ -1175,10 +1295,10 @@ const SettingsPage = () => {
                 >
                   <Icon as={MdInfo} color={brandColors.primary} boxSize={6} mb={3} />
                   <Heading size="sm" mb={3}>
-                    Check Backup Status
+                    Refresh Backup Status
                   </Heading>
                   <Text fontSize="sm" color="gray.400" mb={4}>
-                    Get your current security score and backup recommendations
+                    Reload your current security score and backup recommendations
                   </Text>
                   <Button
                     bg={brandColors.primary}
@@ -1191,7 +1311,7 @@ const SettingsPage = () => {
                     disabled={isCheckingStatus || isCreatingBackup || isRestoring}
                     width="full"
                   >
-                    Check Status
+                    Refresh Status
                   </Button>
                 </Box>
 
@@ -1335,21 +1455,21 @@ const SettingsPage = () => {
                     WebAuthn credentials automatically sync via platform services (iCloud Keychain,
                     Google Password Manager)
                   </Text>
-                  <ListRoot gap={2} fontSize="sm">
+                  <ListRoot gap={2} fontSize="sm" variant="plain">
                     <ListItem>
-                      <Icon as={FiCheckCircle} color="green.400" />
+                      <Icon as={FiCheckCircle} color="green.400" mr={2} />
                       Automatic (no user action needed)
                     </ListItem>
                     <ListItem>
-                      <Icon as={FiCheckCircle} color="green.400" />
+                      <Icon as={FiCheckCircle} color="green.400" mr={2} />
                       Instant recovery on new device
                     </ListItem>
                     <ListItem>
-                      <Icon as={FiCheckCircle} color="green.400" />
+                      <Icon as={FiCheckCircle} color="green.400" mr={2} />
                       Hardware-protected security
                     </ListItem>
                     <ListItem>
-                      <Icon as={MdWarning} color="yellow.400" />
+                      <Icon as={MdWarning} color="yellow.400" mr={2} />
                       Platform-specific (Apple/Google)
                     </ListItem>
                   </ListRoot>
@@ -1375,21 +1495,21 @@ const SettingsPage = () => {
                     Password-protected ZIP files or QR codes that you can store offline or in the
                     cloud
                   </Text>
-                  <ListRoot gap={2} fontSize="sm">
+                  <ListRoot gap={2} fontSize="sm" variant="plain">
                     <ListItem>
-                      <Icon as={FiCheckCircle} color="green.400" />
+                      <Icon as={FiCheckCircle} color="green.400" mr={2} />
                       Works across any platform
                     </ListItem>
                     <ListItem>
-                      <Icon as={FiCheckCircle} color="green.400" />
+                      <Icon as={FiCheckCircle} color="green.400" mr={2} />
                       Military-grade encryption (AES-256-GCM)
                     </ListItem>
                     <ListItem>
-                      <Icon as={FiCheckCircle} color="green.400" />
+                      <Icon as={FiCheckCircle} color="green.400" mr={2} />
                       Multiple backup formats
                     </ListItem>
                     <ListItem>
-                      <Icon as={MdWarning} color="yellow.400" />
+                      <Icon as={MdWarning} color="yellow.400" mr={2} />
                       Must remember password
                     </ListItem>
                   </ListRoot>
@@ -1415,21 +1535,21 @@ const SettingsPage = () => {
                     Split your recovery phrase among trusted friends/family using Shamir Secret
                     Sharing (e.g., 3-of-5)
                   </Text>
-                  <ListRoot gap={2} fontSize="sm">
+                  <ListRoot gap={2} fontSize="sm" variant="plain">
                     <ListItem>
-                      <Icon as={FiCheckCircle} color="green.400" />
+                      <Icon as={FiCheckCircle} color="green.400" mr={2} />
                       No single point of failure
                     </ListItem>
                     <ListItem>
-                      <Icon as={FiCheckCircle} color="green.400" />
+                      <Icon as={FiCheckCircle} color="green.400" mr={2} />
                       Information-theoretic security
                     </ListItem>
                     <ListItem>
-                      <Icon as={FiCheckCircle} color="green.400" />
+                      <Icon as={FiCheckCircle} color="green.400" mr={2} />
                       Survives forgotten passwords
                     </ListItem>
                     <ListItem>
-                      <Icon as={MdWarning} color="yellow.400" />
+                      <Icon as={MdWarning} color="yellow.400" mr={2} />
                       Requires trusted guardians
                     </ListItem>
                   </ListRoot>
@@ -1455,21 +1575,21 @@ const SettingsPage = () => {
                     Your 12-word recovery phrase - the ultimate backup that works with any
                     BIP39-compatible wallet
                   </Text>
-                  <ListRoot gap={2} fontSize="sm">
+                  <ListRoot gap={2} fontSize="sm" variant="plain">
                     <ListItem>
-                      <Icon as={FiCheckCircle} color="green.400" />
+                      <Icon as={FiCheckCircle} color="green.400" mr={2} />
                       Compatible with MetaMask, Ledger, etc.
                     </ListItem>
                     <ListItem>
-                      <Icon as={FiCheckCircle} color="green.400" />
+                      <Icon as={FiCheckCircle} color="green.400" mr={2} />
                       Never changes
                     </ListItem>
                     <ListItem>
-                      <Icon as={FiCheckCircle} color="green.400" />
+                      <Icon as={FiCheckCircle} color="green.400" mr={2} />
                       Simple and universal
                     </ListItem>
                     <ListItem>
-                      <Icon as={MdWarning} color="yellow.400" />
+                      <Icon as={MdWarning} color="yellow.400" mr={2} />
                       Keep it absolutely secret
                     </ListItem>
                   </ListRoot>
@@ -1496,10 +1616,11 @@ const SettingsPage = () => {
                   rel="noopener noreferrer"
                 >
                   <Button
-                    bg="white"
-                    color={brandColors.accent}
-                    _hover={{ bg: 'gray.100' }}
+                    bg={brandColors.accent}
+                    color="white"
+                    _hover={{ bg: '#3690e0' }}
                     size="sm"
+                    px={6}
                   >
                     View Documentation
                   </Button>
@@ -1547,21 +1668,21 @@ const SettingsPage = () => {
                   <Text fontSize="sm" color="gray.400" mb={4}>
                     For iOS and macOS devices with iCloud Keychain enabled
                   </Text>
-                  <ListRoot gap={2} fontSize="sm" color="gray.400">
+                  <ListRoot gap={2} fontSize="sm" color="gray.400" variant="plain">
                     <ListItem>
-                      <Icon as={MdCheckCircle} color="green.400" />
+                      <Icon as={MdCheckCircle} color="green.400" mr={2} />
                       Syncs across iPhone, iPad, and Mac
                     </ListItem>
                     <ListItem>
-                      <Icon as={MdCheckCircle} color="green.400" />
+                      <Icon as={MdCheckCircle} color="green.400" mr={2} />
                       End-to-end encrypted
                     </ListItem>
                     <ListItem>
-                      <Icon as={MdCheckCircle} color="green.400" />
+                      <Icon as={MdCheckCircle} color="green.400" mr={2} />
                       Automatic backup to iCloud
                     </ListItem>
                     <ListItem>
-                      <Icon as={MdWarning} color="yellow.400" />
+                      <Icon as={MdWarning} color="yellow.400" mr={2} />
                       Requires iCloud Keychain enabled
                     </ListItem>
                   </ListRoot>
@@ -1581,21 +1702,21 @@ const SettingsPage = () => {
                   <Text fontSize="sm" color="gray.400" mb={4}>
                     For Android devices and Chrome browser
                   </Text>
-                  <ListRoot gap={2} fontSize="sm" color="gray.400">
+                  <ListRoot gap={2} fontSize="sm" color="gray.400" variant="plain">
                     <ListItem>
-                      <Icon as={MdCheckCircle} color="green.400" />
+                      <Icon as={MdCheckCircle} color="green.400" mr={2} />
                       Syncs across Android devices
                     </ListItem>
                     <ListItem>
-                      <Icon as={MdCheckCircle} color="green.400" />
+                      <Icon as={MdCheckCircle} color="green.400" mr={2} />
                       End-to-end encrypted
                     </ListItem>
                     <ListItem>
-                      <Icon as={MdCheckCircle} color="green.400" />
+                      <Icon as={MdCheckCircle} color="green.400" mr={2} />
                       Automatic backup to Google account
                     </ListItem>
                     <ListItem>
-                      <Icon as={MdWarning} color="yellow.400" />
+                      <Icon as={MdWarning} color="yellow.400" mr={2} />
                       Requires Google account sync
                     </ListItem>
                   </ListRoot>
@@ -1615,21 +1736,21 @@ const SettingsPage = () => {
                   <Text fontSize="sm" color="gray.400" mb={4}>
                     For Windows devices with Windows Hello
                   </Text>
-                  <ListRoot gap={2} fontSize="sm" color="gray.400">
+                  <ListRoot gap={2} fontSize="sm" color="gray.400" variant="plain">
                     <ListItem>
-                      <Icon as={MdCheckCircle} color="green.400" />
+                      <Icon as={MdCheckCircle} color="green.400" mr={2} />
                       Hardware-protected (TPM)
                     </ListItem>
                     <ListItem>
-                      <Icon as={MdWarning} color="yellow.400" />
+                      <Icon as={MdWarning} color="yellow.400" mr={2} />
                       Tied to specific device
                     </ListItem>
                     <ListItem>
-                      <Icon as={MdWarning} color="yellow.400" />
+                      <Icon as={MdWarning} color="yellow.400" mr={2} />
                       Does NOT sync by default
                     </ListItem>
                     <ListItem>
-                      <Icon as={MdInfo} color="blue.400" />
+                      <Icon as={MdInfo} color="blue.400" mr={2} />
                       Use encrypted backup for new devices
                     </ListItem>
                   </ListRoot>
@@ -1649,21 +1770,21 @@ const SettingsPage = () => {
                   <Text fontSize="sm" color="gray.400" mb={4}>
                     Physical security keys like YubiKey
                   </Text>
-                  <ListRoot gap={2} fontSize="sm" color="gray.400">
+                  <ListRoot gap={2} fontSize="sm" color="gray.400" variant="plain">
                     <ListItem>
-                      <Icon as={MdCheckCircle} color="green.400" />
+                      <Icon as={MdCheckCircle} color="green.400" mr={2} />
                       Maximum security
                     </ListItem>
                     <ListItem>
-                      <Icon as={MdCheckCircle} color="green.400" />
+                      <Icon as={MdCheckCircle} color="green.400" mr={2} />
                       Physical device required
                     </ListItem>
                     <ListItem>
-                      <Icon as={MdWarning} color="yellow.400" />
+                      <Icon as={MdWarning} color="yellow.400" mr={2} />
                       No automatic sync
                     </ListItem>
                     <ListItem>
-                      <Icon as={MdInfo} color="blue.400" />
+                      <Icon as={MdInfo} color="blue.400" mr={2} />
                       Keep encrypted backup separately
                     </ListItem>
                   </ListRoot>
@@ -1712,10 +1833,11 @@ const SettingsPage = () => {
                   rel="noopener noreferrer"
                 >
                   <Button
-                    bg="white"
-                    color={brandColors.accent}
-                    _hover={{ bg: 'gray.100' }}
+                    bg={brandColors.accent}
+                    color="white"
+                    _hover={{ bg: '#3690e0' }}
                     size="sm"
+                    px={6}
                   >
                     View Security Docs
                   </Button>
@@ -1755,35 +1877,39 @@ const SettingsPage = () => {
                 <Dialog.Title>Remove Account</Dialog.Title>
               </Dialog.Header>
               <Dialog.Body pt={4}>
-            <VStack gap={4} align="stretch">
-              <Text>
-                Are you sure you want to remove the account{' '}
-                <strong>{accountToDelete?.username}</strong>?
-              </Text>
-              <Box bg="red.900" p={3} borderRadius="md">
-                <Text fontSize="sm" color="red.200">
-                  <strong>Warning:</strong> This will delete all data for this account from this
-                  device. Make sure you have a backup before proceeding. This action cannot be
-                  undone.
-                </Text>
-              </Box>
-              {user?.ethereumAddress === accountToDelete?.ethereumAddress && (
-                <Box bg="orange.900" p={3} borderRadius="md">
-                  <Text fontSize="sm" color="orange.200">
-                    This is your currently logged-in account. You will be logged out after removal.
+                <VStack gap={4} align="stretch">
+                  <Text>
+                    Are you sure you want to remove the account{' '}
+                    <strong>{accountToDelete?.username}</strong>?
                   </Text>
-                </Box>
-              )}
-            </VStack>
+                  <Box bg="red.900" p={3} borderRadius="md">
+                    <Text fontSize="sm" color="red.200">
+                      <strong>Warning:</strong> This will delete all data for this account from this
+                      device. Make sure you have a backup before proceeding. This action cannot be
+                      undone.
+                    </Text>
+                  </Box>
+                  {user?.ethereumAddress === accountToDelete?.ethereumAddress && (
+                    <Box bg="orange.900" p={3} borderRadius="md">
+                      <Text fontSize="sm" color="orange.200">
+                        This is your currently logged-in account. You will be logged out after
+                        removal.
+                      </Text>
+                    </Box>
+                  )}
+                </VStack>
               </Dialog.Body>
 
               <Dialog.Footer gap={3} pt={6}>
                 <Dialog.ActionTrigger asChild>
-                  <Button variant="outline">
-                    Cancel
-                  </Button>
+                  <Button variant="outline">Cancel</Button>
                 </Dialog.ActionTrigger>
-                <Button colorPalette="red" onClick={confirmDeleteAccount}>
+                <Button
+                  bg={brandColors.accent}
+                  color="white"
+                  _hover={{ bg: '#3690e0' }}
+                  onClick={confirmDeleteAccount}
+                >
                   Remove Account
                 </Button>
               </Dialog.Footer>
@@ -1813,63 +1939,63 @@ const SettingsPage = () => {
                 </Dialog.Title>
               </Dialog.Header>
               <Dialog.Body pt={4}>
-            <VStack align="stretch" gap={4}>
-              <Text fontSize="sm" color="gray.400">
-                Found {localStorageData.length} items in localStorage
-              </Text>
+                <VStack align="stretch" gap={4}>
+                  <Text fontSize="sm" color="gray.400">
+                    Found {localStorageData.length} items in localStorage
+                  </Text>
 
-              {localStorageData.length === 0 ? (
-                <Box bg="gray.900" p={4} borderRadius="md" textAlign="center">
-                  <Text color="gray.500">No data found</Text>
-                </Box>
-              ) : (
-                localStorageData.map((item, index) => (
-                  <Box
-                    key={index}
-                    bg="gray.900"
-                    p={4}
-                    borderRadius="md"
-                    border="1px solid"
-                    borderColor={item.type.startsWith('w3pk') ? 'purple.600' : 'gray.700'}
-                  >
-                    <VStack align="stretch" gap={2}>
-                      <HStack justify="space-between">
-                        <Text fontSize="sm" fontWeight="bold" color="white">
-                          {item.key}
-                        </Text>
-                        <HStack gap={2}>
-                          {item.encrypted && (
-                            <Badge colorPalette="orange" fontSize="xs">
-                              Encrypted
-                            </Badge>
+                  {localStorageData.length === 0 ? (
+                    <Box bg="gray.900" p={4} borderRadius="md" textAlign="center">
+                      <Text color="gray.500">No data found</Text>
+                    </Box>
+                  ) : (
+                    localStorageData.map((item, index) => (
+                      <Box
+                        key={index}
+                        bg="gray.900"
+                        p={4}
+                        borderRadius="md"
+                        border="1px solid"
+                        borderColor={item.type.startsWith('w3pk') ? 'purple.600' : 'gray.700'}
+                      >
+                        <VStack align="stretch" gap={2}>
+                          <HStack justify="space-between">
+                            <Text fontSize="sm" fontWeight="bold" color="white">
+                              {item.key}
+                            </Text>
+                            <HStack gap={2}>
+                              {item.encrypted && (
+                                <Badge colorPalette="orange" fontSize="xs">
+                                  Encrypted
+                                </Badge>
+                              )}
+                              <Badge
+                                colorPalette={item.type.startsWith('w3pk') ? 'purple' : 'gray'}
+                                fontSize="xs"
+                              >
+                                {item.type}
+                              </Badge>
+                            </HStack>
+                          </HStack>
+
+                          {item.parsedValue && (
+                            <Box bg="gray.950" p={3} borderRadius="md" overflowX="auto">
+                              <CodeBlock>
+                                {formatValue(maskSensitiveData(item.key, item.parsedValue))}
+                              </CodeBlock>
+                            </Box>
                           )}
-                          <Badge
-                            colorPalette={item.type.startsWith('w3pk') ? 'purple' : 'gray'}
-                            fontSize="xs"
-                          >
-                            {item.type}
-                          </Badge>
-                        </HStack>
-                      </HStack>
 
-                      {item.parsedValue && (
-                        <Box bg="gray.950" p={3} borderRadius="md" overflowX="auto">
-                          <CodeBlock>
-                            {formatValue(maskSensitiveData(item.key, item.parsedValue))}
-                          </CodeBlock>
-                        </Box>
-                      )}
-
-                      {!item.parsedValue && (
-                        <Text fontSize="xs" color="gray.500" fontFamily="monospace">
-                          {item.value}
-                        </Text>
-                      )}
-                    </VStack>
-                  </Box>
-                ))
-              )}
-            </VStack>
+                          {!item.parsedValue && (
+                            <Text fontSize="xs" color="gray.500" fontFamily="monospace">
+                              {item.value}
+                            </Text>
+                          )}
+                        </VStack>
+                      </Box>
+                    ))
+                  )}
+                </VStack>
               </Dialog.Body>
               <Dialog.Footer gap={3} pt={6}>
                 <Button onClick={() => setShowLocalStorageModal(false)}>Close</Button>
@@ -1900,71 +2026,71 @@ const SettingsPage = () => {
                 </Dialog.Title>
               </Dialog.Header>
               <Dialog.Body pt={4}>
-            <VStack align="stretch" gap={4}>
-              <Text fontSize="sm" color="gray.400">
-                Found {indexedDBData.length} database(s)
-              </Text>
+                <VStack align="stretch" gap={4}>
+                  <Text fontSize="sm" color="gray.400">
+                    Found {indexedDBData.length} database(s)
+                  </Text>
 
-              {indexedDBData.length === 0 ? (
-                <Box bg="gray.900" p={4} borderRadius="md" textAlign="center">
-                  <Text color="gray.500">No w3pk-related databases found</Text>
-                </Box>
-              ) : (
-                indexedDBData.map((db, dbIndex) => (
-                  <Box
-                    key={dbIndex}
-                    bg="gray.900"
-                    p={4}
-                    borderRadius="md"
-                    border="1px solid"
-                    borderColor="purple.600"
-                  >
-                    <VStack align="stretch" gap={3}>
-                      <HStack justify="space-between">
-                        <Text fontSize="md" fontWeight="bold" color="white">
-                          {db.name}
-                        </Text>
-                        <Badge colorPalette="purple" fontSize="xs">
-                          v{db.version}
-                        </Badge>
-                      </HStack>
+                  {indexedDBData.length === 0 ? (
+                    <Box bg="gray.900" p={4} borderRadius="md" textAlign="center">
+                      <Text color="gray.500">No w3pk-related databases found</Text>
+                    </Box>
+                  ) : (
+                    indexedDBData.map((db, dbIndex) => (
+                      <Box
+                        key={dbIndex}
+                        bg="gray.900"
+                        p={4}
+                        borderRadius="md"
+                        border="1px solid"
+                        borderColor="purple.600"
+                      >
+                        <VStack align="stretch" gap={3}>
+                          <HStack justify="space-between">
+                            <Text fontSize="md" fontWeight="bold" color="white">
+                              {db.name}
+                            </Text>
+                            <Badge colorPalette="purple" fontSize="xs">
+                              v{db.version}
+                            </Badge>
+                          </HStack>
 
-                      <Text fontSize="xs" color="gray.400">
-                        Stores: {db.stores.join(', ')}
-                      </Text>
+                          <Text fontSize="xs" color="gray.400">
+                            Stores: {db.stores.join(', ')}
+                          </Text>
 
-                      <Text fontSize="xs" color="gray.400">
-                        Records: {db.records.length}
-                      </Text>
+                          <Text fontSize="xs" color="gray.400">
+                            Records: {db.records.length}
+                          </Text>
 
-                      {db.records.length > 0 && (
-                        <VStack align="stretch" gap={2} mt={2}>
-                          {db.records.map((record, recordIndex) => (
-                            <Box
-                              key={recordIndex}
-                              bg="gray.950"
-                              p={3}
-                              borderRadius="md"
-                              border="1px solid"
-                              borderColor="gray.800"
-                            >
-                              <Text fontSize="xs" color="gray.400" mb={2}>
-                                Store: {record.store} | Key: {record.key}
-                              </Text>
-                              <Box overflowX="auto">
-                                <CodeBlock>
-                                  {formatValue(maskSensitiveData(record.key, record.value))}
-                                </CodeBlock>
-                              </Box>
-                            </Box>
-                          ))}
+                          {db.records.length > 0 && (
+                            <VStack align="stretch" gap={2} mt={2}>
+                              {db.records.map((record, recordIndex) => (
+                                <Box
+                                  key={recordIndex}
+                                  bg="gray.950"
+                                  p={3}
+                                  borderRadius="md"
+                                  border="1px solid"
+                                  borderColor="gray.800"
+                                >
+                                  <Text fontSize="xs" color="gray.400" mb={2}>
+                                    Store: {record.store} | Key: {record.key}
+                                  </Text>
+                                  <Box overflowX="auto">
+                                    <CodeBlock>
+                                      {formatValue(maskSensitiveData(record.key, record.value))}
+                                    </CodeBlock>
+                                  </Box>
+                                </Box>
+                              ))}
+                            </VStack>
+                          )}
                         </VStack>
-                      )}
-                    </VStack>
-                  </Box>
-                ))
-              )}
-            </VStack>
+                      </Box>
+                    ))
+                  )}
+                </VStack>
               </Dialog.Body>
               <Dialog.Footer gap={3} pt={6}>
                 <Button onClick={() => setShowIndexedDBModal(false)}>Close</Button>

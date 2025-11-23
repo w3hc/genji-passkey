@@ -124,7 +124,7 @@ export default function Home() {
       {isAuthenticated && user && (
         <>
           <SimpleGrid columns={{ base: 1, md: 2 }} gap={6}>
-            <Box p={6} borderWidth="1px" borderRadius="lg" borderColor="gray.600" bg="gray.800">
+            <Box p={6} borderWidth="1px" borderRadius="lg" borderColor="gray.700" bg="gray.900">
               <VStack gap={4} align="stretch">
                 <Heading as="h3" size="md">
                   Default Derived Address
@@ -136,7 +136,9 @@ export default function Home() {
                   Private key cannot be displayed (secure MAIN wallet)
                 </Text>
                 <Button
-                  colorPalette="blue"
+                  bg="brand.accent"
+                  color="white"
+                  _hover={{ bg: 'brand.accent', opacity: 0.9 }}
                   onClick={() => handleSignMessage('default', mainAddress)}
                   disabled={!mainAddress || isLoadingMain}
                 >
@@ -145,7 +147,7 @@ export default function Home() {
               </VStack>
             </Box>
 
-            <Box p={6} borderWidth="1px" borderRadius="lg" borderColor="gray.600" bg="gray.800">
+            <Box p={6} borderWidth="1px" borderRadius="lg" borderColor="gray.700" bg="gray.900">
               <VStack gap={4} align="stretch">
                 <Heading as="h3" size="md">
                   OPENBAR Tagged Address
@@ -180,7 +182,9 @@ export default function Home() {
                   </Box>
                 )}
                 <Button
-                  colorPalette="blue"
+                  bg="brand.accent"
+                  color="white"
+                  _hover={{ bg: 'brand.accent', opacity: 0.9 }}
                   onClick={() => handleSignMessage('OPENBAR', openbarAddress)}
                   disabled={!openbarAddress || isLoadingOpenbar}
                 >
