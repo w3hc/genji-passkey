@@ -9,7 +9,7 @@ Live demo: **https://genji.w3hc.org**
 - [Next.js](https://nextjs.org/) `v16.0.3`
 - [w3pk](https://github.com/w3hc/w3pk) `v0.7.7`
 - [Ethers](https://docs.ethers.org/) `v6.15.0`
-- [Chakra UI](https://chakra-ui.com/) `v2.10.9`
+- [Chakra UI](https://chakra-ui.com/) `v3.30.0`
 
 ## Install
 
@@ -18,14 +18,6 @@ pnpm i
 ```
 
 ## Run
-
-Create a `.env` file:
-
-```bash
-cp .env.template .env
-```
-
-Then:
 
 ```bash
 pnpm dev

@@ -65,7 +65,10 @@ interface W3pkType {
   deriveWalletWithCustomTag: (tag: string) => Promise<DerivedWallet>
   getBackupStatus: () => Promise<BackupStatus>
   createZipBackup: (password: string) => Promise<Blob>
-  restoreFromBackup: (backupData: string, password: string) => Promise<{ mnemonic: string; ethereumAddress: string }>
+  restoreFromBackup: (
+    backupData: string,
+    password: string
+  ) => Promise<{ mnemonic: string; ethereumAddress: string }>
 }
 
 interface AuthStateData {
@@ -160,7 +163,6 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
     () =>
       createWeb3Passkey({
         stealthAddresses: {},
-        debug: process.env.NODE_ENV === 'development',
         onAuthStateChanged: handleAuthStateChanged,
         sessionDuration: 24, // 24 hours session duration
       }),
@@ -283,9 +285,10 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
           error instanceof Error ? error.message : 'Failed to authenticate with w3pk'
 
         // Silence passkey not available errors
-        const isPasskeyNotAvailable = errorMessage.includes('not available on this device') ||
-                                       errorMessage.includes('not available') ||
-                                       errorMessage.includes('restore your wallet from a backup')
+        const isPasskeyNotAvailable =
+          errorMessage.includes('not available on this device') ||
+          errorMessage.includes('not available') ||
+          errorMessage.includes('restore your wallet from a backup')
 
         if (!isPasskeyNotAvailable) {
           toaster.create({
@@ -564,7 +567,10 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
     }
   }
 
-  const restoreFromBackup = async (backupData: string, password: string): Promise<{ mnemonic: string; ethereumAddress: string }> => {
+  const restoreFromBackup = async (
+    backupData: string,
+    password: string
+  ): Promise<{ mnemonic: string; ethereumAddress: string }> => {
     if (!w3pk || typeof w3pk.restoreFromBackup !== 'function') {
       throw new Error('w3pk SDK does not support restoreFromBackup.')
     }
