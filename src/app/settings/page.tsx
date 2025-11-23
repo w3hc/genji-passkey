@@ -15,13 +15,6 @@ import {
   TabsTrigger,
   IconButton,
   useDisclosure,
-  DialogRoot,
-  DialogBackdrop,
-  DialogContent,
-  DialogHeader,
-  DialogFooter,
-  DialogBody,
-  DialogCloseTrigger,
   HStack,
   SimpleGrid,
   Icon,
@@ -30,7 +23,9 @@ import {
   Badge,
   Link as ChakraLink,
   Flex,
+  CloseButton,
 } from '@chakra-ui/react'
+import { Dialog, Portal } from '@/components/ui/dialog'
 import { toaster } from '@/components/ui/toaster'
 import { MdDelete, MdCheckCircle, MdWarning, MdInfo, MdDownload, MdLock } from 'react-icons/md'
 import {
@@ -1747,21 +1742,19 @@ const SettingsPage = () => {
         description={`Please enter the password you used when creating this backup file.`}
       />
 
-      <DialogRoot
+      <Dialog.Root
         open={isOpen}
         onOpenChange={(e: { open: boolean }) => (e.open ? null : onClose())}
+        role="alertdialog"
       >
-        <DialogBackdrop bg="blackAlpha.600" />
-        <DialogContent
-          bg="gray.800"
-          color="white"
-          role="alertdialog"
-          aria-labelledby="delete-modal-title"
-          aria-describedby="delete-modal-desc"
-        >
-          <DialogHeader id="delete-modal-title">Remove Account</DialogHeader>
-          <DialogCloseTrigger />
-          <DialogBody id="delete-modal-desc">
+        <Portal>
+          <Dialog.Backdrop />
+          <Dialog.Positioner>
+            <Dialog.Content p={6}>
+              <Dialog.Header>
+                <Dialog.Title>Remove Account</Dialog.Title>
+              </Dialog.Header>
+              <Dialog.Body pt={4}>
             <VStack gap={4} align="stretch">
               <Text>
                 Are you sure you want to remove the account{' '}
@@ -1782,35 +1775,44 @@ const SettingsPage = () => {
                 </Box>
               )}
             </VStack>
-          </DialogBody>
+              </Dialog.Body>
 
-          <DialogFooter>
-            <Button variant="ghost" mr={3} onClick={onClose}>
-              Cancel
-            </Button>
-            <Button colorPalette="red" onClick={confirmDeleteAccount}>
-              Remove Account
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </DialogRoot>
+              <Dialog.Footer gap={3} pt={6}>
+                <Dialog.ActionTrigger asChild>
+                  <Button variant="outline">
+                    Cancel
+                  </Button>
+                </Dialog.ActionTrigger>
+                <Button colorPalette="red" onClick={confirmDeleteAccount}>
+                  Remove Account
+                </Button>
+              </Dialog.Footer>
+              <Dialog.CloseTrigger asChild>
+                <CloseButton size="sm" />
+              </Dialog.CloseTrigger>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
 
-      <DialogRoot
+      <Dialog.Root
         open={showLocalStorageModal}
         onOpenChange={(e: { open: boolean }) => (e.open ? null : setShowLocalStorageModal(false))}
         size="xl"
-        scrollBehavior="inside"
       >
-        <DialogBackdrop bg="blackAlpha.600" />
-        <DialogContent bg="gray.800" color="white" maxH="80vh">
-          <DialogHeader>
-            <HStack>
-              <Icon as={FiHardDrive} color={brandColors.primary} />
-              <Text>LocalStorage Inspection</Text>
-            </HStack>
-          </DialogHeader>
-          <DialogCloseTrigger />
-          <DialogBody>
+        <Portal>
+          <Dialog.Backdrop />
+          <Dialog.Positioner>
+            <Dialog.Content p={6}>
+              <Dialog.Header>
+                <Dialog.Title>
+                  <HStack>
+                    <Icon as={FiHardDrive} />
+                    <Text>LocalStorage Inspection</Text>
+                  </HStack>
+                </Dialog.Title>
+              </Dialog.Header>
+              <Dialog.Body pt={4}>
             <VStack align="stretch" gap={4}>
               <Text fontSize="sm" color="gray.400">
                 Found {localStorageData.length} items in localStorage
@@ -1868,29 +1870,36 @@ const SettingsPage = () => {
                 ))
               )}
             </VStack>
-          </DialogBody>
-          <DialogFooter>
-            <Button onClick={() => setShowLocalStorageModal(false)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </DialogRoot>
+              </Dialog.Body>
+              <Dialog.Footer gap={3} pt={6}>
+                <Button onClick={() => setShowLocalStorageModal(false)}>Close</Button>
+              </Dialog.Footer>
+              <Dialog.CloseTrigger asChild>
+                <CloseButton size="sm" />
+              </Dialog.CloseTrigger>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
 
-      <DialogRoot
+      <Dialog.Root
         open={showIndexedDBModal}
         onOpenChange={(e: { open: boolean }) => (e.open ? null : setShowIndexedDBModal(false))}
         size="xl"
-        scrollBehavior="inside"
       >
-        <DialogBackdrop bg="blackAlpha.600" />
-        <DialogContent bg="gray.800" color="white" maxH="80vh">
-          <DialogHeader>
-            <HStack>
-              <Icon as={FiDatabase} color={brandColors.primary} />
-              <Text>IndexedDB Inspection</Text>
-            </HStack>
-          </DialogHeader>
-          <DialogCloseTrigger />
-          <DialogBody>
+        <Portal>
+          <Dialog.Backdrop />
+          <Dialog.Positioner>
+            <Dialog.Content p={6}>
+              <Dialog.Header>
+                <Dialog.Title>
+                  <HStack>
+                    <Icon as={FiDatabase} />
+                    <Text>IndexedDB Inspection</Text>
+                  </HStack>
+                </Dialog.Title>
+              </Dialog.Header>
+              <Dialog.Body pt={4}>
             <VStack align="stretch" gap={4}>
               <Text fontSize="sm" color="gray.400">
                 Found {indexedDBData.length} database(s)
@@ -1956,12 +1965,17 @@ const SettingsPage = () => {
                 ))
               )}
             </VStack>
-          </DialogBody>
-          <DialogFooter>
-            <Button onClick={() => setShowIndexedDBModal(false)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </DialogRoot>
+              </Dialog.Body>
+              <Dialog.Footer gap={3} pt={6}>
+                <Button onClick={() => setShowIndexedDBModal(false)}>Close</Button>
+              </Dialog.Footer>
+              <Dialog.CloseTrigger asChild>
+                <CloseButton size="sm" />
+              </Dialog.CloseTrigger>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
     </>
   )
 }

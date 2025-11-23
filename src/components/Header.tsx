@@ -9,22 +9,14 @@ import {
   useDisclosure,
   VStack,
   Link as ChakraLink,
-  Portal,
+  CloseButton,
 } from '@chakra-ui/react'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
 import { Input } from '@/components/ui/input'
 import { Field } from '@/components/ui/field'
 import { MenuRoot, MenuTrigger, MenuPositioner, MenuContent, MenuItem } from '@/components/ui/menu'
-import {
-  DialogRoot,
-  DialogBackdrop,
-  DialogContent,
-  DialogHeader,
-  DialogFooter,
-  DialogBody,
-  DialogCloseTrigger,
-} from '@/components/ui/dialog'
+import { Dialog, Portal } from '@/components/ui/dialog'
 import Link from 'next/link'
 import { HiMenu } from 'react-icons/hi'
 import LanguageSelector from './LanguageSelector'
@@ -262,15 +254,18 @@ export default function Header() {
       </Box>
 
       {/* Registration Modal */}
-      <DialogRoot
+      <Dialog.Root
         open={isOpen}
         onOpenChange={(e: { open: boolean }) => (e.open ? null : handleModalClose())}
       >
-        <DialogBackdrop />
-        <DialogContent bg="gray.800" color="white">
-          <DialogHeader>Register New Account</DialogHeader>
-          <DialogCloseTrigger />
-          <DialogBody>
+        <Portal>
+          <Dialog.Backdrop />
+          <Dialog.Positioner>
+            <Dialog.Content p={6}>
+              <Dialog.Header>
+                <Dialog.Title>Register New Account</Dialog.Title>
+              </Dialog.Header>
+              <Dialog.Body pt={4}>
             <VStack gap={4}>
               <Text fontSize="sm" color="gray.400">
                 An Ethereum wallet will be created and securely stored on your device, protected by
@@ -295,14 +290,7 @@ export default function Header() {
                   value={username}
                   onChange={e => setUsername(e.target.value)}
                   placeholder="Enter your username"
-                  bg="gray.700"
-                  border="1px solid"
-                  borderColor="gray.600"
-                  _hover={{ borderColor: 'gray.500' }}
-                  _focus={{
-                    borderColor: brandColors.primary,
-                    boxShadow: `0 0 0 1px ${brandColors.primary}`,
-                  }}
+                  pl={3}
                   onKeyDown={e => {
                     if (e.key === 'Enter' && username.trim()) {
                       handleRegister()
@@ -317,25 +305,30 @@ export default function Header() {
                 )}
               </Field>
             </VStack>
-          </DialogBody>
+              </Dialog.Body>
 
-          <DialogFooter>
-            <Button variant="ghost" mr={3} onClick={handleModalClose}>
-              Cancel
-            </Button>
-            <Button
-              bg={brandColors.primary}
-              color="white"
-              _hover={{ bg: brandColors.secondary }}
-              onClick={handleRegister}
-              disabled={!username.trim()}
-            >
-              {isRegistering && <Spinner size="16px" />}
-              {!isRegistering && 'Create Account'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </DialogRoot>
+              <Dialog.Footer gap={3} pt={6}>
+                <Dialog.ActionTrigger asChild>
+                  <Button variant="outline">
+                    Cancel
+                  </Button>
+                </Dialog.ActionTrigger>
+                <Button
+                  colorPalette="blue"
+                  onClick={handleRegister}
+                  disabled={!username.trim()}
+                >
+                  {isRegistering && <Spinner size="16px" />}
+                  {!isRegistering && 'Create Account'}
+                </Button>
+              </Dialog.Footer>
+              <Dialog.CloseTrigger asChild>
+                <CloseButton size="sm" />
+              </Dialog.CloseTrigger>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
     </>
   )
 }

@@ -1,14 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Text, Box, Flex } from '@chakra-ui/react'
-import {
-  DialogRoot,
-  DialogBackdrop,
-  DialogContent,
-  DialogHeader,
-  DialogFooter,
-  DialogBody,
-  DialogCloseTrigger,
-} from '@/components/ui/dialog'
+import { Text, Box, Flex, CloseButton } from '@chakra-ui/react'
+import { Dialog, Portal } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ListRoot, ListItem } from '@/components/ui/list'
@@ -108,12 +100,18 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
   const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
 
   return (
-    <DialogRoot open={isOpen} onOpenChange={(e: { open: boolean }) => e.open ? null : handleClose()} size="lg">
-      <DialogBackdrop />
-      <DialogContent>
-        <DialogHeader>{title}</DialogHeader>
-        <DialogCloseTrigger />
-        <DialogBody pb={6}>
+    <Dialog.Root
+      open={isOpen}
+      onOpenChange={(e: { open: boolean }) => (e.open ? null : handleClose())}
+    >
+      <Portal>
+        <Dialog.Backdrop />
+        <Dialog.Positioner>
+          <Dialog.Content p={6}>
+            <Dialog.Header>
+              <Dialog.Title>{title}</Dialog.Title>
+            </Dialog.Header>
+            <Dialog.Body pt={4}>
           <Text mb={4}>{description}</Text>
           <Field required invalid={passwordTouched && !isPasswordStrong}>
             <Field.Label htmlFor="password">Password</Field.Label>
@@ -126,6 +124,7 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
               aria-describedby="password-requirements password-status"
               aria-invalid={passwordTouched && !isPasswordStrong ? true : undefined}
               autoFocus
+              pl={3}
             />
             {passwordTouched && !isPasswordStrong && (
               <Field.ErrorText id="password-status">
@@ -144,61 +143,57 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
             <Text fontSize="sm" fontWeight="bold" mb={2} color="white">
               Password must include:
             </Text>
-            <ListRoot gap={1} fontSize="sm">
-              <ListItem color="white">
-                <Flex align="center" gap={2}>
-                  {hasMinLength ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
-                  At least 12 characters
-                </Flex>
-                <span className="sr-only">{hasMinLength ? ' (satisfied)' : ' (required)'}</span>
-              </ListItem>
-              <ListItem color="white">
-                <Flex align="center" gap={2}>
-                  {hasUpperCase ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
-                  One uppercase letter
-                </Flex>
-                <span className="sr-only">{hasUpperCase ? ' (satisfied)' : ' (required)'}</span>
-              </ListItem>
-              <ListItem color="white">
-                <Flex align="center" gap={2}>
-                  {hasLowerCase ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
-                  One lowercase letter
-                </Flex>
-                <span className="sr-only">{hasLowerCase ? ' (satisfied)' : ' (required)'}</span>
-              </ListItem>
-              <ListItem color="white">
-                <Flex align="center" gap={2}>
-                  {hasNumber ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
-                  One number
-                </Flex>
-                <span className="sr-only">{hasNumber ? ' (satisfied)' : ' (required)'}</span>
-              </ListItem>
-              <ListItem color="white">
-                <Flex align="center" gap={2}>
-                  {hasSpecialChar ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
-                  One special character
-                </Flex>
-                <span className="sr-only">{hasSpecialChar ? ' (satisfied)' : ' (required)'}</span>
-              </ListItem>
-            </ListRoot>
-          </Box>
-        </DialogBody>
+            <Flex align="center" gap={2}>
+              {hasMinLength ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
+              At least 12 characters
+              <span className="sr-only">{hasMinLength ? ' (satisfied)' : ' (required)'}</span>
+            </Flex>
 
-        <DialogFooter>
-          <Button onClick={handleClose} mr={3} variant="outline">
-            Cancel
-          </Button>
-          <Button
-            colorPalette="blue"
-            onClick={handleSubmit}
-            loading={isSubmitting}
-            disabled={!isPasswordStrong}
-          >
-            Submit
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </DialogRoot>
+            <Flex align="center" gap={2}>
+              {hasUpperCase ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
+              One uppercase letter
+            </Flex>
+            <span className="sr-only">{hasUpperCase ? ' (satisfied)' : ' (required)'}</span>
+            <Flex align="center" gap={2}>
+              {hasLowerCase ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
+              One lowercase letter
+            </Flex>
+            <span className="sr-only">{hasLowerCase ? ' (satisfied)' : ' (required)'}</span>
+            <Flex align="center" gap={2}>
+              {hasNumber ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
+              One number
+            </Flex>
+            <span className="sr-only">{hasNumber ? ' (satisfied)' : ' (required)'}</span>
+            <Flex align="center" gap={2}>
+              {hasSpecialChar ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
+              One special character
+            </Flex>
+            <span className="sr-only">{hasSpecialChar ? ' (satisfied)' : ' (required)'}</span>
+          </Box>
+            </Dialog.Body>
+
+            <Dialog.Footer gap={3} pt={6}>
+              <Dialog.ActionTrigger asChild>
+                <Button variant="outline">
+                  Cancel
+                </Button>
+              </Dialog.ActionTrigger>
+              <Button
+                colorPalette="blue"
+                onClick={handleSubmit}
+                loading={isSubmitting}
+                disabled={!isPasswordStrong}
+              >
+                Submit
+              </Button>
+            </Dialog.Footer>
+            <Dialog.CloseTrigger asChild>
+              <CloseButton size="sm" />
+            </Dialog.CloseTrigger>
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Portal>
+    </Dialog.Root>
   )
 }
 
