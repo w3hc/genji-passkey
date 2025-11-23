@@ -3,7 +3,9 @@
 import React from 'react'
 import { useLanguage } from '@/context/LanguageContext'
 import { Language } from '@/utils/i18n'
-import { IconButton, MenuRoot, MenuTrigger, MenuPositioner, MenuContent, MenuItem, Text, Flex, Box, Portal } from '@chakra-ui/react'
+import { Text, Flex, Box, Portal } from '@chakra-ui/react'
+import { IconButton } from '@/components/ui/icon-button'
+import { MenuRoot, MenuTrigger, MenuPositioner, MenuContent, MenuItem } from '@/components/ui/menu'
 import { MdLanguage } from 'react-icons/md'
 
 const LanguageSelector: React.FC = () => {

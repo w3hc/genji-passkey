@@ -1,6 +1,7 @@
 'use client'
 
-import { Text, VStack, Box, Heading, SimpleGrid, Button } from '@chakra-ui/react'
+import { Text, VStack, Box, Heading, SimpleGrid } from '@chakra-ui/react'
+import { Button } from '@/components/ui/button'
 import { useW3PK } from '@/context/W3PK'
 import { useTranslation } from '@/hooks/useTranslation'
 import { useState, useEffect } from 'react'

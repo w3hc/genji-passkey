@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { Text, Box, Flex } from '@chakra-ui/react'
 import {
   DialogRoot,
   DialogBackdrop,
@@ -7,14 +8,10 @@ import {
   DialogFooter,
   DialogBody,
   DialogCloseTrigger,
-  Button,
-  Input,
-  Text,
-  ListRoot,
-  ListItem,
-  Box,
-  Flex,
-} from '@chakra-ui/react'
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { ListRoot, ListItem } from '@/components/ui/list'
 import { Field } from '@/components/ui/field'
 import { MdCheckCircle, MdWarning } from 'react-icons/md'
 import { isStrongPassword } from 'w3pk'

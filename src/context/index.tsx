@@ -18,11 +18,11 @@ const W3pkProvider = dynamic(() => import('./W3PK').then(mod => ({ default: mod.
 
 const ContextProvider = memo(function ContextProvider({ children }: { children: ReactNode }) {
   return (
-    <ChakraProvider value={defaultSystem}>
-      <ColorModeProvider defaultTheme="dark">
+    <ColorModeProvider defaultTheme="dark">
+      <ChakraProvider value={defaultSystem}>
         <W3pkProvider>{children}</W3pkProvider>
-      </ColorModeProvider>
-    </ChakraProvider>
+      </ChakraProvider>
+    </ColorModeProvider>
   )
 })
 

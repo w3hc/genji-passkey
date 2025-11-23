@@ -941,15 +941,90 @@ const SettingsPage = () => {
           </Text>
         </Box>
 
-        <TabsRoot colorPalette="purple" variant="enclosed" size="lg">
-          <TabsList>
-            <TabsTrigger value="accounts">Accounts</TabsTrigger>
-            <TabsTrigger value="backup">Backup</TabsTrigger>
-            <TabsTrigger value="recovery">Recovery</TabsTrigger>
-            <TabsTrigger value="sync">Sync</TabsTrigger>
+        <TabsRoot colorPalette="purple" variant="plain" size="lg" defaultValue="accounts">
+          <TabsList
+            bg="gray.900"
+            p={2}
+            borderRadius="xl"
+            gap={2}
+            border="1px solid"
+            borderColor="gray.700"
+          >
+            <TabsTrigger
+              value="accounts"
+              px={6}
+              py={3}
+              borderRadius="lg"
+              fontWeight="medium"
+              transition="all 0.2s"
+              _selected={{
+                bg: brandColors.primary,
+                color: 'white',
+                shadow: 'lg',
+              }}
+              _hover={{
+                bg: 'gray.800',
+              }}
+            >
+              Accounts
+            </TabsTrigger>
+            <TabsTrigger
+              value="backup"
+              px={6}
+              py={3}
+              borderRadius="lg"
+              fontWeight="medium"
+              transition="all 0.2s"
+              _selected={{
+                bg: brandColors.primary,
+                color: 'white',
+                shadow: 'lg',
+              }}
+              _hover={{
+                bg: 'gray.800',
+              }}
+            >
+              Backup
+            </TabsTrigger>
+            <TabsTrigger
+              value="sync"
+              px={6}
+              py={3}
+              borderRadius="lg"
+              fontWeight="medium"
+              transition="all 0.2s"
+              _selected={{
+                bg: brandColors.primary,
+                color: 'white',
+                shadow: 'lg',
+              }}
+              _hover={{
+                bg: 'gray.800',
+              }}
+            >
+              Sync
+            </TabsTrigger>
+            <TabsTrigger
+              value="recovery"
+              px={6}
+              py={3}
+              borderRadius="lg"
+              fontWeight="medium"
+              transition="all 0.2s"
+              _selected={{
+                bg: brandColors.primary,
+                color: 'white',
+                shadow: 'lg',
+              }}
+              _hover={{
+                bg: 'gray.800',
+              }}
+            >
+              Social recovery
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="accounts">
+          <TabsContent value="accounts" pt={8}>
             <VStack gap={6} align="stretch">
               <Box>
                 <Heading as="h2" size="lg" mb={4}>
@@ -1035,7 +1110,7 @@ const SettingsPage = () => {
             </VStack>
           </TabsContent>
 
-          <TabsContent value="backup">
+          <TabsContent value="backup" pt={8}>
             <VStack gap={8} align="stretch">
               {/* Header */}
               <Box>
@@ -1226,7 +1301,7 @@ const SettingsPage = () => {
             </VStack>
           </TabsContent>
 
-          <TabsContent value="recovery">
+          <TabsContent value="recovery" pt={8}>
             <VStack gap={8} align="stretch">
               <Box>
                 <Heading size="lg" mb={4}>
@@ -1444,7 +1519,7 @@ const SettingsPage = () => {
             </VStack>
           </TabsContent>
 
-          <TabsContent value="sync">
+          <TabsContent value="sync" pt={8}>
             <VStack gap={8} align="stretch">
               <Box>
                 <Heading size="lg" mb={4}>

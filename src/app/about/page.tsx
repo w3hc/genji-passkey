@@ -1,17 +1,8 @@
 'use client'
 
-import {
-  Heading,
-  Text,
-  Box,
-  VStack,
-  HStack,
-  Flex,
-  Link,
-  Icon,
-  Input,
-  Button,
-} from '@chakra-ui/react'
+import { Heading, Text, Box, VStack, HStack, Flex, Link, Icon } from '@chakra-ui/react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { brandColors } from '@/theme'
 import { FaGithub, FaNpm } from 'react-icons/fa'
 import { useState } from 'react'
@@ -262,7 +253,7 @@ export default function About() {
 
       <Box pt={6} pb={12}>
         {/* Social Links */}
-        <HStack gap={4} justify="center" py={4} borderColor="gray.800" bg="gray.950">
+        <HStack gap={4} justify="center" py={4} borderColor="gray.800">
           <Link
             href="https://github.com/w3hc/w3pk"
             target="_blank"
