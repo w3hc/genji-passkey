@@ -48,6 +48,7 @@ import { useW3PK } from '../../../src/context/W3PK'
 import { useTranslation } from '@/hooks/useTranslation'
 import Spinner from '../../../src/components/Spinner'
 import PasswordModal from '../../components/PasswordModal'
+import { CodeBlock } from '@/components/CodeBlock'
 import { detectBrowser, isWebAuthnAvailable } from '../../../src/utils/browserDetection'
 import { brandColors } from '@/theme'
 import {
@@ -381,7 +382,7 @@ const SettingsPage = () => {
               <Text fontSize="sm" color="gray.400">
                 WebAuthn Support:
               </Text>
-              <Badge colorScheme={webAuthnAvailable ? 'green' : 'red'}>
+              <Badge colorPalette={webAuthnAvailable ? 'green' : 'red'}>
                 {webAuthnAvailable ? 'Available' : 'Not Available'}
               </Badge>
             </HStack>
@@ -390,7 +391,7 @@ const SettingsPage = () => {
                 Compatibility:
               </Text>
               <Badge
-                colorScheme={
+                colorPalette={
                   browserInfo.isSupported && !browserInfo.hasKnownIssues
                     ? 'green'
                     : browserInfo.hasKnownIssues
@@ -519,7 +520,7 @@ const SettingsPage = () => {
               loading={isInspectingLocalStorage}
               loadingText="Inspecting..."
               variant="outline"
-              colorScheme="purple"
+              colorPalette="purple"
               size="sm"
             >
               <Icon as={FiHardDrive} mr={2} />
@@ -530,7 +531,7 @@ const SettingsPage = () => {
               loading={isInspectingIndexedDB}
               loadingText="Inspecting..."
               variant="outline"
-              colorScheme="purple"
+              colorPalette="purple"
               size="sm"
             >
               <Icon as={FiDatabase} mr={2} />
@@ -546,7 +547,7 @@ const SettingsPage = () => {
                 <Icon as={FiHardDrive} color={brandColors.primary} boxSize={6} />
                 <Heading size="md">LocalStorage Results</Heading>
               </HStack>
-              <Badge colorScheme="purple">{localStorageData.length} items</Badge>
+              <Badge colorPalette="purple">{localStorageData.length} items</Badge>
             </HStack>
             <VStack align="stretch" gap={3}>
               {localStorageData.map((item, index) => (
@@ -565,12 +566,12 @@ const SettingsPage = () => {
                       </Text>
                       <HStack gap={2}>
                         {item.encrypted && (
-                          <Badge colorScheme="orange" fontSize="xs">
+                          <Badge colorPalette="orange" fontSize="xs">
                             Encrypted
                           </Badge>
                         )}
                         <Badge
-                          colorScheme={item.type.startsWith('w3pk') ? 'purple' : 'gray'}
+                          colorPalette={item.type.startsWith('w3pk') ? 'purple' : 'gray'}
                           fontSize="xs"
                         >
                           {item.type}
@@ -578,7 +579,7 @@ const SettingsPage = () => {
                         <IconButton
                           aria-label="Clear item"
                           size="xs"
-                          colorScheme="red"
+                          colorPalette="red"
                           variant="ghost"
                           onClick={() => handleClearLocalStorageItem(item.key)}
                         >
@@ -588,17 +589,10 @@ const SettingsPage = () => {
                     </HStack>
 
                     {item.parsedValue && (
-                      <Box
-                        bg="black"
-                        p={3}
-                        borderRadius="md"
-                        fontSize="xs"
-                        fontFamily="monospace"
-                        overflowX="auto"
-                      >
-                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                      <Box bg="black" p={3} borderRadius="md" overflowX="auto">
+                        <CodeBlock>
                           {formatValue(maskSensitiveData(item.key, item.parsedValue))}
-                        </pre>
+                        </CodeBlock>
                       </Box>
                     )}
 
@@ -621,7 +615,7 @@ const SettingsPage = () => {
                 <Icon as={FiDatabase} color={brandColors.primary} boxSize={6} />
                 <Heading size="md">IndexedDB Results</Heading>
               </HStack>
-              <Badge colorScheme="purple">{indexedDBData.length} database(s)</Badge>
+              <Badge colorPalette="purple">{indexedDBData.length} database(s)</Badge>
             </HStack>
             <VStack align="stretch" gap={4}>
               {indexedDBData.map((db, dbIndex) => (
@@ -638,7 +632,7 @@ const SettingsPage = () => {
                       <Text fontSize="md" fontWeight="bold" color="white">
                         {db.name}
                       </Text>
-                      <Badge colorScheme="purple" fontSize="xs">
+                      <Badge colorPalette="purple" fontSize="xs">
                         v{db.version}
                       </Badge>
                     </HStack>
@@ -669,7 +663,7 @@ const SettingsPage = () => {
                               <IconButton
                                 aria-label="Clear record"
                                 size="xs"
-                                colorScheme="red"
+                                colorPalette="red"
                                 variant="ghost"
                                 onClick={() =>
                                   handleClearIndexedDBRecord(db.name, record.store, record.key)
@@ -678,10 +672,10 @@ const SettingsPage = () => {
                                 <MdDelete />
                               </IconButton>
                             </HStack>
-                            <Box fontSize="xs" fontFamily="monospace" overflowX="auto">
-                              <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                            <Box overflowX="auto">
+                              <CodeBlock>
                                 {formatValue(maskSensitiveData(record.key, record.value))}
-                              </pre>
+                              </CodeBlock>
                             </Box>
                           </Box>
                         ))}
@@ -1072,7 +1066,7 @@ const SettingsPage = () => {
                             {account.displayName || account.username}
                           </Text>
                           {user?.ethereumAddress === account.ethereumAddress && (
-                            <Badge colorScheme="purple">Current</Badge>
+                            <Badge colorPalette="purple">Current</Badge>
                           )}
                         </HStack>
                         <Text fontSize="sm" color="gray.400" mb={2}>
@@ -1084,7 +1078,7 @@ const SettingsPage = () => {
                       </Box>
                       <IconButton
                         aria-label="Delete account"
-                        colorScheme="red"
+                        colorPalette="red"
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDeleteAccount(account)}
@@ -1336,7 +1330,7 @@ const SettingsPage = () => {
                   transition="all 0.2s"
                 >
                   <Icon as={FiKey} color={brandColors.primary} boxSize={8} mb={4} />
-                  <Badge colorScheme="purple" mb={2}>
+                  <Badge colorPalette="purple" mb={2}>
                     LAYER 1
                   </Badge>
                   <Heading size="md" mb={3}>
@@ -1376,7 +1370,7 @@ const SettingsPage = () => {
                   transition="all 0.2s"
                 >
                   <Icon as={FiDownload} color={brandColors.primary} boxSize={8} mb={4} />
-                  <Badge colorScheme="purple" mb={2}>
+                  <Badge colorPalette="purple" mb={2}>
                     LAYER 2
                   </Badge>
                   <Heading size="md" mb={3}>
@@ -1416,7 +1410,7 @@ const SettingsPage = () => {
                   transition="all 0.2s"
                 >
                   <Icon as={FiUsers} color={brandColors.primary} boxSize={8} mb={4} />
-                  <Badge colorScheme="purple" mb={2}>
+                  <Badge colorPalette="purple" mb={2}>
                     LAYER 3
                   </Badge>
                   <Heading size="md" mb={3}>
@@ -1456,7 +1450,7 @@ const SettingsPage = () => {
                   transition="all 0.2s"
                 >
                   <Icon as={FiShield} color={brandColors.primary} boxSize={8} mb={4} />
-                  <Badge colorScheme="green" mb={2}>
+                  <Badge colorPalette="green" mb={2}>
                     UNIVERSAL
                   </Badge>
                   <Heading size="md" mb={3}>
@@ -1794,7 +1788,7 @@ const SettingsPage = () => {
             <Button variant="ghost" mr={3} onClick={onClose}>
               Cancel
             </Button>
-            <Button colorScheme="red" onClick={confirmDeleteAccount}>
+            <Button colorPalette="red" onClick={confirmDeleteAccount}>
               Remove Account
             </Button>
           </DialogFooter>
@@ -1843,12 +1837,12 @@ const SettingsPage = () => {
                         </Text>
                         <HStack gap={2}>
                           {item.encrypted && (
-                            <Badge colorScheme="orange" fontSize="xs">
+                            <Badge colorPalette="orange" fontSize="xs">
                               Encrypted
                             </Badge>
                           )}
                           <Badge
-                            colorScheme={item.type.startsWith('w3pk') ? 'purple' : 'gray'}
+                            colorPalette={item.type.startsWith('w3pk') ? 'purple' : 'gray'}
                             fontSize="xs"
                           >
                             {item.type}
@@ -1857,17 +1851,10 @@ const SettingsPage = () => {
                       </HStack>
 
                       {item.parsedValue && (
-                        <Box
-                          bg="gray.950"
-                          p={3}
-                          borderRadius="md"
-                          fontSize="xs"
-                          fontFamily="monospace"
-                          overflowX="auto"
-                        >
-                          <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                        <Box bg="gray.950" p={3} borderRadius="md" overflowX="auto">
+                          <CodeBlock>
                             {formatValue(maskSensitiveData(item.key, item.parsedValue))}
-                          </pre>
+                          </CodeBlock>
                         </Box>
                       )}
 
@@ -1928,7 +1915,7 @@ const SettingsPage = () => {
                         <Text fontSize="md" fontWeight="bold" color="white">
                           {db.name}
                         </Text>
-                        <Badge colorScheme="purple" fontSize="xs">
+                        <Badge colorPalette="purple" fontSize="xs">
                           v{db.version}
                         </Badge>
                       </HStack>
@@ -1955,10 +1942,10 @@ const SettingsPage = () => {
                               <Text fontSize="xs" color="gray.400" mb={2}>
                                 Store: {record.store} | Key: {record.key}
                               </Text>
-                              <Box fontSize="xs" fontFamily="monospace" overflowX="auto">
-                                <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                              <Box overflowX="auto">
+                                <CodeBlock>
                                   {formatValue(maskSensitiveData(record.key, record.value))}
-                                </pre>
+                                </CodeBlock>
                               </Box>
                             </Box>
                           ))}

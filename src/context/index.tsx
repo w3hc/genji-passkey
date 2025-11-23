@@ -1,8 +1,9 @@
 'use client'
 
 import { type ReactNode, memo } from 'react'
-import { ChakraProvider, defaultSystem } from '@chakra-ui/react'
+import { ChakraProvider, Flex } from '@chakra-ui/react'
 import { ColorModeProvider } from '@/components/ui/color-mode'
+import { system } from '@/theme/system'
 import Spinner from '@/components/Spinner'
 import dynamic from 'next/dynamic'
 
@@ -10,16 +11,16 @@ import dynamic from 'next/dynamic'
 const W3pkProvider = dynamic(() => import('./W3PK').then(mod => ({ default: mod.W3pkProvider })), {
   ssr: false,
   loading: () => (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+    <Flex align="center" justify="center" height="100vh">
       <Spinner size="200px" />
-    </div>
+    </Flex>
   ),
 })
 
 const ContextProvider = memo(function ContextProvider({ children }: { children: ReactNode }) {
   return (
     <ColorModeProvider defaultTheme="dark">
-      <ChakraProvider value={defaultSystem}>
+      <ChakraProvider value={system}>
         <W3pkProvider>{children}</W3pkProvider>
       </ChakraProvider>
     </ColorModeProvider>

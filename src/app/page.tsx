@@ -136,7 +136,7 @@ export default function Home() {
                   Private key cannot be displayed (secure MAIN wallet)
                 </Text>
                 <Button
-                  colorScheme="blue"
+                  colorPalette="blue"
                   onClick={() => handleSignMessage('default', mainAddress)}
                   disabled={!mainAddress || isLoadingMain}
                 >
@@ -157,7 +157,7 @@ export default function Home() {
                   <Button
                     size="xs"
                     variant="outline"
-                    colorScheme="orange"
+                    colorPalette="orange"
                     onClick={() => setShowPrivateKey(true)}
                     disabled={!openbarPrivateKey || isLoadingOpenbar}
                   >
@@ -180,7 +180,7 @@ export default function Home() {
                   </Box>
                 )}
                 <Button
-                  colorScheme="blue"
+                  colorPalette="blue"
                   onClick={() => handleSignMessage('OPENBAR', openbarAddress)}
                   disabled={!openbarAddress || isLoadingOpenbar}
                 >

@@ -1,3 +1,10 @@
+/* CSS Custom Properties for Brand Colors */
+:root {
+  --brand-primary: #8c1c84;
+  --brand-secondary: #6d1566;
+  --brand-accent: #45a2f8;
+}
+
 /* Keep only necessary resets */
 * {
   box-sizing: border-box;
@@ -12,7 +19,7 @@ html {
 
 /* Accessibility: Focus indicators */
 *:focus-visible {
-  outline: 2px solid #8c1c84; /* brandColors.primary */
+  outline: 2px solid var(--brand-primary);
   outline-offset: 2px;
 }
 
@@ -34,7 +41,7 @@ html {
   position: absolute;
   top: -40px;
   left: 0;
-  background: #8c1c84; /* brandColors.primary */
+  background: var(--brand-primary);
   color: white;
   padding: 8px 16px;
   text-decoration: none;
