@@ -14,15 +14,13 @@
     "test:a11y": "echo '⚠️  Run Lighthouse in Chrome DevTools or install pa11y: npx pa11y http://localhost:3000'"
   },
   "dependencies": {
-    "@chakra-ui/icons": "^2.2.4",
-    "@chakra-ui/react": "^2.10.9",
+    "@chakra-ui/react": "^3.30.0",
     "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.1",
     "@types/react-syntax-highlighter": "^15.5.13",
     "ethers": "^6.15.0",
-    "framer-motion": "^12.23.24",
     "jszip": "^3.10.1",
     "next": "^16.0.3",
+    "next-themes": "^0.4.6",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
