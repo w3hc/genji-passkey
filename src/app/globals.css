@@ -12,7 +12,7 @@ html {
 
 /* Accessibility: Focus indicators */
 *:focus-visible {
-  outline: 2px solid #8c1c84;
+  outline: 2px solid #8c1c84; /* brandColors.primary */
   outline-offset: 2px;
 }
 
@@ -34,7 +34,7 @@ html {
   position: absolute;
   top: -40px;
   left: 0;
-  background: #8c1c84;
+  background: #8c1c84; /* brandColors.primary */
   color: white;
   padding: 8px 16px;
   text-decoration: none;

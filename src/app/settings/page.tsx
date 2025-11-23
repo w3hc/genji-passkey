@@ -5,46 +5,34 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Box,
   Button,
-  Container,
   Heading,
   VStack,
   Text,
-  useToast,
-  Alert,
-  AlertIcon,
-  AlertDescription,
   Code,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
+  TabsRoot,
+  TabsList,
+  TabsContent,
+  TabsTrigger,
   IconButton,
   useDisclosure,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
+  DialogRoot,
+  DialogBackdrop,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogBody,
+  DialogCloseTrigger,
   HStack,
   SimpleGrid,
   Icon,
-  List,
+  ListRoot,
   ListItem,
-  ListIcon,
   Badge,
   Link as ChakraLink,
+  Flex,
 } from '@chakra-ui/react'
-import {
-  DeleteIcon,
-  CheckCircleIcon,
-  WarningIcon,
-  InfoIcon,
-  DownloadIcon,
-  LockIcon,
-} from '@chakra-ui/icons'
+import { toaster } from '@/components/ui/toaster'
+import { MdDelete, MdCheckCircle, MdWarning, MdInfo, MdDownload, MdLock } from 'react-icons/md'
 import {
   FiShield,
   FiCheckCircle,
@@ -61,6 +49,7 @@ import { useTranslation } from '@/hooks/useTranslation'
 import Spinner from '../../../src/components/Spinner'
 import PasswordModal from '../../components/PasswordModal'
 import { detectBrowser, isWebAuthnAvailable } from '../../../src/utils/browserDetection'
+import { brandColors } from '@/theme'
 import {
   inspectLocalStorage,
   inspectIndexedDB,
@@ -90,7 +79,7 @@ const SettingsPage = () => {
   const [isRestoring, setIsRestoring] = useState(false)
   const [accounts, setAccounts] = useState<StoredAccount[]>([])
   const [accountToDelete, setAccountToDelete] = useState<StoredAccount | null>(null)
-  const { isOpen, onOpen, onClose } = useDisclosure()
+  const { open: isOpen, onOpen, onClose } = useDisclosure()
 
   const [localStorageData, setLocalStorageData] = useState<LocalStorageItem[]>([])
   const [indexedDBData, setIndexedDBData] = useState<IndexedDBInfo[]>([])
@@ -99,8 +88,8 @@ const SettingsPage = () => {
   const [showLocalStorageModal, setShowLocalStorageModal] = useState(false)
   const [showIndexedDBModal, setShowIndexedDBModal] = useState(false)
 
-  const toast = useToast()
-  const { isAuthenticated, user, getBackupStatus, createZipBackup, restoreFromBackup, logout } = useW3PK()
+  const { isAuthenticated, user, getBackupStatus, createZipBackup, restoreFromBackup, logout } =
+    useW3PK()
 
   const handleInspectLocalStorage = async () => {
     setIsInspectingLocalStorage(true)
@@ -108,21 +97,19 @@ const SettingsPage = () => {
       const data = await inspectLocalStorage()
       setLocalStorageData(data)
 
-      toast({
+      toaster.create({
         title: 'LocalStorage Inspected',
         description: `Found ${data.length} items. Scroll down to see results.`,
-        status: 'success',
+        type: 'success',
         duration: 3000,
-        isClosable: true,
       })
     } catch (error) {
       console.error('Error inspecting localStorage:', error)
-      toast({
+      toaster.create({
         title: 'Error',
         description: 'Failed to inspect localStorage',
-        status: 'error',
+        type: 'error',
         duration: 3000,
-        isClosable: true,
       })
     } finally {
       setIsInspectingLocalStorage(false)
@@ -136,21 +123,19 @@ const SettingsPage = () => {
       setIndexedDBData(data)
 
       const totalRecords = data.reduce((sum, db) => sum + db.records.length, 0)
-      toast({
+      toaster.create({
         title: 'IndexedDB Inspected',
         description: `Found ${data.length} database(s) with ${totalRecords} record(s). Scroll down to see results.`,
-        status: 'success',
+        type: 'success',
         duration: 3000,
-        isClosable: true,
       })
     } catch (error) {
       console.error('Error inspecting IndexedDB:', error)
-      toast({
+      toaster.create({
         title: 'Error',
         description: 'Failed to inspect IndexedDB',
-        status: 'error',
+        type: 'error',
         duration: 3000,
-        isClosable: true,
       })
     } finally {
       setIsInspectingIndexedDB(false)
@@ -163,20 +148,18 @@ const SettingsPage = () => {
       const updatedData = localStorageData.filter(item => item.key !== key)
       setLocalStorageData(updatedData)
 
-      toast({
+      toaster.create({
         title: 'Item Cleared',
         description: `Removed "${key}" from localStorage`,
-        status: 'success',
+        type: 'success',
         duration: 2000,
-        isClosable: true,
       })
     } else {
-      toast({
+      toaster.create({
         title: 'Error',
         description: `Failed to clear "${key}"`,
-        status: 'error',
+        type: 'error',
         duration: 3000,
-        isClosable: true,
       })
     }
   }
@@ -197,20 +180,18 @@ const SettingsPage = () => {
       })
       setIndexedDBData(updatedData)
 
-      toast({
+      toaster.create({
         title: 'Record Cleared',
         description: `Removed record from ${dbName}/${storeName}`,
-        status: 'success',
+        type: 'success',
         duration: 2000,
-        isClosable: true,
       })
     } else {
-      toast({
+      toaster.create({
         title: 'Error',
         description: 'Failed to clear record',
-        status: 'error',
+        type: 'error',
         duration: 3000,
-        isClosable: true,
       })
     }
   }
@@ -252,7 +233,6 @@ const SettingsPage = () => {
           }
         })
       }
-
 
       if (user && !storedAccounts.find(acc => acc.ethereumAddress === user.ethereumAddress)) {
         storedAccounts.push({
@@ -311,22 +291,20 @@ const SettingsPage = () => {
           localStorage.removeItem(key)
         })
 
-        toast({
+        toaster.create({
           title: 'Account Removed',
           description: `Account ${accountToDelete.username} has been removed from this device.`,
-          status: 'success',
+          type: 'success',
           duration: 3000,
-          isClosable: true,
         })
 
         // If we deleted the current user's account, log them out
         if (user && user.ethereumAddress === accountToDelete.ethereumAddress) {
-          toast({
+          toaster.create({
             title: 'Logging out',
             description: 'You removed your current account. Logging out...',
-            status: 'info',
+            type: 'info',
             duration: 2000,
-            isClosable: true,
           })
           setTimeout(() => {
             logout()
@@ -337,12 +315,11 @@ const SettingsPage = () => {
       }
     } catch (error) {
       console.error('Error deleting account:', error)
-      toast({
+      toaster.create({
         title: 'Error',
         description: 'Failed to remove account. Please try again.',
-        status: 'error',
+        type: 'error',
         duration: 5000,
-        isClosable: true,
       })
     } finally {
       setAccountToDelete(null)
@@ -360,375 +337,369 @@ const SettingsPage = () => {
     else if (browserInfo.warningLevel === 'info') alertStatus = 'info'
 
     return (
-      <Container maxW="container.md" py={20}>
-        <VStack spacing={8} align="stretch">
-          <Box textAlign="center">
-            <Heading as="h1" size="xl" mb={4}>
-              {t.settings.title}
-            </Heading>
-            <Text fontSize="lg" color="gray.400">
-              {t.settings.loginRequired}
-            </Text>
-          </Box>
+      <VStack gap={8} align="stretch" py={20}>
+        <Box textAlign="center">
+          <Heading as="h1" size="xl" mb={4}>
+            {t.settings.title}
+          </Heading>
+          <Text fontSize="lg" color="gray.400">
+            {t.settings.loginRequired}
+          </Text>
+        </Box>
 
-          <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
-            <HStack mb={4}>
-              <Icon as={InfoIcon} color="#8c1c84" boxSize={6} />
-              <Heading size="md">Browser Info</Heading>
+        <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
+          <HStack mb={4}>
+            <Icon as={MdInfo} color={brandColors.primary} boxSize={6} />
+            <Heading size="md">Browser Info</Heading>
+          </HStack>
+          <VStack align="stretch" gap={3}>
+            <HStack justify="space-between">
+              <Text fontSize="sm" color="gray.400">
+                Browser:
+              </Text>
+              <Text fontSize="sm" fontWeight="bold" color="white">
+                {browserInfo.name}
+              </Text>
             </HStack>
-            <VStack align="stretch" spacing={3}>
-              <HStack justify="space-between">
-                <Text fontSize="sm" color="gray.400">
-                  Browser:
-                </Text>
-                <Text fontSize="sm" fontWeight="bold" color="white">
-                  {browserInfo.name}
-                </Text>
-              </HStack>
-              <HStack justify="space-between">
-                <Text fontSize="sm" color="gray.400">
-                  Version:
-                </Text>
-                <Text fontSize="sm" fontWeight="bold" color="white">
-                  {browserInfo.fullVersion || browserInfo.version}
-                </Text>
-              </HStack>
-              <HStack justify="space-between">
-                <Text fontSize="sm" color="gray.400">
-                  Operating System:
-                </Text>
-                <Text fontSize="sm" fontWeight="bold" color="white">
-                  {browserInfo.os}
-                </Text>
-              </HStack>
-              <HStack justify="space-between">
-                <Text fontSize="sm" color="gray.400">
-                  WebAuthn Support:
-                </Text>
-                <Badge colorScheme={webAuthnAvailable ? 'green' : 'red'}>
-                  {webAuthnAvailable ? 'Available' : 'Not Available'}
-                </Badge>
-              </HStack>
-              <HStack justify="space-between">
-                <Text fontSize="sm" color="gray.400">
-                  Compatibility:
-                </Text>
-                <Badge
-                  colorScheme={
-                    browserInfo.isSupported && !browserInfo.hasKnownIssues
-                      ? 'green'
-                      : browserInfo.hasKnownIssues
-                        ? 'yellow'
-                        : 'red'
-                  }
-                >
-                  {browserInfo.isSupported && !browserInfo.hasKnownIssues
-                    ? 'Fully Supported'
+            <HStack justify="space-between">
+              <Text fontSize="sm" color="gray.400">
+                Version:
+              </Text>
+              <Text fontSize="sm" fontWeight="bold" color="white">
+                {browserInfo.fullVersion || browserInfo.version}
+              </Text>
+            </HStack>
+            <HStack justify="space-between">
+              <Text fontSize="sm" color="gray.400">
+                Operating System:
+              </Text>
+              <Text fontSize="sm" fontWeight="bold" color="white">
+                {browserInfo.os}
+              </Text>
+            </HStack>
+            <HStack justify="space-between">
+              <Text fontSize="sm" color="gray.400">
+                WebAuthn Support:
+              </Text>
+              <Badge colorScheme={webAuthnAvailable ? 'green' : 'red'}>
+                {webAuthnAvailable ? 'Available' : 'Not Available'}
+              </Badge>
+            </HStack>
+            <HStack justify="space-between">
+              <Text fontSize="sm" color="gray.400">
+                Compatibility:
+              </Text>
+              <Badge
+                colorScheme={
+                  browserInfo.isSupported && !browserInfo.hasKnownIssues
+                    ? 'green'
                     : browserInfo.hasKnownIssues
-                      ? 'Known Issues'
-                      : 'Not Supported'}
-                </Badge>
+                      ? 'yellow'
+                      : 'red'
+                }
+              >
+                {browserInfo.isSupported && !browserInfo.hasKnownIssues
+                  ? 'Fully Supported'
+                  : browserInfo.hasKnownIssues
+                    ? 'Known Issues'
+                    : 'Not Supported'}
+              </Badge>
+            </HStack>
+          </VStack>
+        </Box>
+
+        {browserInfo.recommendation && (
+          <Box
+            p={4}
+            bg={
+              alertStatus === 'error'
+                ? 'red.900/90'
+                : alertStatus === 'warning'
+                  ? 'yellow.900/90'
+                  : 'blue.900/90'
+            }
+            borderRadius="lg"
+          >
+            <Box fontSize="sm">
+              <Text fontWeight="bold" mb={1}>
+                {alertStatus === 'error'
+                  ? 'Browser Not Supported'
+                  : alertStatus === 'warning'
+                    ? 'Known Issues Detected'
+                    : 'Recommendation'}
+              </Text>
+              <Text fontSize="sm">{browserInfo.recommendation}</Text>
+            </Box>
+          </Box>
+        )}
+
+        {!webAuthnAvailable && (
+          <Box p={4} bg="red.900/90" borderRadius="lg">
+            <Box fontSize="sm">
+              <Text fontWeight="bold" mb={1}>
+                WebAuthn Not Available
+              </Text>
+              <Text fontSize="sm">
+                Your browser does not support WebAuthn, which is required for w3pk authentication.
+                Please update your browser or use a supported browser:
+              </Text>
+              <ListRoot gap={1} mt={2} ml={4} fontSize="xs">
+                <ListItem>Chrome 67+ (May 2018)</ListItem>
+                <ListItem>Firefox 60+ (May 2018)</ListItem>
+                <ListItem>Safari 14+ (September 2020)</ListItem>
+                <ListItem>Edge 18+ (November 2018)</ListItem>
+                <ListItem>Samsung Internet 11+ (February 2020)</ListItem>
+              </ListRoot>
+            </Box>
+          </Box>
+        )}
+
+        {browserInfo.os === 'Android' && (
+          <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
+            <Heading size="sm" mb={3} color={brandColors.primary}>
+              Recommended Browsers for Android
+            </Heading>
+            <ListRoot gap={2} fontSize="sm">
+              <ListItem>
+                <HStack>
+                  <Icon
+                    as={browserInfo.name === 'Samsung Internet' ? MdCheckCircle : MdInfo}
+                    color={browserInfo.name === 'Samsung Internet' ? 'green.400' : 'gray.400'}
+                  />
+                  <Text color="gray.300">
+                    <strong>Samsung Internet</strong> (Best for Samsung devices) - ✅ Confirmed
+                    working
+                  </Text>
+                </HStack>
+              </ListItem>
+              <ListItem>
+                <HStack>
+                  <Icon
+                    as={browserInfo.name === 'Chrome' ? MdCheckCircle : MdInfo}
+                    color={browserInfo.name === 'Chrome' ? 'green.400' : 'gray.400'}
+                  />
+                  <Text color="gray.300">
+                    <strong>Chrome</strong> - ✅ Reliable
+                  </Text>
+                </HStack>
+              </ListItem>
+              <ListItem>
+                <HStack>
+                  <Icon
+                    as={browserInfo.name === 'Edge' ? MdCheckCircle : MdInfo}
+                    color={browserInfo.name === 'Edge' ? 'green.400' : 'gray.400'}
+                  />
+                  <Text color="gray.300">
+                    <strong>Edge</strong> - ✅ Reliable
+                  </Text>
+                </HStack>
+              </ListItem>
+              <ListItem>
+                <HStack>
+                  <Icon as={MdWarning} color="yellow.400" />
+                  <Text color="gray.300">
+                    <strong>Firefox Mobile</strong> - ⚠️ Avoid (known passkey persistence issues)
+                  </Text>
+                </HStack>
+              </ListItem>
+            </ListRoot>
+          </Box>
+        )}
+
+        <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
+          <Heading size="sm" mb={3} color={brandColors.primary}>
+            Debug & Inspect Storage
+          </Heading>
+          <Text fontSize="sm" color="gray.400" mb={4}>
+            Inspect browser storage and activity logs
+          </Text>
+          <SimpleGrid columns={{ base: 1, md: 2 }} gap={4}>
+            <Button
+              onClick={handleInspectLocalStorage}
+              loading={isInspectingLocalStorage}
+              loadingText="Inspecting..."
+              variant="outline"
+              colorScheme="purple"
+              size="sm"
+            >
+              <Icon as={FiHardDrive} mr={2} />
+              Inspect LocalStorage
+            </Button>
+            <Button
+              onClick={handleInspectIndexedDB}
+              loading={isInspectingIndexedDB}
+              loadingText="Inspecting..."
+              variant="outline"
+              colorScheme="purple"
+              size="sm"
+            >
+              <Icon as={FiDatabase} mr={2} />
+              Inspect IndexedDB
+            </Button>
+          </SimpleGrid>
+        </Box>
+
+        {localStorageData.length > 0 && (
+          <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="purple.600">
+            <HStack mb={4} justify="space-between">
+              <HStack>
+                <Icon as={FiHardDrive} color={brandColors.primary} boxSize={6} />
+                <Heading size="md">LocalStorage Results</Heading>
               </HStack>
+              <Badge colorScheme="purple">{localStorageData.length} items</Badge>
+            </HStack>
+            <VStack align="stretch" gap={3}>
+              {localStorageData.map((item, index) => (
+                <Box
+                  key={index}
+                  bg="gray.950"
+                  p={4}
+                  borderRadius="md"
+                  border="1px solid"
+                  borderColor={item.type.startsWith('w3pk') ? 'purple.700' : 'gray.800'}
+                >
+                  <VStack align="stretch" gap={2}>
+                    <HStack justify="space-between">
+                      <Text fontSize="sm" fontWeight="bold" color="white" flex={1}>
+                        {item.key}
+                      </Text>
+                      <HStack gap={2}>
+                        {item.encrypted && (
+                          <Badge colorScheme="orange" fontSize="xs">
+                            Encrypted
+                          </Badge>
+                        )}
+                        <Badge
+                          colorScheme={item.type.startsWith('w3pk') ? 'purple' : 'gray'}
+                          fontSize="xs"
+                        >
+                          {item.type}
+                        </Badge>
+                        <IconButton
+                          aria-label="Clear item"
+                          size="xs"
+                          colorScheme="red"
+                          variant="ghost"
+                          onClick={() => handleClearLocalStorageItem(item.key)}
+                        >
+                          <MdDelete />
+                        </IconButton>
+                      </HStack>
+                    </HStack>
+
+                    {item.parsedValue && (
+                      <Box
+                        bg="black"
+                        p={3}
+                        borderRadius="md"
+                        fontSize="xs"
+                        fontFamily="monospace"
+                        overflowX="auto"
+                      >
+                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                          {formatValue(maskSensitiveData(item.key, item.parsedValue))}
+                        </pre>
+                      </Box>
+                    )}
+
+                    {!item.parsedValue && (
+                      <Text fontSize="xs" color="gray.500" fontFamily="monospace">
+                        {item.value}
+                      </Text>
+                    )}
+                  </VStack>
+                </Box>
+              ))}
             </VStack>
           </Box>
+        )}
 
-          {browserInfo.recommendation && (
-            <Alert
-              status={alertStatus}
-              bg={
-                alertStatus === 'error'
-                  ? 'red.900'
-                  : alertStatus === 'warning'
-                    ? 'yellow.900'
-                    : 'blue.900'
-              }
-              borderRadius="lg"
-              opacity={0.9}
-            >
-              <AlertIcon />
-              <Box fontSize="sm">
-                <Text fontWeight="bold" mb={1}>
-                  {alertStatus === 'error'
-                    ? 'Browser Not Supported'
-                    : alertStatus === 'warning'
-                      ? 'Known Issues Detected'
-                      : 'Recommendation'}
-                </Text>
-                <Text fontSize="sm">{browserInfo.recommendation}</Text>
-              </Box>
-            </Alert>
-          )}
-
-          {!webAuthnAvailable && (
-            <Alert status="error" bg="red.900" borderRadius="lg" opacity={0.9}>
-              <AlertIcon />
-              <Box fontSize="sm">
-                <Text fontWeight="bold" mb={1}>
-                  WebAuthn Not Available
-                </Text>
-                <Text fontSize="sm">
-                  Your browser does not support WebAuthn, which is required for w3pk authentication.
-                  Please update your browser or use a supported browser:
-                </Text>
-                <List spacing={1} mt={2} ml={4} fontSize="xs">
-                  <ListItem>Chrome 67+ (May 2018)</ListItem>
-                  <ListItem>Firefox 60+ (May 2018)</ListItem>
-                  <ListItem>Safari 14+ (September 2020)</ListItem>
-                  <ListItem>Edge 18+ (November 2018)</ListItem>
-                  <ListItem>Samsung Internet 11+ (February 2020)</ListItem>
-                </List>
-              </Box>
-            </Alert>
-          )}
-
-          {browserInfo.os === 'Android' && (
-            <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
-              <Heading size="sm" mb={3} color="#8c1c84">
-                Recommended Browsers for Android
-              </Heading>
-              <List spacing={2} fontSize="sm">
-                <ListItem>
-                  <HStack>
-                    <ListIcon
-                      as={browserInfo.name === 'Samsung Internet' ? CheckCircleIcon : InfoIcon}
-                      color={browserInfo.name === 'Samsung Internet' ? 'green.400' : 'gray.400'}
-                    />
-                    <Text color="gray.300">
-                      <strong>Samsung Internet</strong> (Best for Samsung devices) - ✅ Confirmed
-                      working
-                    </Text>
-                  </HStack>
-                </ListItem>
-                <ListItem>
-                  <HStack>
-                    <ListIcon
-                      as={browserInfo.name === 'Chrome' ? CheckCircleIcon : InfoIcon}
-                      color={browserInfo.name === 'Chrome' ? 'green.400' : 'gray.400'}
-                    />
-                    <Text color="gray.300">
-                      <strong>Chrome</strong> - ✅ Reliable
-                    </Text>
-                  </HStack>
-                </ListItem>
-                <ListItem>
-                  <HStack>
-                    <ListIcon
-                      as={browserInfo.name === 'Edge' ? CheckCircleIcon : InfoIcon}
-                      color={browserInfo.name === 'Edge' ? 'green.400' : 'gray.400'}
-                    />
-                    <Text color="gray.300">
-                      <strong>Edge</strong> - ✅ Reliable
-                    </Text>
-                  </HStack>
-                </ListItem>
-                <ListItem>
-                  <HStack>
-                    <ListIcon as={WarningIcon} color="yellow.400" />
-                    <Text color="gray.300">
-                      <strong>Firefox Mobile</strong> - ⚠️ Avoid (known passkey persistence issues)
-                    </Text>
-                  </HStack>
-                </ListItem>
-              </List>
-            </Box>
-          )}
-
-          <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
-            <Heading size="sm" mb={3} color="#8c1c84">
-              Debug & Inspect Storage
-            </Heading>
-            <Text fontSize="sm" color="gray.400" mb={4}>
-              Inspect browser storage and activity logs
-            </Text>
-            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-              <Button
-                leftIcon={<Icon as={FiHardDrive} />}
-                onClick={handleInspectLocalStorage}
-                isLoading={isInspectingLocalStorage}
-                loadingText="Inspecting..."
-                variant="outline"
-                colorScheme="purple"
-                size="sm"
-              >
-                Inspect LocalStorage
-              </Button>
-              <Button
-                leftIcon={<Icon as={FiDatabase} />}
-                onClick={handleInspectIndexedDB}
-                isLoading={isInspectingIndexedDB}
-                loadingText="Inspecting..."
-                variant="outline"
-                colorScheme="purple"
-                size="sm"
-              >
-                Inspect IndexedDB
-              </Button>
-            </SimpleGrid>
-          </Box>
-
-          {localStorageData.length > 0 && (
-            <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="purple.600">
-              <HStack mb={4} justify="space-between">
-                <HStack>
-                  <Icon as={FiHardDrive} color="#8c1c84" boxSize={6} />
-                  <Heading size="md">LocalStorage Results</Heading>
-                </HStack>
-                <Badge colorScheme="purple">{localStorageData.length} items</Badge>
+        {indexedDBData.length > 0 && (
+          <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="purple.600">
+            <HStack mb={4} justify="space-between">
+              <HStack>
+                <Icon as={FiDatabase} color={brandColors.primary} boxSize={6} />
+                <Heading size="md">IndexedDB Results</Heading>
               </HStack>
-              <VStack align="stretch" spacing={3}>
-                {localStorageData.map((item, index) => (
-                  <Box
-                    key={index}
-                    bg="gray.950"
-                    p={4}
-                    borderRadius="md"
-                    border="1px solid"
-                    borderColor={item.type.startsWith('w3pk') ? 'purple.700' : 'gray.800'}
-                  >
-                    <VStack align="stretch" spacing={2}>
-                      <HStack justify="space-between">
-                        <Text fontSize="sm" fontWeight="bold" color="white" flex={1}>
-                          {item.key}
-                        </Text>
-                        <HStack spacing={2}>
-                          {item.encrypted && (
-                            <Badge colorScheme="orange" fontSize="xs">
-                              Encrypted
-                            </Badge>
-                          )}
-                          <Badge
-                            colorScheme={item.type.startsWith('w3pk') ? 'purple' : 'gray'}
-                            fontSize="xs"
+              <Badge colorScheme="purple">{indexedDBData.length} database(s)</Badge>
+            </HStack>
+            <VStack align="stretch" gap={4}>
+              {indexedDBData.map((db, dbIndex) => (
+                <Box
+                  key={dbIndex}
+                  bg="gray.950"
+                  p={4}
+                  borderRadius="md"
+                  border="1px solid"
+                  borderColor="purple.700"
+                >
+                  <VStack align="stretch" gap={3}>
+                    <HStack justify="space-between">
+                      <Text fontSize="md" fontWeight="bold" color="white">
+                        {db.name}
+                      </Text>
+                      <Badge colorScheme="purple" fontSize="xs">
+                        v{db.version}
+                      </Badge>
+                    </HStack>
+
+                    <Text fontSize="xs" color="gray.400">
+                      Stores: {db.stores.join(', ')}
+                    </Text>
+
+                    <Text fontSize="xs" color="gray.400">
+                      Records: {db.records.length}
+                    </Text>
+
+                    {db.records.length > 0 && (
+                      <VStack align="stretch" gap={2} mt={2}>
+                        {db.records.map((record, recordIndex) => (
+                          <Box
+                            key={recordIndex}
+                            bg="black"
+                            p={3}
+                            borderRadius="md"
+                            border="1px solid"
+                            borderColor="gray.900"
                           >
-                            {item.type}
-                          </Badge>
-                          <IconButton
-                            aria-label="Clear item"
-                            icon={<DeleteIcon />}
-                            size="xs"
-                            colorScheme="red"
-                            variant="ghost"
-                            onClick={() => handleClearLocalStorageItem(item.key)}
-                          />
-                        </HStack>
-                      </HStack>
-
-                      {item.parsedValue && (
-                        <Box
-                          bg="black"
-                          p={3}
-                          borderRadius="md"
-                          fontSize="xs"
-                          fontFamily="monospace"
-                          overflowX="auto"
-                        >
-                          <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
-                            {formatValue(maskSensitiveData(item.key, item.parsedValue))}
-                          </pre>
-                        </Box>
-                      )}
-
-                      {!item.parsedValue && (
-                        <Text fontSize="xs" color="gray.500" fontFamily="monospace">
-                          {item.value}
-                        </Text>
-                      )}
-                    </VStack>
-                  </Box>
-                ))}
-              </VStack>
-            </Box>
-          )}
-
-          {indexedDBData.length > 0 && (
-            <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="purple.600">
-              <HStack mb={4} justify="space-between">
-                <HStack>
-                  <Icon as={FiDatabase} color="#8c1c84" boxSize={6} />
-                  <Heading size="md">IndexedDB Results</Heading>
-                </HStack>
-                <Badge colorScheme="purple">{indexedDBData.length} database(s)</Badge>
-              </HStack>
-              <VStack align="stretch" spacing={4}>
-                {indexedDBData.map((db, dbIndex) => (
-                  <Box
-                    key={dbIndex}
-                    bg="gray.950"
-                    p={4}
-                    borderRadius="md"
-                    border="1px solid"
-                    borderColor="purple.700"
-                  >
-                    <VStack align="stretch" spacing={3}>
-                      <HStack justify="space-between">
-                        <Text fontSize="md" fontWeight="bold" color="white">
-                          {db.name}
-                        </Text>
-                        <Badge colorScheme="purple" fontSize="xs">
-                          v{db.version}
-                        </Badge>
-                      </HStack>
-
-                      <Text fontSize="xs" color="gray.400">
-                        Stores: {db.stores.join(', ')}
-                      </Text>
-
-                      <Text fontSize="xs" color="gray.400">
-                        Records: {db.records.length}
-                      </Text>
-
-                      {db.records.length > 0 && (
-                        <VStack align="stretch" spacing={2} mt={2}>
-                          {db.records.map((record, recordIndex) => (
-                            <Box
-                              key={recordIndex}
-                              bg="black"
-                              p={3}
-                              borderRadius="md"
-                              border="1px solid"
-                              borderColor="gray.900"
-                            >
-                              <HStack justify="space-between" mb={2}>
-                                <Text fontSize="xs" color="gray.400">
-                                  Store: {record.store} | Key: {record.key}
-                                </Text>
-                                <IconButton
-                                  aria-label="Clear record"
-                                  icon={<DeleteIcon />}
-                                  size="xs"
-                                  colorScheme="red"
-                                  variant="ghost"
-                                  onClick={() =>
-                                    handleClearIndexedDBRecord(db.name, record.store, record.key)
-                                  }
-                                />
-                              </HStack>
-                              <Box fontSize="xs" fontFamily="monospace" overflowX="auto">
-                                <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
-                                  {formatValue(maskSensitiveData(record.key, record.value))}
-                                </pre>
-                              </Box>
+                            <HStack justify="space-between" mb={2}>
+                              <Text fontSize="xs" color="gray.400">
+                                Store: {record.store} | Key: {record.key}
+                              </Text>
+                              <IconButton
+                                aria-label="Clear record"
+                                size="xs"
+                                colorScheme="red"
+                                variant="ghost"
+                                onClick={() =>
+                                  handleClearIndexedDBRecord(db.name, record.store, record.key)
+                                }
+                              >
+                                <MdDelete />
+                              </IconButton>
+                            </HStack>
+                            <Box fontSize="xs" fontFamily="monospace" overflowX="auto">
+                              <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                                {formatValue(maskSensitiveData(record.key, record.value))}
+                              </pre>
                             </Box>
-                          ))}
-                        </VStack>
-                      )}
-                    </VStack>
-                  </Box>
-                ))}
-              </VStack>
-            </Box>
-          )}
-
-          <Box bg="whiteAlpha.50" p={6} borderRadius="md" textAlign="center">
-            <Alert status="info" bg="transparent" color="blue.200">
-              <AlertIcon />
-              <AlertDescription>
-                Please log in or register to access your settings and manage your wallet.
-              </AlertDescription>
-            </Alert>
+                          </Box>
+                        ))}
+                      </VStack>
+                    )}
+                  </VStack>
+                </Box>
+              ))}
+            </VStack>
           </Box>
-        </VStack>
-      </Container>
+        )}
+
+        <Box bg="whiteAlpha.50" p={6} borderRadius="md" textAlign="center">
+          <Box bg="transparent" color="blue.200" p={4} borderRadius="md">
+            <Text>Please log in or register to access your settings and manage your wallet.</Text>
+          </Box>
+        </Box>
+      </VStack>
     )
   }
 
@@ -751,19 +722,17 @@ const SettingsPage = () => {
         setBackupStatus('Error: Unexpected status data format.')
       }
 
-      toast({
+      toaster.create({
         title: 'Backup Status Retrieved.',
-        status: 'info',
+        type: 'info',
         duration: 3000,
-        isClosable: true,
       })
     } catch (error) {
-      toast({
+      toaster.create({
         title: 'Error retrieving status.',
         description: (error as Error).message || 'An unexpected error occurred.',
-        status: 'error',
+        type: 'error',
         duration: 5000,
-        isClosable: true,
       })
       setBackupStatus(null)
     } finally {
@@ -777,12 +746,11 @@ const SettingsPage = () => {
       setShowPasswordModal(true)
     } catch (error) {
       console.error('Error creating backup:', error)
-      toast({
+      toaster.create({
         title: 'Error creating backup.',
         description: (error as Error).message || 'An unexpected error occurred.',
-        status: 'error',
+        type: 'error',
         duration: 5000,
-        isClosable: true,
       })
     } finally {
       setIsCreatingBackup(false)
@@ -821,19 +789,17 @@ const SettingsPage = () => {
         document.body.removeChild(link)
       }
 
-      toast({
+      toaster.create({
         title: 'Backup Created Successfully!',
-        status: 'success',
+        type: 'success',
         duration: 3000,
-        isClosable: true,
       })
     } catch (error) {
-      toast({
+      toaster.create({
         title: 'Error creating backup.',
         description: (error as Error).message || 'An unexpected error occurred.',
-        status: 'error',
+        type: 'error',
         duration: 5000,
-        isClosable: true,
       })
     }
   }
@@ -871,8 +837,9 @@ const SettingsPage = () => {
           try {
             const zip = await JSZip.loadAsync(arrayBuffer)
 
-            const encFileName = Object.keys(zip.files).find(name =>
-              name.endsWith('.txt.enc') && !name.startsWith('__MACOSX') && !zip.files[name].dir
+            const encFileName = Object.keys(zip.files).find(
+              name =>
+                name.endsWith('.txt.enc') && !name.startsWith('__MACOSX') && !zip.files[name].dir
             )
 
             if (!encFileName) {
@@ -892,12 +859,11 @@ const SettingsPage = () => {
           setShowRestorePasswordModal(true)
         }
       } catch (error) {
-        toast({
+        toaster.create({
           title: 'Error reading file',
           description: (error as Error).message || 'Failed to read backup file',
-          status: 'error',
+          type: 'error',
           duration: 5000,
-          isClosable: true,
         })
       }
     }
@@ -908,11 +874,10 @@ const SettingsPage = () => {
     setShowRestorePasswordModal(false)
 
     if (!selectedBackupFile) {
-      toast({
+      toaster.create({
         title: 'No backup file selected',
-        status: 'error',
+        type: 'error',
         duration: 3000,
-        isClosable: true,
       })
       return
     }
@@ -928,12 +893,12 @@ const SettingsPage = () => {
           const encryptedContent = backupObj['recovery-phrase.txt.enc']
           backupToRestore = encryptedContent
         } else if (!backupObj.version && (backupObj.encrypted || backupObj.mnemonic)) {
-          toast({
+          toaster.create({
             title: 'Incompatible Backup Version',
-            description: 'This backup was created with an older version of w3pk. Please create a new backup with the current version.',
-            status: 'warning',
+            description:
+              'This backup was created with an older version of w3pk. Please create a new backup with the current version.',
+            type: 'warning',
             duration: 8000,
-            isClosable: true,
           })
           setIsRestoring(false)
           return
@@ -944,12 +909,11 @@ const SettingsPage = () => {
 
       const result = await restoreFromBackup(backupToRestore, password)
 
-      toast({
+      toaster.create({
         title: 'Wallet Restored!',
         description: `Successfully restored wallet: ${result.ethereumAddress.slice(0, 6)}...${result.ethereumAddress.slice(-4)}`,
-        status: 'success',
+        type: 'success',
         duration: 5000,
-        isClosable: true,
       })
 
       setSelectedBackupFile(null)
@@ -967,993 +931,975 @@ const SettingsPage = () => {
 
   return (
     <>
-      <Container maxW="container.md" py={20}>
-        <VStack spacing={8} align="stretch">
-          <Box textAlign="center">
-            <Heading as="h1" size="xl" mb={4}>
-              {t.settings.title}
-            </Heading>
-            <Text fontSize="lg" color="gray.400">
-              Manage your accounts, backups, and recovery options
-            </Text>
-          </Box>
+      <VStack gap={8} align="stretch" py={20}>
+        <Box textAlign="center">
+          <Heading as="h1" size="xl" mb={4}>
+            {t.settings.title}
+          </Heading>
+          <Text fontSize="lg" color="gray.400">
+            Manage your accounts, backups, and recovery options
+          </Text>
+        </Box>
 
-          <Tabs colorScheme="purple" variant="enclosed" size="lg">
-            <TabList role="tablist">
-              <Tab role="tab" aria-controls="accounts-panel">Accounts</Tab>
-              <Tab role="tab" aria-controls="backup-panel">Backup</Tab>
-              <Tab role="tab" aria-controls="recovery-panel">Recovery</Tab>
-              <Tab role="tab" aria-controls="sync-panel">Sync</Tab>
-            </TabList>
+        <TabsRoot colorPalette="purple" variant="enclosed" size="lg">
+          <TabsList>
+            <TabsTrigger value="accounts">Accounts</TabsTrigger>
+            <TabsTrigger value="backup">Backup</TabsTrigger>
+            <TabsTrigger value="recovery">Recovery</TabsTrigger>
+            <TabsTrigger value="sync">Sync</TabsTrigger>
+          </TabsList>
 
-            <TabPanels>
-              <TabPanel id="accounts-panel" role="tabpanel">
-                <VStack spacing={6} align="stretch">
-                  <Box>
-                    <Heading as="h2" size="lg" mb={4}>
-                      Accounts on this Device
-                    </Heading>
-                    <Text fontSize="md" color="gray.400" mb={6}>
-                      These are all the accounts stored on this device. You can remove any account
-                      to free up space.
-                    </Text>
-                  </Box>
-
-                  {accounts.length === 0 ? (
-                    <Box
-                      bg="gray.900"
-                      p={8}
-                      borderRadius="lg"
-                      textAlign="center"
-                      border="1px solid"
-                      borderColor="gray.700"
-                    >
-                      <Text color="gray.400">No accounts found on this device.</Text>
-                    </Box>
-                  ) : (
-                    accounts.map(account => (
-                      <Box
-                        key={account.ethereumAddress}
-                        bg="gray.900"
-                        p={6}
-                        borderRadius="lg"
-                        border={
-                          user?.ethereumAddress === account.ethereumAddress
-                            ? '2px solid #8c1c84'
-                            : '1px solid'
-                        }
-                        borderColor={
-                          user?.ethereumAddress === account.ethereumAddress ? '#8c1c84' : 'gray.700'
-                        }
-                      >
-                        <HStack justify="space-between" align="start">
-                          <Box flex={1}>
-                            <HStack mb={3}>
-                              <Text fontSize="lg" fontWeight="bold" color="white">
-                                {account.displayName || account.username}
-                              </Text>
-                              {user?.ethereumAddress === account.ethereumAddress && (
-                                <Badge colorScheme="purple">Current</Badge>
-                              )}
-                            </HStack>
-                            <Text fontSize="sm" color="gray.400" mb={2}>
-                              Username: {account.username}
-                            </Text>
-                            <Code
-                              fontSize="xs"
-                              bg="gray.800"
-                              color="gray.300"
-                              p={2}
-                              borderRadius="md"
-                            >
-                              {account.ethereumAddress}
-                            </Code>
-                          </Box>
-                          <IconButton
-                            aria-label="Delete account"
-                            icon={<DeleteIcon />}
-                            colorScheme="red"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteAccount(account)}
-                          />
-                        </HStack>
-                      </Box>
-                    ))
-                  )}
-
-                  <Alert status="warning" bg="yellow.900" opacity={0.9} borderRadius="lg">
-                    <AlertIcon />
-                    <Box fontSize="sm">
-                      <Text fontWeight="bold" mb={1}>
-                        Warning
-                      </Text>
-                      <Text fontSize="xs" color="gray.300">
-                        Removing an account will delete all its data from this device. Make sure you
-                        have a backup before removing an account. This action cannot be undone.
-                      </Text>
-                    </Box>
-                  </Alert>
-                </VStack>
-              </TabPanel>
-
-              <TabPanel id="backup-panel" role="tabpanel">
-                <VStack spacing={8} align="stretch">
-                  {/* Header */}
-                  <Box>
-                    <Heading size="lg" mb={4}>
-                      Wallet Backup
-                    </Heading>
-                    <Text color="gray.400" mb={6}>
-                      Create encrypted backups of your wallet to ensure you never lose access
-                    </Text>
-                  </Box>
-
-                  {/* Current User Info */}
-                  <Box
-                    bg="gray.900"
-                    p={6}
-                    borderRadius="lg"
-                    border="1px solid"
-                    borderColor="gray.700"
-                  >
-                    <HStack mb={4}>
-                      <Icon as={FiShield} color="#8c1c84" boxSize={6} />
-                      <Heading size="md">Current Account</Heading>
-                    </HStack>
-                    <VStack align="stretch" spacing={3}>
-                      <HStack>
-                        <Text fontSize="sm" color="gray.400">
-                          Logged in as:
-                        </Text>
-                        <Text fontSize="sm" fontWeight="bold" color="white">
-                          {user?.displayName || user?.username}
-                        </Text>
-                      </HStack>
-                      <HStack>
-                        <Text fontSize="xs" color="gray.500">
-                          Address:
-                        </Text>
-                        <Code fontSize="xs" bg="gray.800" color="gray.300" px={2} py={1}>
-                          {user?.ethereumAddress}
-                        </Code>
-                      </HStack>
-                      <HStack>
-                        <Icon as={LockIcon} color="blue.300" boxSize={3} />
-                        <Text fontSize="xs" color="blue.300">
-                          Your private key is encrypted client-side and never sent to the server
-                        </Text>
-                      </HStack>
-                    </VStack>
-                  </Box>
-
-                  {/* Security Score */}
-                  <Box
-                    bg="gray.900"
-                    p={6}
-                    borderRadius="lg"
-                    border="1px solid"
-                    borderColor="gray.700"
-                  >
-                    <HStack mb={4}>
-                      <Icon as={FiCheckCircle} color="#8c1c84" boxSize={6} />
-                      <Heading size="md">Security Status</Heading>
-                    </HStack>
-                    {isCheckingStatus ? (
-                      <HStack justify="center" py={4}>
-                        <Spinner size="sm" />
-                        <Text color="gray.400" fontSize="sm">
-                          Checking backup status...
-                        </Text>
-                      </HStack>
-                    ) : (
-                      <Text color="gray.300" fontSize="lg">
-                        {backupStatus || 'Click on the "Check Status" button'}
-                      </Text>
-                    )}
-                  </Box>
-
-                  <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6}>
-                    <Box
-                      bg="gray.900"
-                      p={6}
-                      borderRadius="lg"
-                      border="1px solid"
-                      borderColor="gray.700"
-                      _hover={{ borderColor: '#8c1c84', transform: 'translateY(-2px)' }}
-                      transition="all 0.2s"
-                    >
-                      <Icon as={InfoIcon} color="#8c1c84" boxSize={6} mb={3} />
-                      <Heading size="sm" mb={3}>
-                        Check Backup Status
-                      </Heading>
-                      <Text fontSize="sm" color="gray.400" mb={4}>
-                        Get your current security score and backup recommendations
-                      </Text>
-                      <Button
-                        bg="#8c1c84"
-                        color="white"
-                        _hover={{ bg: '#6d1566' }}
-                        onClick={handleGetBackupStatus}
-                        isLoading={isCheckingStatus}
-                        spinner={<Spinner size="16px" />}
-                        loadingText="Checking..."
-                        isDisabled={isCheckingStatus || isCreatingBackup || isRestoring}
-                        width="full"
-                      >
-                        Check Status
-                      </Button>
-                    </Box>
-
-                    <Box
-                      bg="gray.900"
-                      p={6}
-                      borderRadius="lg"
-                      border="1px solid"
-                      borderColor="gray.700"
-                      _hover={{ borderColor: '#8c1c84', transform: 'translateY(-2px)' }}
-                      transition="all 0.2s"
-                    >
-                      <Icon as={DownloadIcon} color="#8c1c84" boxSize={6} mb={3} />
-                      <Heading size="sm" mb={3}>
-                        Create ZIP Backup
-                      </Heading>
-                      <Text fontSize="sm" color="gray.400" mb={4}>
-                        Download an encrypted ZIP file protected by your password
-                      </Text>
-                      <Button
-                        bg="#8c1c84"
-                        color="white"
-                        _hover={{ bg: '#6d1566' }}
-                        onClick={handleCreateBackup}
-                        isLoading={isCreatingBackup}
-                        spinner={<Spinner size="16px" />}
-                        loadingText="Creating..."
-                        isDisabled={isCheckingStatus || isCreatingBackup || isRestoring}
-                        width="full"
-                      >
-                        Create Backup
-                      </Button>
-                    </Box>
-
-                    <Box
-                      bg="gray.900"
-                      p={6}
-                      borderRadius="lg"
-                      border="1px solid"
-                      borderColor="gray.700"
-                      _hover={{ borderColor: '#8c1c84', transform: 'translateY(-2px)' }}
-                      transition="all 0.2s"
-                    >
-                      <Icon as={FiUpload} color="#8c1c84" boxSize={6} mb={3} />
-                      <Heading size="sm" mb={3}>
-                        Restore from Backup
-                      </Heading>
-                      <Text fontSize="sm" color="gray.400" mb={4}>
-                        Restore your wallet from an encrypted backup file
-                      </Text>
-                      <Button
-                        bg="#8c1c84"
-                        color="white"
-                        _hover={{ bg: '#6d1566' }}
-                        onClick={handleRestoreBackup}
-                        isLoading={isRestoring}
-                        spinner={<Spinner size="16px" />}
-                        loadingText="Restoring..."
-                        isDisabled={isCheckingStatus || isCreatingBackup || isRestoring}
-                        width="full"
-                      >
-                        Restore Backup
-                      </Button>
-                    </Box>
-                  </SimpleGrid>
-
-                  <Box
-                    bg="gray.900"
-                    p={6}
-                    borderRadius="lg"
-                    border="1px solid"
-                    borderColor="gray.700"
-                  >
-                    <Heading size="sm" mb={4} color="#8c1c84">
-                      About Client-Side Backup
-                    </Heading>
-                    <VStack align="stretch" spacing={3} fontSize="sm" color="gray.400">
-                      <Text>
-                        Your wallet&apos;s core secret (the mnemonic phrase) is generated and
-                        encrypted entirely on your device. The backup process retrieves this
-                        encrypted data from your browser&apos;s local storage using your password,
-                        then packages it into a secure ZIP file for you to download.
-                      </Text>
-                      <Text>
-                        The encryption key for your wallet is derived using a WebAuthn signature,
-                        which requires your biometric authentication (fingerprint, face scan) or
-                        device PIN. This means even if someone gains access to the encrypted data
-                        stored in your browser, they cannot decrypt it without your physical device
-                        and authentication.
-                      </Text>
-                      <Text>
-                        Your backup ZIP file is encrypted using AES-256-GCM with a key derived from
-                        the password you provide. Store this file securely and remember your
-                        password.
-                      </Text>
-                      <Alert status="warning" bg="yellow.900" opacity={0.9} mt={2}>
-                        <AlertIcon />
-                        <Text fontSize="xs">
-                          If you lose access to your device, passkey, AND the backup file/password,
-                          your wallet cannot be recovered.
-                        </Text>
-                      </Alert>
-                    </VStack>
-                  </Box>
-                </VStack>
-              </TabPanel>
-
-              <TabPanel id="recovery-panel" role="tabpanel">
-                <VStack spacing={8} align="stretch">
-                  <Box>
-                    <Heading size="lg" mb={4}>
-                      Recovery Options
-                    </Heading>
-                    <Text color="gray.400" mb={6}>
-                      Multiple ways to recover your wallet in case of device loss or failure
-                    </Text>
-                  </Box>
-
-                  <Alert status="info" bg="rgba(139, 92, 246, 0.1)" borderRadius="lg">
-                    <AlertIcon />
-                    <Box fontSize="sm">
-                      <Text fontWeight="bold" mb={1}>
-                        Coming Soon
-                      </Text>
-                      <Text>
-                        These recovery features are already available in the w3pk SDK and will be
-                        implemented in this app soon. w3pk provides a three-layer recovery system
-                        for maximum security and flexibility.
-                      </Text>
-                    </Box>
-                  </Alert>
-
-                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                    <Box
-                      bg="gray.900"
-                      p={6}
-                      borderRadius="lg"
-                      border="1px solid"
-                      borderColor="gray.700"
-                      _hover={{ borderColor: '#8c1c84', transform: 'translateY(-2px)' }}
-                      transition="all 0.2s"
-                    >
-                      <Icon as={FiKey} color="#8c1c84" boxSize={8} mb={4} />
-                      <Badge colorScheme="purple" mb={2}>
-                        LAYER 1
-                      </Badge>
-                      <Heading size="md" mb={3}>
-                        Passkey Auto-Sync
-                      </Heading>
-                      <Text fontSize="sm" color="gray.400" mb={4}>
-                        WebAuthn credentials automatically sync via platform services (iCloud
-                        Keychain, Google Password Manager)
-                      </Text>
-                      <List spacing={2} fontSize="sm">
-                        <ListItem>
-                          <ListIcon as={FiCheckCircle} color="green.400" />
-                          Automatic (no user action needed)
-                        </ListItem>
-                        <ListItem>
-                          <ListIcon as={FiCheckCircle} color="green.400" />
-                          Instant recovery on new device
-                        </ListItem>
-                        <ListItem>
-                          <ListIcon as={FiCheckCircle} color="green.400" />
-                          Hardware-protected security
-                        </ListItem>
-                        <ListItem>
-                          <ListIcon as={WarningIcon} color="yellow.400" />
-                          Platform-specific (Apple/Google)
-                        </ListItem>
-                      </List>
-                    </Box>
-
-                    <Box
-                      bg="gray.900"
-                      p={6}
-                      borderRadius="lg"
-                      border="1px solid"
-                      borderColor="gray.700"
-                      _hover={{ borderColor: '#8c1c84', transform: 'translateY(-2px)' }}
-                      transition="all 0.2s"
-                    >
-                      <Icon as={FiDownload} color="#8c1c84" boxSize={8} mb={4} />
-                      <Badge colorScheme="purple" mb={2}>
-                        LAYER 2
-                      </Badge>
-                      <Heading size="md" mb={3}>
-                        Encrypted Backups
-                      </Heading>
-                      <Text fontSize="sm" color="gray.400" mb={4}>
-                        Password-protected ZIP files or QR codes that you can store offline or in
-                        the cloud
-                      </Text>
-                      <List spacing={2} fontSize="sm">
-                        <ListItem>
-                          <ListIcon as={FiCheckCircle} color="green.400" />
-                          Works across any platform
-                        </ListItem>
-                        <ListItem>
-                          <ListIcon as={FiCheckCircle} color="green.400" />
-                          Military-grade encryption (AES-256-GCM)
-                        </ListItem>
-                        <ListItem>
-                          <ListIcon as={FiCheckCircle} color="green.400" />
-                          Multiple backup formats
-                        </ListItem>
-                        <ListItem>
-                          <ListIcon as={WarningIcon} color="yellow.400" />
-                          Must remember password
-                        </ListItem>
-                      </List>
-                    </Box>
-
-                    <Box
-                      bg="gray.900"
-                      p={6}
-                      borderRadius="lg"
-                      border="1px solid"
-                      borderColor="gray.700"
-                      _hover={{ borderColor: '#8c1c84', transform: 'translateY(-2px)' }}
-                      transition="all 0.2s"
-                    >
-                      <Icon as={FiUsers} color="#8c1c84" boxSize={8} mb={4} />
-                      <Badge colorScheme="purple" mb={2}>
-                        LAYER 3
-                      </Badge>
-                      <Heading size="md" mb={3}>
-                        Social Recovery
-                      </Heading>
-                      <Text fontSize="sm" color="gray.400" mb={4}>
-                        Split your recovery phrase among trusted friends/family using Shamir Secret
-                        Sharing (e.g., 3-of-5)
-                      </Text>
-                      <List spacing={2} fontSize="sm">
-                        <ListItem>
-                          <ListIcon as={FiCheckCircle} color="green.400" />
-                          No single point of failure
-                        </ListItem>
-                        <ListItem>
-                          <ListIcon as={FiCheckCircle} color="green.400" />
-                          Information-theoretic security
-                        </ListItem>
-                        <ListItem>
-                          <ListIcon as={FiCheckCircle} color="green.400" />
-                          Survives forgotten passwords
-                        </ListItem>
-                        <ListItem>
-                          <ListIcon as={WarningIcon} color="yellow.400" />
-                          Requires trusted guardians
-                        </ListItem>
-                      </List>
-                    </Box>
-
-                    <Box
-                      bg="gray.900"
-                      p={6}
-                      borderRadius="lg"
-                      border="1px solid"
-                      borderColor="gray.700"
-                      _hover={{ borderColor: '#8c1c84', transform: 'translateY(-2px)' }}
-                      transition="all 0.2s"
-                    >
-                      <Icon as={FiShield} color="#8c1c84" boxSize={8} mb={4} />
-                      <Badge colorScheme="green" mb={2}>
-                        UNIVERSAL
-                      </Badge>
-                      <Heading size="md" mb={3}>
-                        Manual Mnemonic
-                      </Heading>
-                      <Text fontSize="sm" color="gray.400" mb={4}>
-                        Your 12-word recovery phrase - the ultimate backup that works with any
-                        BIP39-compatible wallet
-                      </Text>
-                      <List spacing={2} fontSize="sm">
-                        <ListItem>
-                          <ListIcon as={FiCheckCircle} color="green.400" />
-                          Compatible with MetaMask, Ledger, etc.
-                        </ListItem>
-                        <ListItem>
-                          <ListIcon as={FiCheckCircle} color="green.400" />
-                          Never changes
-                        </ListItem>
-                        <ListItem>
-                          <ListIcon as={FiCheckCircle} color="green.400" />
-                          Simple and universal
-                        </ListItem>
-                        <ListItem>
-                          <ListIcon as={WarningIcon} color="yellow.400" />
-                          Keep it absolutely secret
-                        </ListItem>
-                      </List>
-                    </Box>
-                  </SimpleGrid>
-
-                  <Box
-                    p={6}
-                    borderColor="#45a2f8"
-                    border="2px solid"
-                    borderRadius="xl"
-                    textAlign="center"
-                    boxShadow="0 10px 100px rgba(69, 162, 248, 0.2)"
-                  >
-                    <Heading size="md" mb={3} color="white">
-                      Learn More About Recovery
-                    </Heading>
-                    <Text fontSize="sm" color="gray.400" mb={4}>
-                      Read the complete recovery architecture documentation
-                    </Text>
-                    <ChakraLink
-                      href="https://github.com/w3hc/w3pk/blob/main/docs/RECOVERY.md"
-                      isExternal
-                    >
-                      <Button bg="white" color="#45a2f8" _hover={{ bg: 'gray.100' }} size="sm">
-                        View Documentation
-                      </Button>
-                    </ChakraLink>
-                  </Box>
-                </VStack>
-              </TabPanel>
-
-              <TabPanel id="sync-panel" role="tabpanel">
-                <VStack spacing={8} align="stretch">
-                  <Box>
-                    <Heading size="lg" mb={4}>
-                      Device Sync
-                    </Heading>
-                    <Text color="gray.400" mb={6}>
-                      Your passkey automatically syncs across devices using platform services
-                    </Text>
-                  </Box>
-
-                  <Alert status="info" bg="rgba(139, 92, 246, 0.1)" borderRadius="lg">
-                    <AlertIcon />
-                    <Box fontSize="sm">
-                      <Text fontWeight="bold" mb={1}>
-                        Coming Soon
-                      </Text>
-                      <Text>
-                        Sync status and management features are already available in the w3pk SDK
-                        and will be implemented in this app soon. Your passkey is already syncing
-                        automatically via your platform provider (Apple iCloud, Google, or
-                        Microsoft).
-                      </Text>
-                    </Box>
-                  </Alert>
-
-                  <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-                    <Box
-                      bg="gray.900"
-                      p={6}
-                      borderRadius="lg"
-                      border="1px solid"
-                      borderColor="gray.700"
-                    >
-                      <Icon as={FiCloud} color="#8c1c84" boxSize={8} mb={4} />
-                      <Heading size="md" mb={3}>
-                        Apple iCloud
-                      </Heading>
-                      <Text fontSize="sm" color="gray.400" mb={4}>
-                        For iOS and macOS devices with iCloud Keychain enabled
-                      </Text>
-                      <List spacing={2} fontSize="sm" color="gray.400">
-                        <ListItem>
-                          <ListIcon as={CheckCircleIcon} color="green.400" />
-                          Syncs across iPhone, iPad, and Mac
-                        </ListItem>
-                        <ListItem>
-                          <ListIcon as={CheckCircleIcon} color="green.400" />
-                          End-to-end encrypted
-                        </ListItem>
-                        <ListItem>
-                          <ListIcon as={CheckCircleIcon} color="green.400" />
-                          Automatic backup to iCloud
-                        </ListItem>
-                        <ListItem>
-                          <ListIcon as={WarningIcon} color="yellow.400" />
-                          Requires iCloud Keychain enabled
-                        </ListItem>
-                      </List>
-                    </Box>
-
-                    <Box
-                      bg="gray.900"
-                      p={6}
-                      borderRadius="lg"
-                      border="1px solid"
-                      borderColor="gray.700"
-                    >
-                      <Icon as={FiCloud} color="#8c1c84" boxSize={8} mb={4} />
-                      <Heading size="md" mb={3}>
-                        Google Password Manager
-                      </Heading>
-                      <Text fontSize="sm" color="gray.400" mb={4}>
-                        For Android devices and Chrome browser
-                      </Text>
-                      <List spacing={2} fontSize="sm" color="gray.400">
-                        <ListItem>
-                          <ListIcon as={CheckCircleIcon} color="green.400" />
-                          Syncs across Android devices
-                        </ListItem>
-                        <ListItem>
-                          <ListIcon as={CheckCircleIcon} color="green.400" />
-                          End-to-end encrypted
-                        </ListItem>
-                        <ListItem>
-                          <ListIcon as={CheckCircleIcon} color="green.400" />
-                          Automatic backup to Google account
-                        </ListItem>
-                        <ListItem>
-                          <ListIcon as={WarningIcon} color="yellow.400" />
-                          Requires Google account sync
-                        </ListItem>
-                      </List>
-                    </Box>
-
-                    <Box
-                      bg="gray.900"
-                      p={6}
-                      borderRadius="lg"
-                      border="1px solid"
-                      borderColor="gray.700"
-                    >
-                      <Icon as={FiCloud} color="#8c1c84" boxSize={8} mb={4} />
-                      <Heading size="md" mb={3}>
-                        Windows Hello
-                      </Heading>
-                      <Text fontSize="sm" color="gray.400" mb={4}>
-                        For Windows devices with Windows Hello
-                      </Text>
-                      <List spacing={2} fontSize="sm" color="gray.400">
-                        <ListItem>
-                          <ListIcon as={CheckCircleIcon} color="green.400" />
-                          Hardware-protected (TPM)
-                        </ListItem>
-                        <ListItem>
-                          <ListIcon as={WarningIcon} color="yellow.400" />
-                          Tied to specific device
-                        </ListItem>
-                        <ListItem>
-                          <ListIcon as={WarningIcon} color="yellow.400" />
-                          Does NOT sync by default
-                        </ListItem>
-                        <ListItem>
-                          <ListIcon as={InfoIcon} color="blue.400" />
-                          Use encrypted backup for new devices
-                        </ListItem>
-                      </List>
-                    </Box>
-
-                    <Box
-                      bg="gray.900"
-                      p={6}
-                      borderRadius="lg"
-                      border="1px solid"
-                      borderColor="gray.700"
-                    >
-                      <Icon as={FiKey} color="#8c1c84" boxSize={8} mb={4} />
-                      <Heading size="md" mb={3}>
-                        Hardware Keys
-                      </Heading>
-                      <Text fontSize="sm" color="gray.400" mb={4}>
-                        Physical security keys like YubiKey
-                      </Text>
-                      <List spacing={2} fontSize="sm" color="gray.400">
-                        <ListItem>
-                          <ListIcon as={CheckCircleIcon} color="green.400" />
-                          Maximum security
-                        </ListItem>
-                        <ListItem>
-                          <ListIcon as={CheckCircleIcon} color="green.400" />
-                          Physical device required
-                        </ListItem>
-                        <ListItem>
-                          <ListIcon as={WarningIcon} color="yellow.400" />
-                          No automatic sync
-                        </ListItem>
-                        <ListItem>
-                          <ListIcon as={InfoIcon} color="blue.400" />
-                          Keep encrypted backup separately
-                        </ListItem>
-                      </List>
-                    </Box>
-                  </SimpleGrid>
-
-                  <Box
-                    bg="gray.900"
-                    p={6}
-                    borderRadius="lg"
-                    border="1px solid"
-                    borderColor="gray.700"
-                  >
-                    <Heading size="sm" mb={4} color="#8c1c84">
-                      Important Notes
-                    </Heading>
-                    <VStack align="stretch" spacing={3} fontSize="sm" color="gray.400">
-                      <Text>
-                        <strong>Cross-platform limitation:</strong> Passkey sync does not work
-                        across different ecosystems. For example, credentials created on an iPhone
-                        cannot automatically sync to an Android device.
-                      </Text>
-                      <Text>
-                        <strong>Recommendation:</strong> Always create an encrypted backup (Layer 2)
-                        to ensure you can access your wallet on any device, regardless of platform.
-                      </Text>
-                      <Text>
-                        <strong>Platform trust:</strong> Your passkey security depends on your
-                        platform provider&apos;s security. All major providers (Apple, Google,
-                        Microsoft) use industry-standard encryption and security practices.
-                      </Text>
-                    </VStack>
-                  </Box>
-
-                  <Box
-                    p={6}
-                    borderColor="#45a2f8"
-                    border="2px solid"
-                    borderRadius="xl"
-                    textAlign="center"
-                    boxShadow="0 10px 100px rgba(69, 162, 248, 0.2)"
-                  >
-                    <Heading size="md" mb={3} color="white">
-                      Learn More About Security
-                    </Heading>
-                    <Text fontSize="sm" color="gray.400" mb={4}>
-                      Read about w3pk&apos;s security architecture and sync mechanisms
-                    </Text>
-                    <ChakraLink
-                      href="https://github.com/w3hc/w3pk/blob/main/docs/SECURITY.md"
-                      isExternal
-                    >
-                      <Button bg="white" color="#45a2f8" _hover={{ bg: 'gray.100' }} size="sm">
-                        View Security Docs
-                      </Button>
-                    </ChakraLink>
-                  </Box>
-                </VStack>
-              </TabPanel>
-            </TabPanels>
-          </Tabs>
-        </VStack>
-
-        <PasswordModal
-          isOpen={showPasswordModal}
-          onClose={handleModalClose}
-          onSubmit={handlePasswordSubmit}
-          title={`Enter Password to Create Backup`}
-          description={`Please enter your password to create the backup. This is required by the w3pk SDK to access your encrypted wallet data.`}
-        />
-
-        <PasswordModal
-          isOpen={showRestorePasswordModal}
-          onClose={handleRestoreModalClose}
-          onSubmit={handleRestorePasswordSubmit}
-          title={`Enter Password to Restore Backup`}
-          description={`Please enter the password you used when creating this backup file.`}
-        />
-
-        <Modal isOpen={isOpen} onClose={onClose} isCentered>
-          <ModalOverlay bg="blackAlpha.600" />
-          <ModalContent bg="gray.800" color="white" role="alertdialog" aria-labelledby="delete-modal-title" aria-describedby="delete-modal-desc">
-            <ModalHeader id="delete-modal-title">Remove Account</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody id="delete-modal-desc">
-              <VStack spacing={4} align="stretch">
-                <Text>
-                  Are you sure you want to remove the account{' '}
-                  <strong>{accountToDelete?.username}</strong>?
+          <TabsContent value="accounts">
+            <VStack gap={6} align="stretch">
+              <Box>
+                <Heading as="h2" size="lg" mb={4}>
+                  Accounts on this Device
+                </Heading>
+                <Text fontSize="md" color="gray.400" mb={6}>
+                  These are all the accounts stored on this device. You can remove any account to
+                  free up space.
                 </Text>
-                <Box bg="red.900" p={3} borderRadius="md">
-                  <Text fontSize="sm" color="red.200">
-                    <strong>Warning:</strong> This will delete all data for this account from this
-                    device. Make sure you have a backup before proceeding. This action cannot be
-                    undone.
+              </Box>
+
+              {accounts.length === 0 ? (
+                <Box
+                  bg="gray.900"
+                  p={8}
+                  borderRadius="lg"
+                  textAlign="center"
+                  border="1px solid"
+                  borderColor="gray.700"
+                >
+                  <Text color="gray.400">No accounts found on this device.</Text>
+                </Box>
+              ) : (
+                accounts.map(account => (
+                  <Box
+                    key={account.ethereumAddress}
+                    bg="gray.900"
+                    p={6}
+                    borderRadius="lg"
+                    border={
+                      user?.ethereumAddress === account.ethereumAddress
+                        ? `2px solid ${brandColors.primary}`
+                        : '1px solid'
+                    }
+                    borderColor={
+                      user?.ethereumAddress === account.ethereumAddress
+                        ? brandColors.primary
+                        : 'gray.700'
+                    }
+                  >
+                    <HStack justify="space-between" align="start">
+                      <Box flex={1}>
+                        <HStack mb={3}>
+                          <Text fontSize="lg" fontWeight="bold" color="white">
+                            {account.displayName || account.username}
+                          </Text>
+                          {user?.ethereumAddress === account.ethereumAddress && (
+                            <Badge colorScheme="purple">Current</Badge>
+                          )}
+                        </HStack>
+                        <Text fontSize="sm" color="gray.400" mb={2}>
+                          Username: {account.username}
+                        </Text>
+                        <Code fontSize="xs" bg="gray.800" color="gray.300" p={2} borderRadius="md">
+                          {account.ethereumAddress}
+                        </Code>
+                      </Box>
+                      <IconButton
+                        aria-label="Delete account"
+                        colorScheme="red"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteAccount(account)}
+                      >
+                        <MdDelete />
+                      </IconButton>
+                    </HStack>
+                  </Box>
+                ))
+              )}
+
+              <Box p={4} bg="yellow.900/90" borderRadius="lg">
+                <Box fontSize="sm">
+                  <Text fontWeight="bold" mb={1}>
+                    Warning
+                  </Text>
+                  <Text fontSize="xs" color="gray.300">
+                    Removing an account will delete all its data from this device. Make sure you
+                    have a backup before removing an account. This action cannot be undone.
                   </Text>
                 </Box>
-                {user?.ethereumAddress === accountToDelete?.ethereumAddress && (
-                  <Box bg="orange.900" p={3} borderRadius="md">
-                    <Text fontSize="sm" color="orange.200">
-                      This is your currently logged-in account. You will be logged out after
-                      removal.
+              </Box>
+            </VStack>
+          </TabsContent>
+
+          <TabsContent value="backup">
+            <VStack gap={8} align="stretch">
+              {/* Header */}
+              <Box>
+                <Heading size="lg" mb={4}>
+                  Wallet Backup
+                </Heading>
+                <Text color="gray.400" mb={6}>
+                  Create encrypted backups of your wallet to ensure you never lose access
+                </Text>
+              </Box>
+
+              {/* Current User Info */}
+              <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
+                <HStack mb={4}>
+                  <Icon as={FiShield} color={brandColors.primary} boxSize={6} />
+                  <Heading size="md">Current Account</Heading>
+                </HStack>
+                <VStack align="stretch" gap={3}>
+                  <HStack>
+                    <Text fontSize="sm" color="gray.400">
+                      Logged in as:
+                    </Text>
+                    <Text fontSize="sm" fontWeight="bold" color="white">
+                      {user?.displayName || user?.username}
+                    </Text>
+                  </HStack>
+                  <HStack>
+                    <Text fontSize="xs" color="gray.500">
+                      Address:
+                    </Text>
+                    <Code fontSize="xs" bg="gray.800" color="gray.300" px={2} py={1}>
+                      {user?.ethereumAddress}
+                    </Code>
+                  </HStack>
+                  <HStack>
+                    <Icon as={MdLock} color="blue.300" boxSize={3} />
+                    <Text fontSize="xs" color="blue.300">
+                      Your private key is encrypted client-side and never sent to the server
+                    </Text>
+                  </HStack>
+                </VStack>
+              </Box>
+
+              {/* Security Score */}
+              <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
+                <HStack mb={4}>
+                  <Icon as={FiCheckCircle} color={brandColors.primary} boxSize={6} />
+                  <Heading size="md">Security Status</Heading>
+                </HStack>
+                {isCheckingStatus ? (
+                  <HStack justify="center" py={4}>
+                    <Spinner size="sm" />
+                    <Text color="gray.400" fontSize="sm">
+                      Checking backup status...
+                    </Text>
+                  </HStack>
+                ) : (
+                  <Text color="gray.300" fontSize="lg">
+                    {backupStatus || 'Click on the "Check Status" button'}
+                  </Text>
+                )}
+              </Box>
+
+              <SimpleGrid columns={{ base: 1, md: 3 }} gap={6}>
+                <Box
+                  bg="gray.900"
+                  p={6}
+                  borderRadius="lg"
+                  border="1px solid"
+                  borderColor="gray.700"
+                  _hover={{ borderColor: brandColors.primary, transform: 'translateY(-2px)' }}
+                  transition="all 0.2s"
+                >
+                  <Icon as={MdInfo} color={brandColors.primary} boxSize={6} mb={3} />
+                  <Heading size="sm" mb={3}>
+                    Check Backup Status
+                  </Heading>
+                  <Text fontSize="sm" color="gray.400" mb={4}>
+                    Get your current security score and backup recommendations
+                  </Text>
+                  <Button
+                    bg={brandColors.primary}
+                    color="white"
+                    _hover={{ bg: brandColors.secondary }}
+                    onClick={handleGetBackupStatus}
+                    loading={isCheckingStatus}
+                    spinner={<Spinner size="16px" />}
+                    loadingText="Checking..."
+                    disabled={isCheckingStatus || isCreatingBackup || isRestoring}
+                    width="full"
+                  >
+                    Check Status
+                  </Button>
+                </Box>
+
+                <Box
+                  bg="gray.900"
+                  p={6}
+                  borderRadius="lg"
+                  border="1px solid"
+                  borderColor="gray.700"
+                  _hover={{ borderColor: brandColors.primary, transform: 'translateY(-2px)' }}
+                  transition="all 0.2s"
+                >
+                  <Icon as={MdDownload} color={brandColors.primary} boxSize={6} mb={3} />
+                  <Heading size="sm" mb={3}>
+                    Create ZIP Backup
+                  </Heading>
+                  <Text fontSize="sm" color="gray.400" mb={4}>
+                    Download an encrypted ZIP file protected by your password
+                  </Text>
+                  <Button
+                    bg={brandColors.primary}
+                    color="white"
+                    _hover={{ bg: brandColors.secondary }}
+                    onClick={handleCreateBackup}
+                    loading={isCreatingBackup}
+                    spinner={<Spinner size="16px" />}
+                    loadingText="Creating..."
+                    disabled={isCheckingStatus || isCreatingBackup || isRestoring}
+                    width="full"
+                  >
+                    Create Backup
+                  </Button>
+                </Box>
+
+                <Box
+                  bg="gray.900"
+                  p={6}
+                  borderRadius="lg"
+                  border="1px solid"
+                  borderColor="gray.700"
+                  _hover={{ borderColor: brandColors.primary, transform: 'translateY(-2px)' }}
+                  transition="all 0.2s"
+                >
+                  <Icon as={FiUpload} color={brandColors.primary} boxSize={6} mb={3} />
+                  <Heading size="sm" mb={3}>
+                    Restore from Backup
+                  </Heading>
+                  <Text fontSize="sm" color="gray.400" mb={4}>
+                    Restore your wallet from an encrypted backup file
+                  </Text>
+                  <Button
+                    bg={brandColors.primary}
+                    color="white"
+                    _hover={{ bg: brandColors.secondary }}
+                    onClick={handleRestoreBackup}
+                    loading={isRestoring}
+                    spinner={<Spinner size="16px" />}
+                    loadingText="Restoring..."
+                    disabled={isCheckingStatus || isCreatingBackup || isRestoring}
+                    width="full"
+                  >
+                    Restore Backup
+                  </Button>
+                </Box>
+              </SimpleGrid>
+
+              <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
+                <Heading size="sm" mb={4} color={brandColors.primary}>
+                  About Client-Side Backup
+                </Heading>
+                <VStack align="stretch" gap={3} fontSize="sm" color="gray.400">
+                  <Text>
+                    Your wallet&apos;s core secret (the mnemonic phrase) is generated and encrypted
+                    entirely on your device. The backup process retrieves this encrypted data from
+                    your browser&apos;s local storage using your password, then packages it into a
+                    secure ZIP file for you to download.
+                  </Text>
+                  <Text>
+                    The encryption key for your wallet is derived using a WebAuthn signature, which
+                    requires your biometric authentication (fingerprint, face scan) or device PIN.
+                    This means even if someone gains access to the encrypted data stored in your
+                    browser, they cannot decrypt it without your physical device and authentication.
+                  </Text>
+                  <Text>
+                    Your backup ZIP file is encrypted using AES-256-GCM with a key derived from the
+                    password you provide. Store this file securely and remember your password.
+                  </Text>
+                  <Box p={4} bg="yellow.900/90" mt={2}>
+                    <Text fontSize="xs">
+                      If you lose access to your device, passkey, AND the backup file/password, your
+                      wallet cannot be recovered.
                     </Text>
                   </Box>
-                )}
-              </VStack>
-            </ModalBody>
+                </VStack>
+              </Box>
+            </VStack>
+          </TabsContent>
 
-            <ModalFooter>
-              <Button variant="ghost" mr={3} onClick={onClose}>
-                Cancel
-              </Button>
-              <Button colorScheme="red" onClick={confirmDeleteAccount}>
-                Remove Account
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
-
-        <Modal
-          isOpen={showLocalStorageModal}
-          onClose={() => setShowLocalStorageModal(false)}
-          size="xl"
-          scrollBehavior="inside"
-        >
-          <ModalOverlay bg="blackAlpha.600" />
-          <ModalContent bg="gray.800" color="white" maxH="80vh">
-            <ModalHeader>
-              <HStack>
-                <Icon as={FiHardDrive} color="#8c1c84" />
-                <Text>LocalStorage Inspection</Text>
-              </HStack>
-            </ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
-              <VStack align="stretch" spacing={4}>
-                <Text fontSize="sm" color="gray.400">
-                  Found {localStorageData.length} items in localStorage
+          <TabsContent value="recovery">
+            <VStack gap={8} align="stretch">
+              <Box>
+                <Heading size="lg" mb={4}>
+                  Recovery Options
+                </Heading>
+                <Text color="gray.400" mb={6}>
+                  Multiple ways to recover your wallet in case of device loss or failure
                 </Text>
+              </Box>
 
-                {localStorageData.length === 0 ? (
-                  <Box bg="gray.900" p={4} borderRadius="md" textAlign="center">
-                    <Text color="gray.500">No data found</Text>
-                  </Box>
-                ) : (
-                  localStorageData.map((item, index) => (
-                    <Box
-                      key={index}
-                      bg="gray.900"
-                      p={4}
-                      borderRadius="md"
-                      border="1px solid"
-                      borderColor={item.type.startsWith('w3pk') ? 'purple.600' : 'gray.700'}
-                    >
-                      <VStack align="stretch" spacing={2}>
-                        <HStack justify="space-between">
-                          <Text fontSize="sm" fontWeight="bold" color="white">
-                            {item.key}
-                          </Text>
-                          <HStack spacing={2}>
-                            {item.encrypted && (
-                              <Badge colorScheme="orange" fontSize="xs">
-                                Encrypted
-                              </Badge>
-                            )}
-                            <Badge
-                              colorScheme={item.type.startsWith('w3pk') ? 'purple' : 'gray'}
-                              fontSize="xs"
-                            >
-                              {item.type}
+              <Box p={4} bg="rgba(139, 92, 246, 0.1)" borderRadius="lg">
+                <Box fontSize="sm">
+                  <Text fontWeight="bold" mb={1}>
+                    Coming Soon
+                  </Text>
+                  <Text>
+                    These recovery features are already available in the w3pk SDK and will be
+                    implemented in this app soon. w3pk provides a three-layer recovery system for
+                    maximum security and flexibility.
+                  </Text>
+                </Box>
+              </Box>
+
+              <SimpleGrid columns={{ base: 1, md: 2 }} gap={6}>
+                <Box
+                  bg="gray.900"
+                  p={6}
+                  borderRadius="lg"
+                  border="1px solid"
+                  borderColor="gray.700"
+                  _hover={{ borderColor: brandColors.primary, transform: 'translateY(-2px)' }}
+                  transition="all 0.2s"
+                >
+                  <Icon as={FiKey} color={brandColors.primary} boxSize={8} mb={4} />
+                  <Badge colorScheme="purple" mb={2}>
+                    LAYER 1
+                  </Badge>
+                  <Heading size="md" mb={3}>
+                    Passkey Auto-Sync
+                  </Heading>
+                  <Text fontSize="sm" color="gray.400" mb={4}>
+                    WebAuthn credentials automatically sync via platform services (iCloud Keychain,
+                    Google Password Manager)
+                  </Text>
+                  <ListRoot gap={2} fontSize="sm">
+                    <ListItem>
+                      <Icon as={FiCheckCircle} color="green.400" />
+                      Automatic (no user action needed)
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={FiCheckCircle} color="green.400" />
+                      Instant recovery on new device
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={FiCheckCircle} color="green.400" />
+                      Hardware-protected security
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={MdWarning} color="yellow.400" />
+                      Platform-specific (Apple/Google)
+                    </ListItem>
+                  </ListRoot>
+                </Box>
+
+                <Box
+                  bg="gray.900"
+                  p={6}
+                  borderRadius="lg"
+                  border="1px solid"
+                  borderColor="gray.700"
+                  _hover={{ borderColor: brandColors.primary, transform: 'translateY(-2px)' }}
+                  transition="all 0.2s"
+                >
+                  <Icon as={FiDownload} color={brandColors.primary} boxSize={8} mb={4} />
+                  <Badge colorScheme="purple" mb={2}>
+                    LAYER 2
+                  </Badge>
+                  <Heading size="md" mb={3}>
+                    Encrypted Backups
+                  </Heading>
+                  <Text fontSize="sm" color="gray.400" mb={4}>
+                    Password-protected ZIP files or QR codes that you can store offline or in the
+                    cloud
+                  </Text>
+                  <ListRoot gap={2} fontSize="sm">
+                    <ListItem>
+                      <Icon as={FiCheckCircle} color="green.400" />
+                      Works across any platform
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={FiCheckCircle} color="green.400" />
+                      Military-grade encryption (AES-256-GCM)
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={FiCheckCircle} color="green.400" />
+                      Multiple backup formats
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={MdWarning} color="yellow.400" />
+                      Must remember password
+                    </ListItem>
+                  </ListRoot>
+                </Box>
+
+                <Box
+                  bg="gray.900"
+                  p={6}
+                  borderRadius="lg"
+                  border="1px solid"
+                  borderColor="gray.700"
+                  _hover={{ borderColor: brandColors.primary, transform: 'translateY(-2px)' }}
+                  transition="all 0.2s"
+                >
+                  <Icon as={FiUsers} color={brandColors.primary} boxSize={8} mb={4} />
+                  <Badge colorScheme="purple" mb={2}>
+                    LAYER 3
+                  </Badge>
+                  <Heading size="md" mb={3}>
+                    Social Recovery
+                  </Heading>
+                  <Text fontSize="sm" color="gray.400" mb={4}>
+                    Split your recovery phrase among trusted friends/family using Shamir Secret
+                    Sharing (e.g., 3-of-5)
+                  </Text>
+                  <ListRoot gap={2} fontSize="sm">
+                    <ListItem>
+                      <Icon as={FiCheckCircle} color="green.400" />
+                      No single point of failure
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={FiCheckCircle} color="green.400" />
+                      Information-theoretic security
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={FiCheckCircle} color="green.400" />
+                      Survives forgotten passwords
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={MdWarning} color="yellow.400" />
+                      Requires trusted guardians
+                    </ListItem>
+                  </ListRoot>
+                </Box>
+
+                <Box
+                  bg="gray.900"
+                  p={6}
+                  borderRadius="lg"
+                  border="1px solid"
+                  borderColor="gray.700"
+                  _hover={{ borderColor: brandColors.primary, transform: 'translateY(-2px)' }}
+                  transition="all 0.2s"
+                >
+                  <Icon as={FiShield} color={brandColors.primary} boxSize={8} mb={4} />
+                  <Badge colorScheme="green" mb={2}>
+                    UNIVERSAL
+                  </Badge>
+                  <Heading size="md" mb={3}>
+                    Manual Mnemonic
+                  </Heading>
+                  <Text fontSize="sm" color="gray.400" mb={4}>
+                    Your 12-word recovery phrase - the ultimate backup that works with any
+                    BIP39-compatible wallet
+                  </Text>
+                  <ListRoot gap={2} fontSize="sm">
+                    <ListItem>
+                      <Icon as={FiCheckCircle} color="green.400" />
+                      Compatible with MetaMask, Ledger, etc.
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={FiCheckCircle} color="green.400" />
+                      Never changes
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={FiCheckCircle} color="green.400" />
+                      Simple and universal
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={MdWarning} color="yellow.400" />
+                      Keep it absolutely secret
+                    </ListItem>
+                  </ListRoot>
+                </Box>
+              </SimpleGrid>
+
+              <Box
+                p={6}
+                borderColor={brandColors.accent}
+                border="2px solid"
+                borderRadius="xl"
+                textAlign="center"
+                boxShadow="0 10px 100px rgba(69, 162, 248, 0.2)"
+              >
+                <Heading size="md" mb={3} color="white">
+                  Learn More About Recovery
+                </Heading>
+                <Text fontSize="sm" color="gray.400" mb={4}>
+                  Read the complete recovery architecture documentation
+                </Text>
+                <ChakraLink
+                  href="https://github.com/w3hc/w3pk/blob/main/docs/RECOVERY.md"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button
+                    bg="white"
+                    color={brandColors.accent}
+                    _hover={{ bg: 'gray.100' }}
+                    size="sm"
+                  >
+                    View Documentation
+                  </Button>
+                </ChakraLink>
+              </Box>
+            </VStack>
+          </TabsContent>
+
+          <TabsContent value="sync">
+            <VStack gap={8} align="stretch">
+              <Box>
+                <Heading size="lg" mb={4}>
+                  Device Sync
+                </Heading>
+                <Text color="gray.400" mb={6}>
+                  Your passkey automatically syncs across devices using platform services
+                </Text>
+              </Box>
+
+              <Box p={4} bg="rgba(139, 92, 246, 0.1)" borderRadius="lg">
+                <Box fontSize="sm">
+                  <Text fontWeight="bold" mb={1}>
+                    Coming Soon
+                  </Text>
+                  <Text>
+                    Sync status and management features are already available in the w3pk SDK and
+                    will be implemented in this app soon. Your passkey is already syncing
+                    automatically via your platform provider (Apple iCloud, Google, or Microsoft).
+                  </Text>
+                </Box>
+              </Box>
+
+              <SimpleGrid columns={{ base: 1, md: 2 }} gap={6}>
+                <Box
+                  bg="gray.900"
+                  p={6}
+                  borderRadius="lg"
+                  border="1px solid"
+                  borderColor="gray.700"
+                >
+                  <Icon as={FiCloud} color={brandColors.primary} boxSize={8} mb={4} />
+                  <Heading size="md" mb={3}>
+                    Apple iCloud
+                  </Heading>
+                  <Text fontSize="sm" color="gray.400" mb={4}>
+                    For iOS and macOS devices with iCloud Keychain enabled
+                  </Text>
+                  <ListRoot gap={2} fontSize="sm" color="gray.400">
+                    <ListItem>
+                      <Icon as={MdCheckCircle} color="green.400" />
+                      Syncs across iPhone, iPad, and Mac
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={MdCheckCircle} color="green.400" />
+                      End-to-end encrypted
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={MdCheckCircle} color="green.400" />
+                      Automatic backup to iCloud
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={MdWarning} color="yellow.400" />
+                      Requires iCloud Keychain enabled
+                    </ListItem>
+                  </ListRoot>
+                </Box>
+
+                <Box
+                  bg="gray.900"
+                  p={6}
+                  borderRadius="lg"
+                  border="1px solid"
+                  borderColor="gray.700"
+                >
+                  <Icon as={FiCloud} color={brandColors.primary} boxSize={8} mb={4} />
+                  <Heading size="md" mb={3}>
+                    Google Password Manager
+                  </Heading>
+                  <Text fontSize="sm" color="gray.400" mb={4}>
+                    For Android devices and Chrome browser
+                  </Text>
+                  <ListRoot gap={2} fontSize="sm" color="gray.400">
+                    <ListItem>
+                      <Icon as={MdCheckCircle} color="green.400" />
+                      Syncs across Android devices
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={MdCheckCircle} color="green.400" />
+                      End-to-end encrypted
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={MdCheckCircle} color="green.400" />
+                      Automatic backup to Google account
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={MdWarning} color="yellow.400" />
+                      Requires Google account sync
+                    </ListItem>
+                  </ListRoot>
+                </Box>
+
+                <Box
+                  bg="gray.900"
+                  p={6}
+                  borderRadius="lg"
+                  border="1px solid"
+                  borderColor="gray.700"
+                >
+                  <Icon as={FiCloud} color={brandColors.primary} boxSize={8} mb={4} />
+                  <Heading size="md" mb={3}>
+                    Windows Hello
+                  </Heading>
+                  <Text fontSize="sm" color="gray.400" mb={4}>
+                    For Windows devices with Windows Hello
+                  </Text>
+                  <ListRoot gap={2} fontSize="sm" color="gray.400">
+                    <ListItem>
+                      <Icon as={MdCheckCircle} color="green.400" />
+                      Hardware-protected (TPM)
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={MdWarning} color="yellow.400" />
+                      Tied to specific device
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={MdWarning} color="yellow.400" />
+                      Does NOT sync by default
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={MdInfo} color="blue.400" />
+                      Use encrypted backup for new devices
+                    </ListItem>
+                  </ListRoot>
+                </Box>
+
+                <Box
+                  bg="gray.900"
+                  p={6}
+                  borderRadius="lg"
+                  border="1px solid"
+                  borderColor="gray.700"
+                >
+                  <Icon as={FiKey} color={brandColors.primary} boxSize={8} mb={4} />
+                  <Heading size="md" mb={3}>
+                    Hardware Keys
+                  </Heading>
+                  <Text fontSize="sm" color="gray.400" mb={4}>
+                    Physical security keys like YubiKey
+                  </Text>
+                  <ListRoot gap={2} fontSize="sm" color="gray.400">
+                    <ListItem>
+                      <Icon as={MdCheckCircle} color="green.400" />
+                      Maximum security
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={MdCheckCircle} color="green.400" />
+                      Physical device required
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={MdWarning} color="yellow.400" />
+                      No automatic sync
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={MdInfo} color="blue.400" />
+                      Keep encrypted backup separately
+                    </ListItem>
+                  </ListRoot>
+                </Box>
+              </SimpleGrid>
+
+              <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
+                <Heading size="sm" mb={4} color={brandColors.primary}>
+                  Important Notes
+                </Heading>
+                <VStack align="stretch" gap={3} fontSize="sm" color="gray.400">
+                  <Text>
+                    <strong>Cross-platform limitation:</strong> Passkey sync does not work across
+                    different ecosystems. For example, credentials created on an iPhone cannot
+                    automatically sync to an Android device.
+                  </Text>
+                  <Text>
+                    <strong>Recommendation:</strong> Always create an encrypted backup (Layer 2) to
+                    ensure you can access your wallet on any device, regardless of platform.
+                  </Text>
+                  <Text>
+                    <strong>Platform trust:</strong> Your passkey security depends on your platform
+                    provider&apos;s security. All major providers (Apple, Google, Microsoft) use
+                    industry-standard encryption and security practices.
+                  </Text>
+                </VStack>
+              </Box>
+
+              <Box
+                p={6}
+                borderColor={brandColors.accent}
+                border="2px solid"
+                borderRadius="xl"
+                textAlign="center"
+                boxShadow="0 10px 100px rgba(69, 162, 248, 0.2)"
+              >
+                <Heading size="md" mb={3} color="white">
+                  Learn More About Security
+                </Heading>
+                <Text fontSize="sm" color="gray.400" mb={4}>
+                  Read about w3pk&apos;s security architecture and sync mechanisms
+                </Text>
+                <ChakraLink
+                  href="https://github.com/w3hc/w3pk/blob/main/docs/SECURITY.md"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button
+                    bg="white"
+                    color={brandColors.accent}
+                    _hover={{ bg: 'gray.100' }}
+                    size="sm"
+                  >
+                    View Security Docs
+                  </Button>
+                </ChakraLink>
+              </Box>
+            </VStack>
+          </TabsContent>
+        </TabsRoot>
+      </VStack>
+
+      <PasswordModal
+        isOpen={showPasswordModal}
+        onClose={handleModalClose}
+        onSubmit={handlePasswordSubmit}
+        title={`Enter Password to Create Backup`}
+        description={`Please enter your password to create the backup. This is required by the w3pk SDK to access your encrypted wallet data.`}
+      />
+
+      <PasswordModal
+        isOpen={showRestorePasswordModal}
+        onClose={handleRestoreModalClose}
+        onSubmit={handleRestorePasswordSubmit}
+        title={`Enter Password to Restore Backup`}
+        description={`Please enter the password you used when creating this backup file.`}
+      />
+
+      <DialogRoot
+        open={isOpen}
+        onOpenChange={(e: { open: boolean }) => (e.open ? null : onClose())}
+      >
+        <DialogBackdrop bg="blackAlpha.600" />
+        <DialogContent
+          bg="gray.800"
+          color="white"
+          role="alertdialog"
+          aria-labelledby="delete-modal-title"
+          aria-describedby="delete-modal-desc"
+        >
+          <DialogHeader id="delete-modal-title">Remove Account</DialogHeader>
+          <DialogCloseTrigger />
+          <DialogBody id="delete-modal-desc">
+            <VStack gap={4} align="stretch">
+              <Text>
+                Are you sure you want to remove the account{' '}
+                <strong>{accountToDelete?.username}</strong>?
+              </Text>
+              <Box bg="red.900" p={3} borderRadius="md">
+                <Text fontSize="sm" color="red.200">
+                  <strong>Warning:</strong> This will delete all data for this account from this
+                  device. Make sure you have a backup before proceeding. This action cannot be
+                  undone.
+                </Text>
+              </Box>
+              {user?.ethereumAddress === accountToDelete?.ethereumAddress && (
+                <Box bg="orange.900" p={3} borderRadius="md">
+                  <Text fontSize="sm" color="orange.200">
+                    This is your currently logged-in account. You will be logged out after removal.
+                  </Text>
+                </Box>
+              )}
+            </VStack>
+          </DialogBody>
+
+          <DialogFooter>
+            <Button variant="ghost" mr={3} onClick={onClose}>
+              Cancel
+            </Button>
+            <Button colorScheme="red" onClick={confirmDeleteAccount}>
+              Remove Account
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </DialogRoot>
+
+      <DialogRoot
+        open={showLocalStorageModal}
+        onOpenChange={(e: { open: boolean }) => (e.open ? null : setShowLocalStorageModal(false))}
+        size="xl"
+        scrollBehavior="inside"
+      >
+        <DialogBackdrop bg="blackAlpha.600" />
+        <DialogContent bg="gray.800" color="white" maxH="80vh">
+          <DialogHeader>
+            <HStack>
+              <Icon as={FiHardDrive} color={brandColors.primary} />
+              <Text>LocalStorage Inspection</Text>
+            </HStack>
+          </DialogHeader>
+          <DialogCloseTrigger />
+          <DialogBody>
+            <VStack align="stretch" gap={4}>
+              <Text fontSize="sm" color="gray.400">
+                Found {localStorageData.length} items in localStorage
+              </Text>
+
+              {localStorageData.length === 0 ? (
+                <Box bg="gray.900" p={4} borderRadius="md" textAlign="center">
+                  <Text color="gray.500">No data found</Text>
+                </Box>
+              ) : (
+                localStorageData.map((item, index) => (
+                  <Box
+                    key={index}
+                    bg="gray.900"
+                    p={4}
+                    borderRadius="md"
+                    border="1px solid"
+                    borderColor={item.type.startsWith('w3pk') ? 'purple.600' : 'gray.700'}
+                  >
+                    <VStack align="stretch" gap={2}>
+                      <HStack justify="space-between">
+                        <Text fontSize="sm" fontWeight="bold" color="white">
+                          {item.key}
+                        </Text>
+                        <HStack gap={2}>
+                          {item.encrypted && (
+                            <Badge colorScheme="orange" fontSize="xs">
+                              Encrypted
                             </Badge>
-                          </HStack>
-                        </HStack>
-
-                        {item.parsedValue && (
-                          <Box
-                            bg="gray.950"
-                            p={3}
-                            borderRadius="md"
+                          )}
+                          <Badge
+                            colorScheme={item.type.startsWith('w3pk') ? 'purple' : 'gray'}
                             fontSize="xs"
-                            fontFamily="monospace"
-                            overflowX="auto"
                           >
-                            <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
-                              {formatValue(maskSensitiveData(item.key, item.parsedValue))}
-                            </pre>
-                          </Box>
-                        )}
-
-                        {!item.parsedValue && (
-                          <Text fontSize="xs" color="gray.500" fontFamily="monospace">
-                            {item.value}
-                          </Text>
-                        )}
-                      </VStack>
-                    </Box>
-                  ))
-                )}
-              </VStack>
-            </ModalBody>
-            <ModalFooter>
-              <Button onClick={() => setShowLocalStorageModal(false)}>Close</Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
-
-        <Modal
-          isOpen={showIndexedDBModal}
-          onClose={() => setShowIndexedDBModal(false)}
-          size="xl"
-          scrollBehavior="inside"
-        >
-          <ModalOverlay bg="blackAlpha.600" />
-          <ModalContent bg="gray.800" color="white" maxH="80vh">
-            <ModalHeader>
-              <HStack>
-                <Icon as={FiDatabase} color="#8c1c84" />
-                <Text>IndexedDB Inspection</Text>
-              </HStack>
-            </ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
-              <VStack align="stretch" spacing={4}>
-                <Text fontSize="sm" color="gray.400">
-                  Found {indexedDBData.length} database(s)
-                </Text>
-
-                {indexedDBData.length === 0 ? (
-                  <Box bg="gray.900" p={4} borderRadius="md" textAlign="center">
-                    <Text color="gray.500">No w3pk-related databases found</Text>
-                  </Box>
-                ) : (
-                  indexedDBData.map((db, dbIndex) => (
-                    <Box
-                      key={dbIndex}
-                      bg="gray.900"
-                      p={4}
-                      borderRadius="md"
-                      border="1px solid"
-                      borderColor="purple.600"
-                    >
-                      <VStack align="stretch" spacing={3}>
-                        <HStack justify="space-between">
-                          <Text fontSize="md" fontWeight="bold" color="white">
-                            {db.name}
-                          </Text>
-                          <Badge colorScheme="purple" fontSize="xs">
-                            v{db.version}
+                            {item.type}
                           </Badge>
                         </HStack>
+                      </HStack>
 
-                        <Text fontSize="xs" color="gray.400">
-                          Stores: {db.stores.join(', ')}
+                      {item.parsedValue && (
+                        <Box
+                          bg="gray.950"
+                          p={3}
+                          borderRadius="md"
+                          fontSize="xs"
+                          fontFamily="monospace"
+                          overflowX="auto"
+                        >
+                          <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                            {formatValue(maskSensitiveData(item.key, item.parsedValue))}
+                          </pre>
+                        </Box>
+                      )}
+
+                      {!item.parsedValue && (
+                        <Text fontSize="xs" color="gray.500" fontFamily="monospace">
+                          {item.value}
                         </Text>
+                      )}
+                    </VStack>
+                  </Box>
+                ))
+              )}
+            </VStack>
+          </DialogBody>
+          <DialogFooter>
+            <Button onClick={() => setShowLocalStorageModal(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </DialogRoot>
 
-                        <Text fontSize="xs" color="gray.400">
-                          Records: {db.records.length}
+      <DialogRoot
+        open={showIndexedDBModal}
+        onOpenChange={(e: { open: boolean }) => (e.open ? null : setShowIndexedDBModal(false))}
+        size="xl"
+        scrollBehavior="inside"
+      >
+        <DialogBackdrop bg="blackAlpha.600" />
+        <DialogContent bg="gray.800" color="white" maxH="80vh">
+          <DialogHeader>
+            <HStack>
+              <Icon as={FiDatabase} color={brandColors.primary} />
+              <Text>IndexedDB Inspection</Text>
+            </HStack>
+          </DialogHeader>
+          <DialogCloseTrigger />
+          <DialogBody>
+            <VStack align="stretch" gap={4}>
+              <Text fontSize="sm" color="gray.400">
+                Found {indexedDBData.length} database(s)
+              </Text>
+
+              {indexedDBData.length === 0 ? (
+                <Box bg="gray.900" p={4} borderRadius="md" textAlign="center">
+                  <Text color="gray.500">No w3pk-related databases found</Text>
+                </Box>
+              ) : (
+                indexedDBData.map((db, dbIndex) => (
+                  <Box
+                    key={dbIndex}
+                    bg="gray.900"
+                    p={4}
+                    borderRadius="md"
+                    border="1px solid"
+                    borderColor="purple.600"
+                  >
+                    <VStack align="stretch" gap={3}>
+                      <HStack justify="space-between">
+                        <Text fontSize="md" fontWeight="bold" color="white">
+                          {db.name}
                         </Text>
+                        <Badge colorScheme="purple" fontSize="xs">
+                          v{db.version}
+                        </Badge>
+                      </HStack>
 
-                        {db.records.length > 0 && (
-                          <VStack align="stretch" spacing={2} mt={2}>
-                            {db.records.map((record, recordIndex) => (
-                              <Box
-                                key={recordIndex}
-                                bg="gray.950"
-                                p={3}
-                                borderRadius="md"
-                                border="1px solid"
-                                borderColor="gray.800"
-                              >
-                                <Text fontSize="xs" color="gray.400" mb={2}>
-                                  Store: {record.store} | Key: {record.key}
-                                </Text>
-                                <Box fontSize="xs" fontFamily="monospace" overflowX="auto">
-                                  <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
-                                    {formatValue(maskSensitiveData(record.key, record.value))}
-                                  </pre>
-                                </Box>
+                      <Text fontSize="xs" color="gray.400">
+                        Stores: {db.stores.join(', ')}
+                      </Text>
+
+                      <Text fontSize="xs" color="gray.400">
+                        Records: {db.records.length}
+                      </Text>
+
+                      {db.records.length > 0 && (
+                        <VStack align="stretch" gap={2} mt={2}>
+                          {db.records.map((record, recordIndex) => (
+                            <Box
+                              key={recordIndex}
+                              bg="gray.950"
+                              p={3}
+                              borderRadius="md"
+                              border="1px solid"
+                              borderColor="gray.800"
+                            >
+                              <Text fontSize="xs" color="gray.400" mb={2}>
+                                Store: {record.store} | Key: {record.key}
+                              </Text>
+                              <Box fontSize="xs" fontFamily="monospace" overflowX="auto">
+                                <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                                  {formatValue(maskSensitiveData(record.key, record.value))}
+                                </pre>
                               </Box>
-                            ))}
-                          </VStack>
-                        )}
-                      </VStack>
-                    </Box>
-                  ))
-                )}
-              </VStack>
-            </ModalBody>
-            <ModalFooter>
-              <Button onClick={() => setShowIndexedDBModal(false)}>Close</Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
-      </Container>
+                            </Box>
+                          ))}
+                        </VStack>
+                      )}
+                    </VStack>
+                  </Box>
+                ))
+              )}
+            </VStack>
+          </DialogBody>
+          <DialogFooter>
+            <Button onClick={() => setShowIndexedDBModal(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </DialogRoot>
     </>
   )
 }

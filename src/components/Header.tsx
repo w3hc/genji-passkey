@@ -3,44 +3,43 @@
 import {
   Box,
   Button,
+  Container,
   Flex,
   Heading,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
   IconButton,
   Text,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
   useDisclosure,
   Input,
-  FormControl,
-  FormLabel,
   VStack,
-  useToast,
-  FormErrorMessage,
   Link as ChakraLink,
+  Portal,
 } from '@chakra-ui/react'
+import { Field } from '@/components/ui/field'
+import { MenuRoot, MenuTrigger, MenuPositioner, MenuContent, MenuItem } from '@/components/ui/menu'
+import {
+  DialogRoot,
+  DialogBackdrop,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogBody,
+  DialogCloseTrigger,
+} from '@/components/ui/dialog'
 import Link from 'next/link'
-import { HamburgerIcon } from '@chakra-ui/icons'
+import { HiMenu } from 'react-icons/hi'
 import LanguageSelector from './LanguageSelector'
 import Spinner from './Spinner'
 import { useTranslation } from '@/hooks/useTranslation'
 import { useW3PK } from '@/context/W3PK'
 import { useState, useEffect } from 'react'
 import { FaGithub } from 'react-icons/fa'
+import { toaster } from '@/components/ui/toaster'
+import { brandColors } from '@/theme'
 
 export default function Header() {
   const { isAuthenticated, user, isLoading, login, register, logout } = useW3PK()
   const t = useTranslation()
-  const toast = useToast()
-  const { isOpen, onOpen, onClose } = useDisclosure()
+  const { open: isOpen, onOpen, onClose } = useDisclosure()
   const [username, setUsername] = useState('')
   const [isRegistering, setIsRegistering] = useState(false)
   const [isUsernameInvalid, setIsUsernameInvalid] = useState(false)
@@ -86,12 +85,11 @@ export default function Header() {
 
   const handleRegister = async () => {
     if (!username.trim()) {
-      toast({
+      toaster.create({
         title: 'Username Required',
         description: 'Please enter a username to register.',
-        status: 'warning',
+        type: 'warning',
         duration: 3000,
-        isClosable: true,
       })
       setIsUsernameInvalid(true)
       return
@@ -132,12 +130,11 @@ export default function Header() {
       console.error('[Header] Registration failed:', error)
 
       // Show user-friendly error message
-      toast({
+      toaster.create({
         title: 'Registration Failed',
         description: error.message || 'Unable to complete registration. Please try again.',
-        status: 'error',
+        type: 'error',
         duration: 8000,
-        isClosable: true,
       })
     } finally {
       console.log('[Header] Cleaning up registration state')
@@ -164,126 +161,136 @@ export default function Header() {
 
   return (
     <>
-      <Box as="header" py={4} position="fixed" w="100%" top={0} zIndex={10}>
-        <Flex as="nav" aria-label="Main navigation" justify="space-between" align="center" px={4}>
-          <Box
-            transform={`translateX(-${leftSlideValue}px)`}
-            transition="transform 0.5s ease-in-out"
-          >
-            <Flex align="center" gap={3}>
-              <Link href="/">
-                <Heading as="h3" size="md" textAlign="center">
-                  Genji
-                </Heading>
-              </Link>
-            </Flex>
-          </Box>
-
-          <Flex
-            gap={2}
-            align="center"
-            transform={`translateX(${rightSlideValue}px)`}
-            transition="transform 0.5s ease-in-out"
-          >
-            {!isAuthenticated ? (
+      <Box as="header" py={4} position="fixed" w="100%" top={0} zIndex={10} overflow="visible">
+        <Container maxW="100%" px={{ base: 4, md: 6 }} overflow="visible">
+          <Flex as="nav" aria-label="Main navigation" justify="space-between" align="center" overflow="visible">
+            <Box
+              transform={`translateX(-${leftSlideValue}px)`}
+              transition="transform 0.5s ease-in-out"
+              suppressHydrationWarning
+            >
               <Flex align="center" gap={3}>
-                <Button
-                  variant="link"
-                  fontSize="sm"
-                  color="gray.300"
-                  _hover={{ color: 'white', textDecoration: 'underline' }}
-                  onClick={onOpen}
-                >
-                  {t.common.register}
-                </Button>
-                <Button
-                  bg="#8c1c84"
-                  color="white"
-                  _hover={{
-                    bg: '#6d1566',
-                  }}
-                  onClick={handleLogin}
-                  isLoading={isLoading}
-                  spinner={<Spinner size="16px" />}
-                  loadingText="Authenticating..."
-                  size="sm"
-                >
-                  {t.common.login}
-                </Button>
+                <Link href="/">
+                  <Heading as="h3" size="md" textAlign="center">
+                    Genji
+                  </Heading>
+                </Link>
               </Flex>
-            ) : (
-              <>
-                <Box>
-                  <Text fontSize="sm" color="gray.300">
-                    {user?.displayName || user?.username}
-                  </Text>
-                </Box>
-                <Button
-                  bg="#8c1c84"
-                  color="white"
-                  _hover={{
-                    bg: '#6d1566',
-                  }}
-                  onClick={handleLogout}
-                  size="sm"
-                  ml={4}
-                >
-                  {t.common.logout}
-                </Button>
-              </>
-            )}
-            <Menu>
-              <MenuButton
-                as={IconButton}
-                aria-label="Options"
-                icon={<HamburgerIcon />}
-                variant="ghost"
-                size="sm"
-              />
-              <MenuList minWidth="auto">
-                <Link href="/about" color="white">
-                  <MenuItem fontSize="md" px={4} py={3}>
-                    {t.navigation.about}
-                  </MenuItem>
-                </Link>
-                <Link href="/settings" color="white">
-                  <MenuItem fontSize="md" px={4} py={3}>
-                    {t.navigation.settings}
-                  </MenuItem>
-                </Link>
-              </MenuList>
-            </Menu>
-            <LanguageSelector />
+            </Box>
+
+            <Flex
+              gap={2}
+              align="center"
+              transform={`translateX(${rightSlideValue}px)`}
+              transition="transform 0.5s ease-in-out"
+              suppressHydrationWarning
+            >
+              {!isAuthenticated ? (
+                <Flex align="center" gap={3}>
+                  <Button
+                    variant="plain"
+                    fontSize="sm"
+                    color="gray.300"
+                    _hover={{ color: 'white', textDecoration: 'underline' }}
+                    onClick={onOpen}
+                  >
+                    {t.common.register}
+                  </Button>
+                  <Button
+                    bg={brandColors.primary}
+                    color="white"
+                    _hover={{
+                      bg: brandColors.secondary,
+                    }}
+                    onClick={handleLogin}
+                    size="xs"
+                    px={4}
+                  >
+                    {isLoading && <Spinner size="16px" />}
+                    {!isLoading && t.common.login}
+                  </Button>
+                </Flex>
+              ) : (
+                <>
+                  <Box>
+                    <Text fontSize="sm" color="gray.300">
+                      {user?.displayName || user?.username}
+                    </Text>
+                  </Box>
+                  <Button
+                    bg={brandColors.primary}
+                    color="white"
+                    _hover={{
+                      bg: brandColors.secondary,
+                    }}
+                    onClick={handleLogout}
+                    size="xs"
+                    ml={4}
+                    px={4}
+                  >
+                    {t.common.logout}
+                  </Button>
+                </>
+              )}
+              <MenuRoot>
+                <MenuTrigger asChild>
+                  <IconButton aria-label="Options" variant="ghost" size="sm">
+                    <HiMenu />
+                  </IconButton>
+                </MenuTrigger>
+                <Portal>
+                  <MenuPositioner>
+                    <MenuContent minWidth="auto">
+                      <Link href="/about" color="white">
+                        <MenuItem value="about" fontSize="md" px={4} py={3}>
+                          {t.navigation.about}
+                        </MenuItem>
+                      </Link>
+                      <Link href="/settings" color="white">
+                        <MenuItem value="settings" fontSize="md" px={4} py={3}>
+                          {t.navigation.settings}
+                        </MenuItem>
+                      </Link>
+                    </MenuContent>
+                  </MenuPositioner>
+                </Portal>
+              </MenuRoot>
+              <LanguageSelector />
+            </Flex>
           </Flex>
-        </Flex>
+        </Container>
       </Box>
 
       {/* Registration Modal */}
-      <Modal isOpen={isOpen} onClose={handleModalClose} isCentered>
-        <ModalOverlay bg="blackAlpha.600" />
-        <ModalContent bg="gray.800" color="white">
-          <ModalHeader>Register New Account</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <VStack spacing={4}>
+      <DialogRoot
+        open={isOpen}
+        onOpenChange={(e: { open: boolean }) => (e.open ? null : handleModalClose())}
+      >
+        <DialogBackdrop />
+        <DialogContent bg="gray.800" color="white">
+          <DialogHeader>Register New Account</DialogHeader>
+          <DialogCloseTrigger />
+          <DialogBody>
+            <VStack gap={4}>
               <Text fontSize="sm" color="gray.400">
                 An Ethereum wallet will be created and securely stored on your device, protected by
                 your biometric or PIN thanks to{' '}
                 <ChakraLink
                   href={'https://github.com/w3hc/w3pk/blob/main/src/auth/register.ts#L17-L102'}
-                  color="#45a2f8"
-                  isExternal
+                  color={brandColors.accent}
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
                   w3pk
                 </ChakraLink>
                 .
               </Text>
-              <FormControl isInvalid={isUsernameInvalid}>
-                {' '}
-                <FormLabel htmlFor="username-input">Username</FormLabel>
+              <Field invalid={isUsernameInvalid} label="Username">
                 <Input
                   id="username-input"
-                  aria-describedby={isUsernameInvalid && username.trim() ? 'username-error' : undefined}
+                  aria-describedby={
+                    isUsernameInvalid && username.trim() ? 'username-error' : undefined
+                  }
                   aria-invalid={isUsernameInvalid && username.trim() ? true : undefined}
                   value={username}
                   onChange={e => setUsername(e.target.value)}
@@ -293,8 +300,8 @@ export default function Header() {
                   borderColor="gray.600"
                   _hover={{ borderColor: 'gray.500' }}
                   _focus={{
-                    borderColor: '#8c1c84',
-                    boxShadow: '0 0 0 1px #8c1c84',
+                    borderColor: brandColors.primary,
+                    boxShadow: `0 0 0 1px ${brandColors.primary}`,
                   }}
                   onKeyDown={e => {
                     if (e.key === 'Enter' && username.trim()) {
@@ -303,34 +310,32 @@ export default function Header() {
                   }}
                 />
                 {isUsernameInvalid && username.trim() && (
-                  <FormErrorMessage id="username-error">
+                  <Field.ErrorText id="username-error">
                     Username must be 3-50 characters long and contain only letters, numbers,
                     underscores, and hyphens. It must start and end with a letter or number.
-                  </FormErrorMessage>
+                  </Field.ErrorText>
                 )}
-              </FormControl>
+              </Field>
             </VStack>
-          </ModalBody>
+          </DialogBody>
 
-          <ModalFooter>
+          <DialogFooter>
             <Button variant="ghost" mr={3} onClick={handleModalClose}>
               Cancel
             </Button>
             <Button
-              bg="#8c1c84"
+              bg={brandColors.primary}
               color="white"
-              _hover={{ bg: '#6d1566' }}
+              _hover={{ bg: brandColors.secondary }}
               onClick={handleRegister}
-              isLoading={isRegistering}
-              spinner={<Spinner size="16px" />}
-              loadingText="Creating..."
-              isDisabled={!username.trim()}
+              disabled={!username.trim()}
             >
-              Create Account
+              {isRegistering && <Spinner size="16px" />}
+              {!isRegistering && 'Create Account'}
             </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+          </DialogFooter>
+        </DialogContent>
+      </DialogRoot>
     </>
   )
 }
