@@ -16,6 +16,7 @@
   "dependencies": {
     "@chakra-ui/react": "^3.30.0",
     "@emotion/react": "^11.14.0",
+    "@neondatabase/serverless": "^1.0.2",
     "@types/react-syntax-highlighter": "^15.5.13",
     "ethers": "^6.15.0",
     "jszip": "^3.10.1",

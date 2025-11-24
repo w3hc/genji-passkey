@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { promises as fs } from 'fs'
-import path from 'path'
+import { neon } from '@neondatabase/serverless'
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,30 +9,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid email address' }, { status: 400 })
     }
 
-    const filePath = path.join(process.cwd(), 'MAILING_LIST.txt')
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return NextResponse.json({ error: 'Invalid email format' }, { status: 400 })
+    }
 
-    // Read existing emails or create empty string if file doesn't exist
-    let existingEmails = ''
+    const databaseUrl = process.env.DATABASE_URL
+    if (!databaseUrl) {
+      console.error('DATABASE_URL is not configured')
+      return NextResponse.json({ error: 'Database configuration error' }, { status: 500 })
+    }
+
+    const sql = neon(databaseUrl)
+
+    // Try to insert the email, handle duplicate case
     try {
-      existingEmails = await fs.readFile(filePath, 'utf-8')
-    } catch (error) {
-      // File doesn't exist yet, will be created
+      await sql`
+        INSERT INTO subscribers (email)
+        VALUES (${email.toLowerCase()})
+      `
+      return NextResponse.json({ message: 'Successfully subscribed' }, { status: 200 })
+    } catch (error: any) {
+      // Check if it's a unique constraint violation (duplicate email)
+      if (error.code === '23505') {
+        return NextResponse.json({ message: 'Email already subscribed' }, { status: 200 })
+      }
+      throw error
     }
-
-    // Check if email already exists
-    const emailList = existingEmails.split(',').map(e => e.trim()).filter(e => e)
-    if (emailList.includes(email)) {
-      return NextResponse.json({ message: 'Email already subscribed' }, { status: 200 })
-    }
-
-    // Append new email
-    const newContent = existingEmails
-      ? `${existingEmails.trimEnd()}, ${email}`
-      : email
-
-    await fs.writeFile(filePath, newContent, 'utf-8')
-
-    return NextResponse.json({ message: 'Successfully subscribed' }, { status: 200 })
   } catch (error) {
     console.error('Error saving email:', error)
     return NextResponse.json({ error: 'Failed to subscribe' }, { status: 500 })
