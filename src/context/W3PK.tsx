@@ -9,8 +9,8 @@ import React, {
   useCallback,
   useEffect,
 } from 'react'
-import { useToast } from '@chakra-ui/react'
 import { createWeb3Passkey, StealthKeys } from 'w3pk'
+import { toaster } from '@/components/ui/toaster'
 
 interface SecurityScore {
   total: number
@@ -65,7 +65,10 @@ interface W3pkType {
   deriveWalletWithCustomTag: (tag: string) => Promise<DerivedWallet>
   getBackupStatus: () => Promise<BackupStatus>
   createZipBackup: (password: string) => Promise<Blob>
-  restoreFromBackup: (backupData: string, password: string) => Promise<{ mnemonic: string; ethereumAddress: string }>
+  restoreFromBackup: (
+    backupData: string,
+    password: string
+  ) => Promise<{ mnemonic: string; ethereumAddress: string }>
 }
 
 interface AuthStateData {
@@ -108,7 +111,6 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
   const [user, setUser] = useState<W3pkUser | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
-  const toast = useToast()
 
   const isUserCancelledError = useCallback((error: unknown): boolean => {
     if (error && typeof error === 'object' && 'name' in error && 'message' in error) {
@@ -161,7 +163,6 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
     () =>
       createWeb3Passkey({
         stealthAddresses: {},
-        debug: process.env.NODE_ENV === 'development',
         onAuthStateChanged: handleAuthStateChanged,
         sessionDuration: 24, // 24 hours session duration
       }),
@@ -240,23 +241,21 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
 
       await Promise.race([registrationPromise, timeoutPromise])
 
-      toast({
+      toaster.create({
         title: 'Done! 🎉',
         description:
           "Your encrypted wallet has been created and stored on your device. Don't forget to back it up!",
-        status: 'success',
+        type: 'success',
         duration: 3000,
-        isClosable: true,
       })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to register with w3pk'
 
-      toast({
+      toaster.create({
         title: 'Registration Failed',
         description: errorMessage,
-        status: 'error',
+        type: 'error',
         duration: 8000,
-        isClosable: true,
       })
       throw error
     } finally {
@@ -272,14 +271,13 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
       const hasWallet = w3pk.isAuthenticated
       const displayName = result.displayName || result.username || 'Anon'
 
-      toast({
+      toaster.create({
         title: "You're in!",
         description: hasWallet
           ? `Welcome back, ${displayName}! Your wallet is available.`
           : `Welcome back, ${displayName}! No wallet found on this device.`,
-        status: hasWallet ? 'success' : 'warning',
+        type: hasWallet ? 'success' : 'warning',
         duration: 5000,
-        isClosable: true,
       })
     } catch (error) {
       if (!isUserCancelledError(error)) {
@@ -287,17 +285,17 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
           error instanceof Error ? error.message : 'Failed to authenticate with w3pk'
 
         // Silence passkey not available errors
-        const isPasskeyNotAvailable = errorMessage.includes('not available on this device') ||
-                                       errorMessage.includes('not available') ||
-                                       errorMessage.includes('restore your wallet from a backup')
+        const isPasskeyNotAvailable =
+          errorMessage.includes('not available on this device') ||
+          errorMessage.includes('not available') ||
+          errorMessage.includes('restore your wallet from a backup')
 
         if (!isPasskeyNotAvailable) {
-          toast({
+          toaster.create({
             title: 'Authentication Failed',
             description: errorMessage,
-            status: 'error',
+            type: 'error',
             duration: 5000,
-            isClosable: true,
           })
         }
       }
@@ -320,12 +318,11 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
 
   const signMessage = async (message: string): Promise<string | null> => {
     if (!user) {
-      toast({
+      toaster.create({
         title: 'Not Authenticated',
         description: 'Please log in first.',
-        status: 'error',
+        type: 'error',
         duration: 3000,
-        isClosable: true,
       })
       return null
     }
@@ -343,12 +340,11 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
         const errorMessage =
           error instanceof Error ? error.message : 'Failed to sign message with w3pk'
 
-        toast({
+        toaster.create({
           title: 'Signing Failed',
           description: errorMessage,
-          status: 'error',
+          type: 'error',
           duration: 5000,
-          isClosable: true,
         })
       }
       return null
@@ -385,12 +381,11 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
           return derivedWallet
         } catch (retryError) {
           if (!isUserCancelledError(retryError)) {
-            toast({
+            toaster.create({
               title: 'Authentication Required',
               description: 'Please authenticate to derive addresses',
-              status: 'error',
+              type: 'error',
               duration: 5000,
-              isClosable: true,
             })
           }
           throw retryError
@@ -401,12 +396,11 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
         const errorMessage =
           error instanceof Error ? error.message : `Failed to derive wallet at index ${index}`
 
-        toast({
+        toaster.create({
           title: 'Derivation Failed',
           description: errorMessage,
-          status: 'error',
+          type: 'error',
           duration: 5000,
-          isClosable: true,
         })
       }
       throw error
@@ -444,12 +438,11 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
             return derivedWallet
           } catch (retryError) {
             if (!isUserCancelledError(retryError)) {
-              toast({
+              toaster.create({
                 title: 'Authentication Required',
                 description: 'Please authenticate to derive addresses',
-                status: 'error',
+                type: 'error',
                 duration: 5000,
-                isClosable: true,
               })
             }
             throw retryError
@@ -460,18 +453,17 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
           const errorMessage =
             error instanceof Error ? error.message : `Failed to derive wallet with tag ${tag}`
 
-          toast({
+          toaster.create({
             title: 'Derivation Failed',
             description: errorMessage,
-            status: 'error',
+            type: 'error',
             duration: 5000,
-            isClosable: true,
           })
         }
         throw error
       }
     },
-    [user, w3pk, isUserCancelledError, toast, ensureAuthentication]
+    [user, w3pk, isUserCancelledError, ensureAuthentication]
   )
 
   const logout = (): void => {
@@ -483,12 +475,11 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
       localStorage.removeItem(AUTH_STATE_KEY)
     }
 
-    toast({
+    toaster.create({
       title: 'Logged Out',
       description: 'You have been logged out.',
-      status: 'info',
+      type: 'info',
       duration: 4000,
-      isClosable: true,
     })
   }
 
@@ -521,12 +512,11 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
       }
     } catch (error) {
       if (!isUserCancelledError(error)) {
-        toast({
+        toaster.create({
           title: 'Authentication Required',
           description: 'Please authenticate to check backup status',
-          status: 'error',
+          type: 'error',
           duration: 5000,
-          isClosable: true,
         })
       }
       throw error
@@ -564,12 +554,11 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
       }
     } catch (error) {
       if (!isUserCancelledError(error)) {
-        toast({
+        toaster.create({
           title: 'Authentication Required',
           description: 'Please authenticate to create backup',
-          status: 'error',
+          type: 'error',
           duration: 5000,
-          isClosable: true,
         })
       }
       throw error
@@ -578,7 +567,10 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
     }
   }
 
-  const restoreFromBackup = async (backupData: string, password: string): Promise<{ mnemonic: string; ethereumAddress: string }> => {
+  const restoreFromBackup = async (
+    backupData: string,
+    password: string
+  ): Promise<{ mnemonic: string; ethereumAddress: string }> => {
     if (!w3pk || typeof w3pk.restoreFromBackup !== 'function') {
       throw new Error('w3pk SDK does not support restoreFromBackup.')
     }
@@ -588,24 +580,22 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
 
       const result = await w3pk.restoreFromBackup(backupData, password)
 
-      toast({
+      toaster.create({
         title: 'Backup Restored Successfully!',
         description: `Wallet restored: ${result.ethereumAddress}`,
-        status: 'success',
+        type: 'success',
         duration: 5000,
-        isClosable: true,
       })
 
       return result
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to restore from backup'
 
-      toast({
+      toaster.create({
         title: 'Restore Failed',
         description: errorMessage,
-        status: 'error',
+        type: 'error',
         duration: 5000,
-        isClosable: true,
       })
       throw error
     } finally {

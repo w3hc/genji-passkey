@@ -1,27 +1,13 @@
 import React, { useState, useEffect } from 'react'
-import {
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
-  Button,
-  FormControl,
-  FormLabel,
-  Input,
-  useToast,
-  Text,
-  FormErrorMessage,
-  FormHelperText,
-  List,
-  ListItem,
-  ListIcon,
-  Box,
-} from '@chakra-ui/react'
-import { CheckCircleIcon, WarningIcon } from '@chakra-ui/icons'
+import { Text, Box, Flex, CloseButton } from '@chakra-ui/react'
+import { Dialog, Portal } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { ListRoot, ListItem } from '@/components/ui/list'
+import { Field } from '@/components/ui/field'
+import { MdCheckCircle, MdWarning } from 'react-icons/md'
 import { isStrongPassword } from 'w3pk'
+import { toaster } from '@/components/ui/toaster'
 
 interface PasswordModalProps {
   isOpen: boolean
@@ -42,7 +28,6 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isPasswordStrong, setIsPasswordStrong] = useState(false)
   const [passwordTouched, setPasswordTouched] = useState(false)
-  const toast = useToast()
 
   // Validate password strength in real-time
   useEffect(() => {
@@ -55,23 +40,21 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
 
   const handleSubmit = async () => {
     if (!password.trim()) {
-      toast({
+      toaster.create({
         title: 'Password Required.',
         description: 'Please enter your password.',
-        status: 'warning',
+        type: 'warning',
         duration: 3000,
-        isClosable: true,
       })
       return
     }
 
     if (!isPasswordStrong) {
-      toast({
+      toaster.create({
         title: 'Weak Password.',
         description: 'Please use a stronger password that meets all requirements.',
-        status: 'warning',
+        type: 'warning',
         duration: 3000,
-        isClosable: true,
       })
       return
     }
@@ -83,12 +66,11 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
       setPasswordTouched(false)
     } catch (error) {
       console.error('Error in password modal submit:', error)
-      toast({
+      toaster.create({
         title: 'Submission Error.',
         description: (error as Error).message || 'An unexpected error occurred.',
-        status: 'error',
+        type: 'error',
         duration: 5000,
-        isClosable: true,
       })
     } finally {
       setIsSubmitting(false)
@@ -118,16 +100,21 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
   const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} isCentered size="lg">
-      <ModalOverlay />
-      <ModalContent>
-        <ModalHeader>{title}</ModalHeader>
-        <ModalCloseButton />
-        <ModalBody pb={6}>
-          {/* Use the Text component here */}
+    <Dialog.Root
+      open={isOpen}
+      onOpenChange={(e: { open: boolean }) => (e.open ? null : handleClose())}
+    >
+      <Portal>
+        <Dialog.Backdrop />
+        <Dialog.Positioner>
+          <Dialog.Content p={6}>
+            <Dialog.Header>
+              <Dialog.Title>{title}</Dialog.Title>
+            </Dialog.Header>
+            <Dialog.Body pt={4}>
           <Text mb={4}>{description}</Text>
-          <FormControl isRequired isInvalid={passwordTouched && !isPasswordStrong}>
-            <FormLabel htmlFor="password">Password</FormLabel>
+          <Field required invalid={passwordTouched && !isPasswordStrong}>
+            <Field.Label htmlFor="password">Password</Field.Label>
             <Input
               id="password"
               type="password"
@@ -137,84 +124,76 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
               aria-describedby="password-requirements password-status"
               aria-invalid={passwordTouched && !isPasswordStrong ? true : undefined}
               autoFocus
+              pl={3}
             />
             {passwordTouched && !isPasswordStrong && (
-              <FormErrorMessage id="password-status">
+              <Field.ErrorText id="password-status">
                 Password does not meet all requirements
-              </FormErrorMessage>
+              </Field.ErrorText>
             )}
             {passwordTouched && isPasswordStrong && (
-              <FormHelperText id="password-status" color="green.400">
+              <Field.HelperText id="password-status" color="green.400">
                 Strong password!
-              </FormHelperText>
+              </Field.HelperText>
             )}
-          </FormControl>
+          </Field>
 
           {/* Password Requirements */}
           <Box mt={4} id="password-requirements" aria-live="polite" aria-atomic="false">
             <Text fontSize="sm" fontWeight="bold" mb={2} color="white">
               Password must include:
             </Text>
-            <List spacing={1} fontSize="sm">
-              <ListItem color="white">
-                <ListIcon
-                  as={hasMinLength ? CheckCircleIcon : WarningIcon}
-                  color={hasMinLength ? 'green.500' : 'gray.400'}
-                />
-                At least 12 characters
-                <span className="sr-only">{hasMinLength ? ' (satisfied)' : ' (required)'}</span>
-              </ListItem>
-              <ListItem color="white">
-                <ListIcon
-                  as={hasUpperCase ? CheckCircleIcon : WarningIcon}
-                  color={hasUpperCase ? 'green.500' : 'gray.400'}
-                />
-                One uppercase letter
-                <span className="sr-only">{hasUpperCase ? ' (satisfied)' : ' (required)'}</span>
-              </ListItem>
-              <ListItem color="white">
-                <ListIcon
-                  as={hasLowerCase ? CheckCircleIcon : WarningIcon}
-                  color={hasLowerCase ? 'green.500' : 'gray.400'}
-                />
-                One lowercase letter
-                <span className="sr-only">{hasLowerCase ? ' (satisfied)' : ' (required)'}</span>
-              </ListItem>
-              <ListItem color="white">
-                <ListIcon
-                  as={hasNumber ? CheckCircleIcon : WarningIcon}
-                  color={hasNumber ? 'green.500' : 'gray.400'}
-                />
-                One number
-                <span className="sr-only">{hasNumber ? ' (satisfied)' : ' (required)'}</span>
-              </ListItem>
-              <ListItem color="white">
-                <ListIcon
-                  as={hasSpecialChar ? CheckCircleIcon : WarningIcon}
-                  color={hasSpecialChar ? 'green.500' : 'gray.400'}
-                />
-                One special character
-                <span className="sr-only">{hasSpecialChar ? ' (satisfied)' : ' (required)'}</span>
-              </ListItem>
-            </List>
-          </Box>
-        </ModalBody>
+            <Flex align="center" gap={2}>
+              {hasMinLength ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
+              At least 12 characters
+              <span className="sr-only">{hasMinLength ? ' (satisfied)' : ' (required)'}</span>
+            </Flex>
 
-        <ModalFooter>
-          <Button onClick={handleClose} mr={3} variant="outline">
-            Cancel
-          </Button>
-          <Button
-            colorScheme="blue"
-            onClick={handleSubmit}
-            isLoading={isSubmitting}
-            isDisabled={!isPasswordStrong}
-          >
-            Submit
-          </Button>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
+            <Flex align="center" gap={2}>
+              {hasUpperCase ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
+              One uppercase letter
+            </Flex>
+            <span className="sr-only">{hasUpperCase ? ' (satisfied)' : ' (required)'}</span>
+            <Flex align="center" gap={2}>
+              {hasLowerCase ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
+              One lowercase letter
+            </Flex>
+            <span className="sr-only">{hasLowerCase ? ' (satisfied)' : ' (required)'}</span>
+            <Flex align="center" gap={2}>
+              {hasNumber ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
+              One number
+            </Flex>
+            <span className="sr-only">{hasNumber ? ' (satisfied)' : ' (required)'}</span>
+            <Flex align="center" gap={2}>
+              {hasSpecialChar ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
+              One special character
+            </Flex>
+            <span className="sr-only">{hasSpecialChar ? ' (satisfied)' : ' (required)'}</span>
+          </Box>
+            </Dialog.Body>
+
+            <Dialog.Footer gap={3} pt={6}>
+              <Dialog.ActionTrigger asChild>
+                <Button variant="outline">
+                  Cancel
+                </Button>
+              </Dialog.ActionTrigger>
+              <Button
+                colorPalette="blue"
+                onClick={handleSubmit}
+                loading={isSubmitting}
+                disabled={!isPasswordStrong}
+              >
+                Submit
+              </Button>
+            </Dialog.Footer>
+            <Dialog.CloseTrigger asChild>
+              <CloseButton size="sm" />
+            </Dialog.CloseTrigger>
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Portal>
+    </Dialog.Root>
   )
 }
 
