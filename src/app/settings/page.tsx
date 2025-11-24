@@ -46,6 +46,7 @@ import PasswordModal from '../../components/PasswordModal'
 import { CodeBlock } from '@/components/CodeBlock'
 import { detectBrowser, isWebAuthnAvailable } from '../../../src/utils/browserDetection'
 import { brandColors } from '@/theme'
+import { BuildVerification } from '@/components/BuildVerification'
 import {
   inspectLocalStorage,
   inspectIndexedDB,
@@ -392,6 +393,127 @@ const SettingsPage = () => {
     }
   }
 
+  const handleRestoreBackup = () => {
+    const fileInput = document.createElement('input')
+    fileInput.type = 'file'
+    fileInput.accept = '.zip,.json,.enc'
+    fileInput.onchange = async (e: Event) => {
+      const target = e.target as HTMLInputElement
+      const file = target.files?.[0]
+      if (!file) return
+
+      try {
+        const textContent = await file.text()
+
+        try {
+          JSON.parse(textContent)
+          setSelectedBackupFile(textContent)
+          setShowRestorePasswordModal(true)
+          return
+        } catch (jsonError) {
+          // Not JSON, try ZIP
+        }
+
+        if (file.name.endsWith('.zip')) {
+          const JSZip = (await import('jszip')).default
+
+          const arrayBuffer = await file.arrayBuffer()
+
+          try {
+            const zip = await JSZip.loadAsync(arrayBuffer)
+
+            const encFileName = Object.keys(zip.files).find(
+              name =>
+                name.endsWith('.txt.enc') && !name.startsWith('__MACOSX') && !zip.files[name].dir
+            )
+
+            if (!encFileName) {
+              throw new Error('No encrypted recovery file found in ZIP backup')
+            }
+
+            const encryptedContent = await zip.files[encFileName].async('string')
+
+            setSelectedBackupFile(encryptedContent)
+            setShowRestorePasswordModal(true)
+          } catch (zipError) {
+            setSelectedBackupFile(textContent)
+            setShowRestorePasswordModal(true)
+          }
+        } else {
+          setSelectedBackupFile(textContent)
+          setShowRestorePasswordModal(true)
+        }
+      } catch (error) {
+        toaster.create({
+          title: 'Error reading file',
+          description: (error as Error).message || 'Failed to read backup file',
+          type: 'error',
+          duration: 5000,
+        })
+      }
+    }
+    fileInput.click()
+  }
+
+  const handleRestorePasswordSubmit = async (password: string) => {
+    setShowRestorePasswordModal(false)
+
+    if (!selectedBackupFile) {
+      toaster.create({
+        title: 'No backup file selected',
+        type: 'error',
+        duration: 3000,
+      })
+      return
+    }
+
+    setIsRestoring(true)
+    try {
+      let backupToRestore = selectedBackupFile
+
+      try {
+        const backupObj = JSON.parse(selectedBackupFile)
+
+        if (backupObj['recovery-phrase.txt.enc']) {
+          const encryptedContent = backupObj['recovery-phrase.txt.enc']
+          backupToRestore = encryptedContent
+        } else if (!backupObj.version && (backupObj.encrypted || backupObj.mnemonic)) {
+          toaster.create({
+            title: 'Incompatible Backup Version',
+            description:
+              'This backup was created with an older version of w3pk. Please create a new backup with the current version.',
+            type: 'warning',
+            duration: 8000,
+          })
+          setIsRestoring(false)
+          return
+        }
+      } catch (e) {
+        // Not JSON or parsing error
+      }
+
+      const result = await restoreFromBackup(backupToRestore, password)
+
+      toaster.create({
+        title: 'Wallet Restored!',
+        description: `Successfully restored wallet: ${result.ethereumAddress.slice(0, 6)}...${result.ethereumAddress.slice(-4)}`,
+        type: 'success',
+        duration: 5000,
+      })
+
+      setSelectedBackupFile(null)
+    } catch (error) {
+      // Error toast shown in restoreFromBackup
+    } finally {
+      setIsRestoring(false)
+    }
+  }
+
+  const handleRestoreModalClose = () => {
+    setShowRestorePasswordModal(false)
+    setSelectedBackupFile(null)
+  }
+
   if (!isAuthenticated || !getBackupStatus || !createZipBackup) {
     const browserInfo = detectBrowser()
     const webAuthnAvailable = isWebAuthnAvailable()
@@ -402,207 +524,235 @@ const SettingsPage = () => {
     else if (browserInfo.warningLevel === 'info') alertStatus = 'info'
 
     return (
-      <VStack gap={8} align="stretch" py={20}>
-        <Box textAlign="center">
-          <Heading as="h1" size="xl" mb={4}>
-            {t.settings.title}
-          </Heading>
-          <Text fontSize="lg" color="gray.400">
-            {t.settings.loginRequired}
-          </Text>
-        </Box>
-
-        <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
-          <HStack mb={4}>
-            <Icon as={MdInfo} color={brandColors.primary} boxSize={6} />
-            <Heading size="md">Browser Info</Heading>
-          </HStack>
-          <VStack align="stretch" gap={3}>
-            <HStack justify="space-between">
-              <Text fontSize="sm" color="gray.400">
-                Browser:
-              </Text>
-              <Text fontSize="sm" fontWeight="bold" color="white">
-                {browserInfo.name}
-              </Text>
-            </HStack>
-            <HStack justify="space-between">
-              <Text fontSize="sm" color="gray.400">
-                Version:
-              </Text>
-              <Text fontSize="sm" fontWeight="bold" color="white">
-                {browserInfo.fullVersion || browserInfo.version}
-              </Text>
-            </HStack>
-            <HStack justify="space-between">
-              <Text fontSize="sm" color="gray.400">
-                Operating System:
-              </Text>
-              <Text fontSize="sm" fontWeight="bold" color="white">
-                {browserInfo.os}
-              </Text>
-            </HStack>
-            <HStack justify="space-between">
-              <Text fontSize="sm" color="gray.400">
-                WebAuthn Support:
-              </Text>
-              <Badge colorPalette={webAuthnAvailable ? 'green' : 'red'}>
-                {webAuthnAvailable ? 'Available' : 'Not Available'}
-              </Badge>
-            </HStack>
-            <HStack justify="space-between">
-              <Text fontSize="sm" color="gray.400">
-                Compatibility:
-              </Text>
-              <Badge
-                colorPalette={
-                  browserInfo.isSupported && !browserInfo.hasKnownIssues
-                    ? 'green'
-                    : browserInfo.hasKnownIssues
-                      ? 'yellow'
-                      : 'red'
-                }
-              >
-                {browserInfo.isSupported && !browserInfo.hasKnownIssues
-                  ? 'Fully Supported'
-                  : browserInfo.hasKnownIssues
-                    ? 'Known Issues'
-                    : 'Not Supported'}
-              </Badge>
-            </HStack>
-          </VStack>
-        </Box>
-
-        {browserInfo.recommendation && (
-          <Box
-            p={4}
-            bg={
-              alertStatus === 'error'
-                ? 'red.900/90'
-                : alertStatus === 'warning'
-                  ? 'yellow.900/90'
-                  : 'blue.900/90'
-            }
-            borderRadius="lg"
-          >
-            <Box fontSize="sm">
-              <Text fontWeight="bold" mb={1}>
-                {alertStatus === 'error'
-                  ? 'Browser Not Supported'
-                  : alertStatus === 'warning'
-                    ? 'Known Issues Detected'
-                    : 'Recommendation'}
-              </Text>
-              <Text fontSize="sm">{browserInfo.recommendation}</Text>
-            </Box>
+      <>
+        <VStack gap={8} align="stretch" py={20}>
+          <Box textAlign="center">
+            <Heading as="h1" size="xl" mb={4}>
+              {t.settings.title}
+            </Heading>
+            <Text fontSize="lg" color="gray.400">
+              {t.settings.loginRequired}
+            </Text>
           </Box>
-        )}
 
-        {!webAuthnAvailable && (
-          <Box p={4} bg="red.900/90" borderRadius="lg">
-            <Box fontSize="sm">
-              <Text fontWeight="bold" mb={1}>
-                WebAuthn Not Available
-              </Text>
-              <Text fontSize="sm">
-                Your browser does not support WebAuthn, which is required for w3pk authentication.
-                Please update your browser or use a supported browser:
-              </Text>
-              <ListRoot gap={1} mt={2} ml={4} fontSize="xs">
-                <ListItem>Chrome 67+ (May 2018)</ListItem>
-                <ListItem>Firefox 60+ (May 2018)</ListItem>
-                <ListItem>Safari 14+ (September 2020)</ListItem>
-                <ListItem>Edge 18+ (November 2018)</ListItem>
-                <ListItem>Samsung Internet 11+ (February 2020)</ListItem>
+          <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
+            <HStack mb={4}>
+              <Icon as={MdInfo} color={brandColors.primary} boxSize={6} />
+              <Heading size="md">Browser Info</Heading>
+            </HStack>
+            <VStack align="stretch" gap={3}>
+              <HStack justify="space-between">
+                <Text fontSize="sm" color="gray.400">
+                  Browser:
+                </Text>
+                <Text fontSize="sm" fontWeight="bold" color="white">
+                  {browserInfo.name}
+                </Text>
+              </HStack>
+              <HStack justify="space-between">
+                <Text fontSize="sm" color="gray.400">
+                  Version:
+                </Text>
+                <Text fontSize="sm" fontWeight="bold" color="white">
+                  {browserInfo.fullVersion || browserInfo.version}
+                </Text>
+              </HStack>
+              <HStack justify="space-between">
+                <Text fontSize="sm" color="gray.400">
+                  Operating System:
+                </Text>
+                <Text fontSize="sm" fontWeight="bold" color="white">
+                  {browserInfo.os}
+                </Text>
+              </HStack>
+              <HStack justify="space-between">
+                <Text fontSize="sm" color="gray.400">
+                  WebAuthn Support:
+                </Text>
+                <Badge colorPalette={webAuthnAvailable ? 'green' : 'red'}>
+                  {webAuthnAvailable ? 'Available' : 'Not Available'}
+                </Badge>
+              </HStack>
+              <HStack justify="space-between">
+                <Text fontSize="sm" color="gray.400">
+                  Compatibility:
+                </Text>
+                <Badge
+                  colorPalette={
+                    browserInfo.isSupported && !browserInfo.hasKnownIssues
+                      ? 'green'
+                      : browserInfo.hasKnownIssues
+                        ? 'yellow'
+                        : 'red'
+                  }
+                >
+                  {browserInfo.isSupported && !browserInfo.hasKnownIssues
+                    ? 'Fully Supported'
+                    : browserInfo.hasKnownIssues
+                      ? 'Known Issues'
+                      : 'Not Supported'}
+                </Badge>
+              </HStack>
+            </VStack>
+          </Box>
+
+          {browserInfo.recommendation && (
+            <Box
+              p={4}
+              bg={
+                alertStatus === 'error'
+                  ? 'red.900/90'
+                  : alertStatus === 'warning'
+                    ? 'yellow.900/90'
+                    : 'blue.900/90'
+              }
+              borderRadius="lg"
+            >
+              <Box fontSize="sm">
+                <Text fontWeight="bold" mb={1}>
+                  {alertStatus === 'error'
+                    ? 'Browser Not Supported'
+                    : alertStatus === 'warning'
+                      ? 'Known Issues Detected'
+                      : 'Recommendation'}
+                </Text>
+                <Text fontSize="sm">{browserInfo.recommendation}</Text>
+              </Box>
+            </Box>
+          )}
+
+          {!webAuthnAvailable && (
+            <Box p={4} bg="red.900/90" borderRadius="lg">
+              <Box fontSize="sm">
+                <Text fontWeight="bold" mb={1}>
+                  WebAuthn Not Available
+                </Text>
+                <Text fontSize="sm">
+                  Your browser does not support WebAuthn, which is required for w3pk authentication.
+                  Please update your browser or use a supported browser:
+                </Text>
+                <ListRoot gap={1} mt={2} ml={4} fontSize="xs">
+                  <ListItem>Chrome 67+ (May 2018)</ListItem>
+                  <ListItem>Firefox 60+ (May 2018)</ListItem>
+                  <ListItem>Safari 14+ (September 2020)</ListItem>
+                  <ListItem>Edge 18+ (November 2018)</ListItem>
+                  <ListItem>Samsung Internet 11+ (February 2020)</ListItem>
+                </ListRoot>
+              </Box>
+            </Box>
+          )}
+
+          {browserInfo.os === 'Android' && (
+            <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
+              <Heading size="sm" mb={3} color={brandColors.primary}>
+                Recommended Browsers for Android
+              </Heading>
+              <ListRoot gap={2} fontSize="sm">
+                <ListItem>
+                  <HStack>
+                    <Icon
+                      as={browserInfo.name === 'Samsung Internet' ? MdCheckCircle : MdInfo}
+                      color={browserInfo.name === 'Samsung Internet' ? 'green.400' : 'gray.400'}
+                    />
+                    <Text color="gray.300">
+                      <strong>Samsung Internet</strong> (Best for Samsung devices) - ✅ Confirmed
+                      working
+                    </Text>
+                  </HStack>
+                </ListItem>
+                <ListItem>
+                  <HStack>
+                    <Icon
+                      as={browserInfo.name === 'Chrome' ? MdCheckCircle : MdInfo}
+                      color={browserInfo.name === 'Chrome' ? 'green.400' : 'gray.400'}
+                    />
+                    <Text color="gray.300">
+                      <strong>Chrome</strong> - ✅ Reliable
+                    </Text>
+                  </HStack>
+                </ListItem>
+                <ListItem>
+                  <HStack>
+                    <Icon
+                      as={browserInfo.name === 'Edge' ? MdCheckCircle : MdInfo}
+                      color={browserInfo.name === 'Edge' ? 'green.400' : 'gray.400'}
+                    />
+                    <Text color="gray.300">
+                      <strong>Edge</strong> - ✅ Reliable
+                    </Text>
+                  </HStack>
+                </ListItem>
+                <ListItem>
+                  <HStack>
+                    <Icon as={MdWarning} color="yellow.400" />
+                    <Text color="gray.300">
+                      <strong>Firefox Mobile</strong> - ⚠️ Avoid (known passkey persistence issues)
+                    </Text>
+                  </HStack>
+                </ListItem>
               </ListRoot>
             </Box>
-          </Box>
-        )}
+          )}
 
-        {browserInfo.os === 'Android' && (
+          <BuildVerification />
+
+          {/* Restore from Backup - Available without authentication */}
+          <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
+            <HStack mb={4}>
+              <Icon as={FiUpload} color={brandColors.primary} boxSize={6} />
+              <Heading size="md">Restore from Backup</Heading>
+            </HStack>
+            <Text fontSize="sm" color="gray.400" mb={4}>
+              If you have a backup file, you can restore your wallet without logging in first.
+            </Text>
+            <Button
+              bg={brandColors.primary}
+              color="white"
+              _hover={{ bg: brandColors.secondary }}
+              onClick={handleRestoreBackup}
+              loading={isRestoring}
+              spinner={<Spinner size="16px" />}
+              loadingText="Restoring..."
+              disabled={isRestoring}
+              width="full"
+            >
+              <Icon as={FiUpload} mr={2} />
+              Restore from Backup File
+            </Button>
+          </Box>
+
           <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
             <Heading size="sm" mb={3} color={brandColors.primary}>
-              Recommended Browsers for Android
+              Debug & Inspect Storage
             </Heading>
-            <ListRoot gap={2} fontSize="sm">
-              <ListItem>
-                <HStack>
-                  <Icon
-                    as={browserInfo.name === 'Samsung Internet' ? MdCheckCircle : MdInfo}
-                    color={browserInfo.name === 'Samsung Internet' ? 'green.400' : 'gray.400'}
-                  />
-                  <Text color="gray.300">
-                    <strong>Samsung Internet</strong> (Best for Samsung devices) - ✅ Confirmed
-                    working
-                  </Text>
-                </HStack>
-              </ListItem>
-              <ListItem>
-                <HStack>
-                  <Icon
-                    as={browserInfo.name === 'Chrome' ? MdCheckCircle : MdInfo}
-                    color={browserInfo.name === 'Chrome' ? 'green.400' : 'gray.400'}
-                  />
-                  <Text color="gray.300">
-                    <strong>Chrome</strong> - ✅ Reliable
-                  </Text>
-                </HStack>
-              </ListItem>
-              <ListItem>
-                <HStack>
-                  <Icon
-                    as={browserInfo.name === 'Edge' ? MdCheckCircle : MdInfo}
-                    color={browserInfo.name === 'Edge' ? 'green.400' : 'gray.400'}
-                  />
-                  <Text color="gray.300">
-                    <strong>Edge</strong> - ✅ Reliable
-                  </Text>
-                </HStack>
-              </ListItem>
-              <ListItem>
-                <HStack>
-                  <Icon as={MdWarning} color="yellow.400" />
-                  <Text color="gray.300">
-                    <strong>Firefox Mobile</strong> - ⚠️ Avoid (known passkey persistence issues)
-                  </Text>
-                </HStack>
-              </ListItem>
-            </ListRoot>
+            <Text fontSize="sm" color="gray.400" mb={4}>
+              Inspect browser storage and activity logs
+            </Text>
+            <SimpleGrid columns={{ base: 1, md: 2 }} gap={4}>
+              <Button
+                onClick={handleInspectLocalStorage}
+                loading={isInspectingLocalStorage}
+                loadingText="Inspecting..."
+                variant="outline"
+                colorPalette="purple"
+                size="sm"
+              >
+                <Icon as={FiHardDrive} mr={2} />
+                Inspect LocalStorage
+              </Button>
+              <Button
+                onClick={handleInspectIndexedDB}
+                loading={isInspectingIndexedDB}
+                loadingText="Inspecting..."
+                variant="outline"
+                colorPalette="purple"
+                size="sm"
+              >
+                <Icon as={FiDatabase} mr={2} />
+                Inspect IndexedDB
+              </Button>
+            </SimpleGrid>
           </Box>
-        )}
-
-        <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
-          <Heading size="sm" mb={3} color={brandColors.primary}>
-            Debug & Inspect Storage
-          </Heading>
-          <Text fontSize="sm" color="gray.400" mb={4}>
-            Inspect browser storage and activity logs
-          </Text>
-          <SimpleGrid columns={{ base: 1, md: 2 }} gap={4}>
-            <Button
-              onClick={handleInspectLocalStorage}
-              loading={isInspectingLocalStorage}
-              loadingText="Inspecting..."
-              variant="outline"
-              colorPalette="purple"
-              size="sm"
-            >
-              <Icon as={FiHardDrive} mr={2} />
-              Inspect LocalStorage
-            </Button>
-            <Button
-              onClick={handleInspectIndexedDB}
-              loading={isInspectingIndexedDB}
-              loadingText="Inspecting..."
-              variant="outline"
-              colorPalette="purple"
-              size="sm"
-            >
-              <Icon as={FiDatabase} mr={2} />
-              Inspect IndexedDB
-            </Button>
-          </SimpleGrid>
-        </Box>
 
         {localStorageData.length > 0 && (
           <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="purple.600">
@@ -751,13 +901,16 @@ const SettingsPage = () => {
             </VStack>
           </Box>
         )}
+        </VStack>
 
-        <Box bg="whiteAlpha.50" p={6} borderRadius="md" textAlign="center">
-          <Box bg="transparent" color="blue.200" p={4} borderRadius="md">
-            <Text>Please log in or register to access your settings and manage your wallet.</Text>
-          </Box>
-        </Box>
-      </VStack>
+        <PasswordModal
+          isOpen={showRestorePasswordModal}
+          onClose={handleRestoreModalClose}
+          onSubmit={handleRestorePasswordSubmit}
+          title={`Enter Password to Restore Backup`}
+          description={`Please enter the password you used when creating this backup file.`}
+        />
+      </>
     )
   }
 
@@ -864,127 +1017,6 @@ const SettingsPage = () => {
 
   const handleModalClose = () => {
     setShowPasswordModal(false)
-  }
-
-  const handleRestoreBackup = () => {
-    const fileInput = document.createElement('input')
-    fileInput.type = 'file'
-    fileInput.accept = '.zip,.json,.enc'
-    fileInput.onchange = async (e: Event) => {
-      const target = e.target as HTMLInputElement
-      const file = target.files?.[0]
-      if (!file) return
-
-      try {
-        const textContent = await file.text()
-
-        try {
-          JSON.parse(textContent)
-          setSelectedBackupFile(textContent)
-          setShowRestorePasswordModal(true)
-          return
-        } catch (jsonError) {
-          // Not JSON, try ZIP
-        }
-
-        if (file.name.endsWith('.zip')) {
-          const JSZip = (await import('jszip')).default
-
-          const arrayBuffer = await file.arrayBuffer()
-
-          try {
-            const zip = await JSZip.loadAsync(arrayBuffer)
-
-            const encFileName = Object.keys(zip.files).find(
-              name =>
-                name.endsWith('.txt.enc') && !name.startsWith('__MACOSX') && !zip.files[name].dir
-            )
-
-            if (!encFileName) {
-              throw new Error('No encrypted recovery file found in ZIP backup')
-            }
-
-            const encryptedContent = await zip.files[encFileName].async('string')
-
-            setSelectedBackupFile(encryptedContent)
-            setShowRestorePasswordModal(true)
-          } catch (zipError) {
-            setSelectedBackupFile(textContent)
-            setShowRestorePasswordModal(true)
-          }
-        } else {
-          setSelectedBackupFile(textContent)
-          setShowRestorePasswordModal(true)
-        }
-      } catch (error) {
-        toaster.create({
-          title: 'Error reading file',
-          description: (error as Error).message || 'Failed to read backup file',
-          type: 'error',
-          duration: 5000,
-        })
-      }
-    }
-    fileInput.click()
-  }
-
-  const handleRestorePasswordSubmit = async (password: string) => {
-    setShowRestorePasswordModal(false)
-
-    if (!selectedBackupFile) {
-      toaster.create({
-        title: 'No backup file selected',
-        type: 'error',
-        duration: 3000,
-      })
-      return
-    }
-
-    setIsRestoring(true)
-    try {
-      let backupToRestore = selectedBackupFile
-
-      try {
-        const backupObj = JSON.parse(selectedBackupFile)
-
-        if (backupObj['recovery-phrase.txt.enc']) {
-          const encryptedContent = backupObj['recovery-phrase.txt.enc']
-          backupToRestore = encryptedContent
-        } else if (!backupObj.version && (backupObj.encrypted || backupObj.mnemonic)) {
-          toaster.create({
-            title: 'Incompatible Backup Version',
-            description:
-              'This backup was created with an older version of w3pk. Please create a new backup with the current version.',
-            type: 'warning',
-            duration: 8000,
-          })
-          setIsRestoring(false)
-          return
-        }
-      } catch (e) {
-        // Not JSON or parsing error
-      }
-
-      const result = await restoreFromBackup(backupToRestore, password)
-
-      toaster.create({
-        title: 'Wallet Restored!',
-        description: `Successfully restored wallet: ${result.ethereumAddress.slice(0, 6)}...${result.ethereumAddress.slice(-4)}`,
-        type: 'success',
-        duration: 5000,
-      })
-
-      setSelectedBackupFile(null)
-    } catch (error) {
-      // Error toast shown in restoreFromBackup
-    } finally {
-      setIsRestoring(false)
-    }
-  }
-
-  const handleRestoreModalClose = () => {
-    setShowRestorePasswordModal(false)
-    setSelectedBackupFile(null)
   }
 
   return (
@@ -1262,6 +1294,9 @@ const SettingsPage = () => {
                   )}
                 </VStack>
               </Box>
+
+              {/* W3PK Build Verification */}
+              <BuildVerification />
 
               {/* Security Score */}
               <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
