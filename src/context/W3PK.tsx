@@ -174,13 +174,11 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
       if (!isMounted || !w3pk) return
 
       try {
-        // Priority 1: Check if W3PK SDK has an active session
         if (w3pk.hasActiveSession() && w3pk.user) {
           handleAuthStateChanged(true, w3pk.user)
           return
         }
 
-        // Priority 2: Restore session from localStorage
         if (typeof window !== 'undefined' && window.localStorage) {
           const storedAuthState = localStorage.getItem(AUTH_STATE_KEY)
 
@@ -189,22 +187,7 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
               const authData = JSON.parse(storedAuthState) as AuthStateData
 
               if (authData.isAuthenticated && authData.user) {
-                // Restore UI state first
                 handleAuthStateChanged(true, authData.user)
-
-                // Proactively restore W3PK session
-                // This will prompt for passkey authentication on page load
-                // instead of waiting for the first user action
-                try {
-                  await w3pk.login()
-                  // Session restored successfully - user won't be prompted again
-                } catch (error) {
-                  // User cancelled or authentication failed
-                  // Silent fail - they'll be prompted when they perform an action
-                  if (!isUserCancelledError(error)) {
-                    console.warn('Failed to restore session:', error)
-                  }
-                }
                 return
               }
             } catch {
@@ -530,16 +513,16 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
       throw new Error('User not authenticated. Cannot create backup.')
     }
 
-    if (!w3pk || typeof w3pk.createZipBackup !== 'function') {
-      throw new Error('w3pk SDK does not support createZipBackup.')
+    if (!w3pk || typeof w3pk.createBackupFile !== 'function') {
+      throw new Error('w3pk SDK does not support createBackupFile.')
     }
 
     try {
       setIsLoading(true)
 
       try {
-        const result = await w3pk.createZipBackup(password)
-        return result
+        const result = await w3pk.createBackupFile('password', password)
+        return result.blob
       } catch (initialError) {
         if (
           initialError instanceof Error &&
@@ -547,8 +530,8 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
             initialError.message.includes('login'))
         ) {
           await w3pk.login()
-          const result = await w3pk.createZipBackup(password)
-          return result
+          const result = await w3pk.createBackupFile('password', password)
+          return result.blob
         }
         throw initialError
       }
@@ -571,14 +554,14 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
     backupData: string,
     password: string
   ): Promise<{ mnemonic: string; ethereumAddress: string }> => {
-    if (!w3pk || typeof w3pk.restoreFromBackup !== 'function') {
-      throw new Error('w3pk SDK does not support restoreFromBackup.')
+    if (!w3pk || typeof w3pk.restoreFromBackupFile !== 'function') {
+      throw new Error('w3pk SDK does not support restoreFromBackupFile.')
     }
 
     try {
       setIsLoading(true)
 
-      const result = await w3pk.restoreFromBackup(backupData, password)
+      const result = await w3pk.restoreFromBackupFile(backupData, password)
 
       toaster.create({
         title: 'Backup Restored Successfully!',

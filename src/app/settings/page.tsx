@@ -269,59 +269,64 @@ const SettingsPage = () => {
 
   useEffect(() => {
     const loadAddressesAndStatus = async () => {
-      if (isAuthenticated && user && deriveWallet && deriveWalletWithCustomTag) {
-        // Load addresses
+      if (!isAuthenticated || !user) return
+
+      if (deriveWallet && deriveWalletWithCustomTag && !isLoadingAddresses && !index0Address) {
         setIsLoadingAddresses(true)
         try {
-          const [index0Wallet, mainWallet, openbarWallet] = await Promise.all([
-            deriveWallet(0),
-            deriveWalletWithCustomTag('MAIN'),
-            deriveWalletWithCustomTag('OPENBAR'),
-          ])
+          const index0Wallet = await deriveWallet(0)
           setIndex0Address(index0Wallet.address)
+
+          const mainWallet = await deriveWalletWithCustomTag('MAIN')
           setMainAddress(mainWallet.address)
+
+          const openbarWallet = await deriveWalletWithCustomTag('OPENBAR')
           setOpenbarAddress(openbarWallet.address)
         } catch (error) {
           console.error('Failed to load addresses:', error)
+          toaster.create({
+            title: 'Error loading addresses',
+            description: (error as Error).message || 'Failed to derive wallet addresses',
+            type: 'error',
+            duration: 5000,
+          })
         } finally {
           setIsLoadingAddresses(false)
         }
+      }
 
-        // Load security status automatically
-        if (getBackupStatus && !backupStatus && !isCheckingStatus) {
-          setIsCheckingStatus(true)
-          try {
-            const statusObject = await getBackupStatus()
+      if (getBackupStatus && !backupStatus && !isCheckingStatus) {
+        setIsCheckingStatus(true)
+        try {
+          const statusObject = await getBackupStatus()
 
-            if (
-              statusObject &&
-              statusObject.securityScore &&
-              typeof statusObject.securityScore.total === 'number'
-            ) {
-              const scoreValue = statusObject.securityScore.total
-              const scoreLevel = statusObject.securityScore.level || 'unknown'
-              const statusString = `Security Score: ${scoreValue}/100 (Level: ${scoreLevel})`
-              setBackupStatus(statusString)
-            }
-          } catch (error) {
-            console.error('Error loading backup status:', error)
-          } finally {
-            setIsCheckingStatus(false)
+          if (
+            statusObject &&
+            statusObject.securityScore &&
+            typeof statusObject.securityScore.total === 'number'
+          ) {
+            const scoreValue = statusObject.securityScore.total
+            const scoreLevel = statusObject.securityScore.level || 'unknown'
+            const statusString = `Security Score: ${scoreValue}/100 (Level: ${scoreLevel})`
+            setBackupStatus(statusString)
           }
+        } catch (error) {
+          console.error('Error loading backup status:', error)
+          toaster.create({
+            title: 'Error loading backup status',
+            description: (error as Error).message || 'Failed to check security status',
+            type: 'error',
+            duration: 5000,
+          })
+        } finally {
+          setIsCheckingStatus(false)
         }
       }
     }
 
     loadAddressesAndStatus()
-  }, [
-    isAuthenticated,
-    user,
-    deriveWallet,
-    deriveWalletWithCustomTag,
-    getBackupStatus,
-    backupStatus,
-    isCheckingStatus,
-  ])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user])
 
   const handleDeleteAccount = (account: StoredAccount) => {
     setAccountToDelete(account)
@@ -410,9 +415,7 @@ const SettingsPage = () => {
           setSelectedBackupFile(textContent)
           setShowRestorePasswordModal(true)
           return
-        } catch (jsonError) {
-          // Not JSON, try ZIP
-        }
+        } catch (jsonError) {}
 
         if (file.name.endsWith('.zip')) {
           const JSZip = (await import('jszip')).default
@@ -488,9 +491,7 @@ const SettingsPage = () => {
           setIsRestoring(false)
           return
         }
-      } catch (e) {
-        // Not JSON or parsing error
-      }
+      } catch (e) {}
 
       const result = await restoreFromBackup(backupToRestore, password)
 
@@ -754,153 +755,153 @@ const SettingsPage = () => {
             </SimpleGrid>
           </Box>
 
-        {localStorageData.length > 0 && (
-          <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="purple.600">
-            <HStack mb={4} justify="space-between">
-              <HStack>
-                <Icon as={FiHardDrive} color={brandColors.primary} boxSize={6} />
-                <Heading size="md">LocalStorage Results</Heading>
+          {localStorageData.length > 0 && (
+            <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="purple.600">
+              <HStack mb={4} justify="space-between">
+                <HStack>
+                  <Icon as={FiHardDrive} color={brandColors.primary} boxSize={6} />
+                  <Heading size="md">LocalStorage Results</Heading>
+                </HStack>
+                <Badge colorPalette="purple">{localStorageData.length} items</Badge>
               </HStack>
-              <Badge colorPalette="purple">{localStorageData.length} items</Badge>
-            </HStack>
-            <VStack align="stretch" gap={3}>
-              {localStorageData.map((item, index) => (
-                <Box
-                  key={index}
-                  bg="gray.950"
-                  p={4}
-                  borderRadius="md"
-                  border="1px solid"
-                  borderColor={item.type.startsWith('w3pk') ? 'purple.700' : 'gray.800'}
-                >
-                  <VStack align="stretch" gap={2}>
-                    <HStack justify="space-between">
-                      <Text fontSize="sm" fontWeight="bold" color="white" flex={1}>
-                        {item.key}
-                      </Text>
-                      <HStack gap={2}>
-                        {item.encrypted && (
-                          <Badge colorPalette="orange" fontSize="xs">
-                            Encrypted
-                          </Badge>
-                        )}
-                        <Badge
-                          colorPalette={item.type.startsWith('w3pk') ? 'purple' : 'gray'}
-                          fontSize="xs"
-                        >
-                          {item.type}
-                        </Badge>
-                        <IconButton
-                          aria-label="Clear item"
-                          size="xs"
-                          colorPalette="red"
-                          variant="ghost"
-                          onClick={() => handleClearLocalStorageItem(item.key)}
-                        >
-                          <MdDelete />
-                        </IconButton>
-                      </HStack>
-                    </HStack>
-
-                    {item.parsedValue && (
-                      <Box bg="black" p={3} borderRadius="md" overflowX="auto">
-                        <CodeBlock>
-                          {formatValue(maskSensitiveData(item.key, item.parsedValue))}
-                        </CodeBlock>
-                      </Box>
-                    )}
-
-                    {!item.parsedValue && (
-                      <Text fontSize="xs" color="gray.500" fontFamily="monospace">
-                        {item.value}
-                      </Text>
-                    )}
-                  </VStack>
-                </Box>
-              ))}
-            </VStack>
-          </Box>
-        )}
-
-        {indexedDBData.length > 0 && (
-          <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="purple.600">
-            <HStack mb={4} justify="space-between">
-              <HStack>
-                <Icon as={FiDatabase} color={brandColors.primary} boxSize={6} />
-                <Heading size="md">IndexedDB Results</Heading>
-              </HStack>
-              <Badge colorPalette="purple">{indexedDBData.length} database(s)</Badge>
-            </HStack>
-            <VStack align="stretch" gap={4}>
-              {indexedDBData.map((db, dbIndex) => (
-                <Box
-                  key={dbIndex}
-                  bg="gray.950"
-                  p={4}
-                  borderRadius="md"
-                  border="1px solid"
-                  borderColor="purple.700"
-                >
-                  <VStack align="stretch" gap={3}>
-                    <HStack justify="space-between">
-                      <Text fontSize="md" fontWeight="bold" color="white">
-                        {db.name}
-                      </Text>
-                      <Badge colorPalette="purple" fontSize="xs">
-                        v{db.version}
-                      </Badge>
-                    </HStack>
-
-                    <Text fontSize="xs" color="gray.400">
-                      Stores: {db.stores.join(', ')}
-                    </Text>
-
-                    <Text fontSize="xs" color="gray.400">
-                      Records: {db.records.length}
-                    </Text>
-
-                    {db.records.length > 0 && (
-                      <VStack align="stretch" gap={2} mt={2}>
-                        {db.records.map((record, recordIndex) => (
-                          <Box
-                            key={recordIndex}
-                            bg="black"
-                            p={3}
-                            borderRadius="md"
-                            border="1px solid"
-                            borderColor="gray.900"
+              <VStack align="stretch" gap={3}>
+                {localStorageData.map((item, index) => (
+                  <Box
+                    key={index}
+                    bg="gray.950"
+                    p={4}
+                    borderRadius="md"
+                    border="1px solid"
+                    borderColor={item.type.startsWith('w3pk') ? 'purple.700' : 'gray.800'}
+                  >
+                    <VStack align="stretch" gap={2}>
+                      <HStack justify="space-between">
+                        <Text fontSize="sm" fontWeight="bold" color="white" flex={1}>
+                          {item.key}
+                        </Text>
+                        <HStack gap={2}>
+                          {item.encrypted && (
+                            <Badge colorPalette="orange" fontSize="xs">
+                              Encrypted
+                            </Badge>
+                          )}
+                          <Badge
+                            colorPalette={item.type.startsWith('w3pk') ? 'purple' : 'gray'}
+                            fontSize="xs"
                           >
-                            <HStack justify="space-between" mb={2}>
-                              <Text fontSize="xs" color="gray.400">
-                                Store: {record.store} | Key: {record.key}
-                              </Text>
-                              <IconButton
-                                aria-label="Clear record"
-                                size="xs"
-                                colorPalette="red"
-                                variant="ghost"
-                                onClick={() =>
-                                  handleClearIndexedDBRecord(db.name, record.store, record.key)
-                                }
-                              >
-                                <MdDelete />
-                              </IconButton>
-                            </HStack>
-                            <Box overflowX="auto">
-                              <CodeBlock>
-                                {formatValue(maskSensitiveData(record.key, record.value))}
-                              </CodeBlock>
+                            {item.type}
+                          </Badge>
+                          <IconButton
+                            aria-label="Clear item"
+                            size="xs"
+                            colorPalette="red"
+                            variant="ghost"
+                            onClick={() => handleClearLocalStorageItem(item.key)}
+                          >
+                            <MdDelete />
+                          </IconButton>
+                        </HStack>
+                      </HStack>
+
+                      {item.parsedValue && (
+                        <Box bg="black" p={3} borderRadius="md" overflowX="auto">
+                          <CodeBlock>
+                            {formatValue(maskSensitiveData(item.key, item.parsedValue))}
+                          </CodeBlock>
+                        </Box>
+                      )}
+
+                      {!item.parsedValue && (
+                        <Text fontSize="xs" color="gray.500" fontFamily="monospace">
+                          {item.value}
+                        </Text>
+                      )}
+                    </VStack>
+                  </Box>
+                ))}
+              </VStack>
+            </Box>
+          )}
+
+          {indexedDBData.length > 0 && (
+            <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="purple.600">
+              <HStack mb={4} justify="space-between">
+                <HStack>
+                  <Icon as={FiDatabase} color={brandColors.primary} boxSize={6} />
+                  <Heading size="md">IndexedDB Results</Heading>
+                </HStack>
+                <Badge colorPalette="purple">{indexedDBData.length} database(s)</Badge>
+              </HStack>
+              <VStack align="stretch" gap={4}>
+                {indexedDBData.map((db, dbIndex) => (
+                  <Box
+                    key={dbIndex}
+                    bg="gray.950"
+                    p={4}
+                    borderRadius="md"
+                    border="1px solid"
+                    borderColor="purple.700"
+                  >
+                    <VStack align="stretch" gap={3}>
+                      <HStack justify="space-between">
+                        <Text fontSize="md" fontWeight="bold" color="white">
+                          {db.name}
+                        </Text>
+                        <Badge colorPalette="purple" fontSize="xs">
+                          v{db.version}
+                        </Badge>
+                      </HStack>
+
+                      <Text fontSize="xs" color="gray.400">
+                        Stores: {db.stores.join(', ')}
+                      </Text>
+
+                      <Text fontSize="xs" color="gray.400">
+                        Records: {db.records.length}
+                      </Text>
+
+                      {db.records.length > 0 && (
+                        <VStack align="stretch" gap={2} mt={2}>
+                          {db.records.map((record, recordIndex) => (
+                            <Box
+                              key={recordIndex}
+                              bg="black"
+                              p={3}
+                              borderRadius="md"
+                              border="1px solid"
+                              borderColor="gray.900"
+                            >
+                              <HStack justify="space-between" mb={2}>
+                                <Text fontSize="xs" color="gray.400">
+                                  Store: {record.store} | Key: {record.key}
+                                </Text>
+                                <IconButton
+                                  aria-label="Clear record"
+                                  size="xs"
+                                  colorPalette="red"
+                                  variant="ghost"
+                                  onClick={() =>
+                                    handleClearIndexedDBRecord(db.name, record.store, record.key)
+                                  }
+                                >
+                                  <MdDelete />
+                                </IconButton>
+                              </HStack>
+                              <Box overflowX="auto">
+                                <CodeBlock>
+                                  {formatValue(maskSensitiveData(record.key, record.value))}
+                                </CodeBlock>
+                              </Box>
                             </Box>
-                          </Box>
-                        ))}
-                      </VStack>
-                    )}
-                  </VStack>
-                </Box>
-              ))}
-            </VStack>
-          </Box>
-        )}
+                          ))}
+                        </VStack>
+                      )}
+                    </VStack>
+                  </Box>
+                ))}
+              </VStack>
+            </Box>
+          )}
         </VStack>
 
         <PasswordModal
@@ -1395,7 +1396,7 @@ const SettingsPage = () => {
                     Restore from Backup
                   </Heading>
                   <Text fontSize="sm" color="gray.400" mb={4}>
-                    Restore your wallet from an encrypted backup file
+                    Restore your wallet from an encrypted backup file{' \n'}
                   </Text>
                   <Button
                     bg={brandColors.primary}
