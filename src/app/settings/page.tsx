@@ -24,6 +24,7 @@ import {
   Link as ChakraLink,
   Flex,
   CloseButton,
+  Textarea,
 } from '@chakra-ui/react'
 import { Dialog, Portal } from '@/components/ui/dialog'
 import { toaster } from '@/components/ui/toaster'
@@ -57,6 +58,7 @@ import {
   type LocalStorageItem,
   type IndexedDBInfo,
 } from '../../../src/utils/storageInspection'
+import { QRCodeSVG } from 'qrcode.react'
 
 interface StoredAccount {
   username: string
@@ -89,6 +91,10 @@ const SettingsPage = () => {
   const [mainAddress, setMainAddress] = useState<string>('')
   const [openbarAddress, setOpenbarAddress] = useState<string>('')
   const [isLoadingAddresses, setIsLoadingAddresses] = useState(false)
+  const [qrCodeData, setQrCodeData] = useState<string>('')
+  const [showQRCode, setShowQRCode] = useState(false)
+  const [pastedQRData, setPastedQRData] = useState<string>('')
+  const [parsedQRData, setParsedQRData] = useState<any>(null)
 
   const {
     isAuthenticated,
@@ -1020,6 +1026,126 @@ const SettingsPage = () => {
     setShowPasswordModal(false)
   }
 
+  const handleGenerateQRCode = () => {
+    if (!user) return
+
+    const syncData = {
+      username: user.username,
+      ethereumAddress: user.ethereumAddress,
+      index0Address,
+      mainAddress,
+      openbarAddress,
+      timestamp: new Date().toISOString(),
+    }
+
+    setQrCodeData(JSON.stringify(syncData))
+    setShowQRCode(true)
+  }
+
+  const handlePasteQRData = (value: string) => {
+    setPastedQRData(value)
+
+    if (!value.trim()) {
+      setParsedQRData(null)
+      return
+    }
+
+    try {
+      const parsed = JSON.parse(value)
+      setParsedQRData(parsed)
+    } catch (error) {
+      setParsedQRData({ error: 'Invalid JSON format' })
+    }
+  }
+
+  const handleSaveQRDataToStorage = async () => {
+    if (!parsedQRData || parsedQRData.error || !user) {
+      toaster.create({
+        title: 'Cannot save',
+        description: 'Invalid QR data or user not authenticated',
+        type: 'error',
+        duration: 3000,
+      })
+      return
+    }
+
+    try {
+      // Create a wallet sync record
+      const syncRecord = {
+        passkeyUser: {
+          username: user.username,
+          ethereumAddress: user.ethereumAddress,
+        },
+        linkedWallet: {
+          username: parsedQRData.username,
+          ethereumAddress: parsedQRData.ethereumAddress,
+          index0Address: parsedQRData.index0Address,
+          mainAddress: parsedQRData.mainAddress,
+          openbarAddress: parsedQRData.openbarAddress,
+        },
+        linkedAt: new Date().toISOString(),
+        syncedFrom: parsedQRData.timestamp,
+      }
+
+      // Save to localStorage
+      const storageKey = `w3pk_wallet_sync_${user.ethereumAddress}`
+      localStorage.setItem(storageKey, JSON.stringify(syncRecord))
+
+      // Save to IndexedDB
+      const dbName = 'w3pk-wallet-sync'
+      const request = indexedDB.open(dbName, 1)
+
+      request.onerror = () => {
+        throw new Error('Failed to open IndexedDB')
+      }
+
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result
+        if (!db.objectStoreNames.contains('walletLinks')) {
+          db.createObjectStore('walletLinks', { keyPath: 'passkeyAddress' })
+        }
+      }
+
+      request.onsuccess = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result
+        const transaction = db.transaction(['walletLinks'], 'readwrite')
+        const store = transaction.objectStore('walletLinks')
+
+        const dbRecord = {
+          passkeyAddress: user.ethereumAddress,
+          ...syncRecord,
+        }
+
+        store.put(dbRecord)
+
+        transaction.oncomplete = () => {
+          toaster.create({
+            title: 'Wallet Linked Successfully!',
+            description: `Linked wallet ${parsedQRData.ethereumAddress.slice(0, 6)}...${parsedQRData.ethereumAddress.slice(-4)} to your passkey account`,
+            type: 'success',
+            duration: 5000,
+          })
+
+          // Clear the pasted data
+          setPastedQRData('')
+          setParsedQRData(null)
+        }
+
+        transaction.onerror = () => {
+          throw new Error('Failed to save to IndexedDB')
+        }
+      }
+    } catch (error) {
+      console.error('Error saving QR data:', error)
+      toaster.create({
+        title: 'Error saving wallet link',
+        description: (error as Error).message || 'Failed to save wallet sync data',
+        type: 'error',
+        duration: 5000,
+      })
+    }
+  }
+
   return (
     <>
       <VStack gap={8} align="stretch" py={20}>
@@ -1676,208 +1802,268 @@ const SettingsPage = () => {
                 </Text>
               </Box>
 
-              <Box p={4} bg="rgba(139, 92, 246, 0.1)" borderRadius="lg">
-                <Box fontSize="sm">
-                  <Text fontWeight="bold" mb={1}>
-                    Coming Soon
-                  </Text>
-                  <Text>
-                    Sync status and management features are already available in the w3pk SDK and
-                    will be implemented in this app soon. Your passkey is already syncing
-                    automatically via your platform provider (Apple iCloud, Google, or Microsoft).
-                  </Text>
-                </Box>
+              {/* QR Code Section */}
+              <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
+                <HStack mb={4} justify="space-between">
+                  <HStack>
+                    <Icon as={FiKey} color={brandColors.primary} boxSize={6} />
+                    <Heading size="md">Sync QR Code</Heading>
+                  </HStack>
+                </HStack>
+                <Text fontSize="sm" color="gray.400" mb={4}>
+                  Generate a QR code containing your wallet addresses to easily sync or verify your account information on another device.
+                </Text>
+
+                {!showQRCode ? (
+                  <Button
+                    bg={brandColors.primary}
+                    color="white"
+                    _hover={{ bg: brandColors.secondary }}
+                    onClick={handleGenerateQRCode}
+                    disabled={!index0Address || !mainAddress}
+                    width="full"
+                  >
+                    Generate Sync QR Code
+                  </Button>
+                ) : (
+                  <VStack gap={4} align="stretch">
+                    <Box
+                      display="flex"
+                      justifyContent="center"
+                      alignItems="center"
+                      p={4}
+                      bg="white"
+                      borderRadius="lg"
+                      width="fit-content"
+                      mx="auto"
+                    >
+                      <QRCodeSVG
+                        value={qrCodeData}
+                        size={256}
+                        level="H"
+                        marginSize={4}
+                      />
+                    </Box>
+                    <Box p={4} bg="yellow.900/90" borderRadius="md">
+                      <Text fontSize="xs" color="gray.300">
+                        <strong>Note:</strong> This QR code contains your public wallet addresses only. It does NOT contain your private keys or recovery phrase. Use it to verify your account on another device.
+                      </Text>
+                    </Box>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowQRCode(false)}
+                      width="full"
+                    >
+                      Hide QR Code
+                    </Button>
+                  </VStack>
+                )}
               </Box>
 
-              <SimpleGrid columns={{ base: 1, md: 2 }} gap={6}>
-                <Box
-                  bg="gray.900"
-                  p={6}
-                  borderRadius="lg"
-                  border="1px solid"
-                  borderColor="gray.700"
-                >
-                  <Icon as={FiCloud} color={brandColors.primary} boxSize={8} mb={4} />
-                  <Heading size="md" mb={3}>
-                    Apple iCloud
-                  </Heading>
-                  <Text fontSize="sm" color="gray.400" mb={4}>
-                    For iOS and macOS devices with iCloud Keychain enabled
-                  </Text>
-                  <ListRoot gap={2} fontSize="sm" color="gray.400" variant="plain">
-                    <ListItem>
-                      <Icon as={MdCheckCircle} color="green.400" mr={2} />
-                      Syncs across iPhone, iPad, and Mac
-                    </ListItem>
-                    <ListItem>
-                      <Icon as={MdCheckCircle} color="green.400" mr={2} />
-                      End-to-end encrypted
-                    </ListItem>
-                    <ListItem>
-                      <Icon as={MdCheckCircle} color="green.400" mr={2} />
-                      Automatic backup to iCloud
-                    </ListItem>
-                    <ListItem>
-                      <Icon as={MdWarning} color="yellow.400" mr={2} />
-                      Requires iCloud Keychain enabled
-                    </ListItem>
-                  </ListRoot>
-                </Box>
-
-                <Box
-                  bg="gray.900"
-                  p={6}
-                  borderRadius="lg"
-                  border="1px solid"
-                  borderColor="gray.700"
-                >
-                  <Icon as={FiCloud} color={brandColors.primary} boxSize={8} mb={4} />
-                  <Heading size="md" mb={3}>
-                    Google Password Manager
-                  </Heading>
-                  <Text fontSize="sm" color="gray.400" mb={4}>
-                    For Android devices and Chrome browser
-                  </Text>
-                  <ListRoot gap={2} fontSize="sm" color="gray.400" variant="plain">
-                    <ListItem>
-                      <Icon as={MdCheckCircle} color="green.400" mr={2} />
-                      Syncs across Android devices
-                    </ListItem>
-                    <ListItem>
-                      <Icon as={MdCheckCircle} color="green.400" mr={2} />
-                      End-to-end encrypted
-                    </ListItem>
-                    <ListItem>
-                      <Icon as={MdCheckCircle} color="green.400" mr={2} />
-                      Automatic backup to Google account
-                    </ListItem>
-                    <ListItem>
-                      <Icon as={MdWarning} color="yellow.400" mr={2} />
-                      Requires Google account sync
-                    </ListItem>
-                  </ListRoot>
-                </Box>
-
-                <Box
-                  bg="gray.900"
-                  p={6}
-                  borderRadius="lg"
-                  border="1px solid"
-                  borderColor="gray.700"
-                >
-                  <Icon as={FiCloud} color={brandColors.primary} boxSize={8} mb={4} />
-                  <Heading size="md" mb={3}>
-                    Windows Hello
-                  </Heading>
-                  <Text fontSize="sm" color="gray.400" mb={4}>
-                    For Windows devices with Windows Hello
-                  </Text>
-                  <ListRoot gap={2} fontSize="sm" color="gray.400" variant="plain">
-                    <ListItem>
-                      <Icon as={MdCheckCircle} color="green.400" mr={2} />
-                      Hardware-protected (TPM)
-                    </ListItem>
-                    <ListItem>
-                      <Icon as={MdWarning} color="yellow.400" mr={2} />
-                      Tied to specific device
-                    </ListItem>
-                    <ListItem>
-                      <Icon as={MdWarning} color="yellow.400" mr={2} />
-                      Does NOT sync by default
-                    </ListItem>
-                    <ListItem>
-                      <Icon as={MdInfo} color="blue.400" mr={2} />
-                      Use encrypted backup for new devices
-                    </ListItem>
-                  </ListRoot>
-                </Box>
-
-                <Box
-                  bg="gray.900"
-                  p={6}
-                  borderRadius="lg"
-                  border="1px solid"
-                  borderColor="gray.700"
-                >
-                  <Icon as={FiKey} color={brandColors.primary} boxSize={8} mb={4} />
-                  <Heading size="md" mb={3}>
-                    Hardware Keys
-                  </Heading>
-                  <Text fontSize="sm" color="gray.400" mb={4}>
-                    Physical security keys like YubiKey
-                  </Text>
-                  <ListRoot gap={2} fontSize="sm" color="gray.400" variant="plain">
-                    <ListItem>
-                      <Icon as={MdCheckCircle} color="green.400" mr={2} />
-                      Maximum security
-                    </ListItem>
-                    <ListItem>
-                      <Icon as={MdCheckCircle} color="green.400" mr={2} />
-                      Physical device required
-                    </ListItem>
-                    <ListItem>
-                      <Icon as={MdWarning} color="yellow.400" mr={2} />
-                      No automatic sync
-                    </ListItem>
-                    <ListItem>
-                      <Icon as={MdInfo} color="blue.400" mr={2} />
-                      Keep encrypted backup separately
-                    </ListItem>
-                  </ListRoot>
-                </Box>
-              </SimpleGrid>
-
+              {/* Paste QR Data Section */}
               <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
-                <Heading size="sm" mb={4} color={brandColors.primary}>
-                  Important Notes
-                </Heading>
+                <HStack mb={4}>
+                  <Icon as={FiCloud} color={brandColors.primary} boxSize={6} />
+                  <Heading size="md">Verify QR Code Data</Heading>
+                </HStack>
+                <Text fontSize="sm" color="gray.400" mb={4}>
+                  Paste the JSON string from a scanned QR code to verify the wallet addresses.
+                </Text>
+
+                <VStack gap={4} align="stretch">
+                  <Textarea
+                    placeholder='Paste JSON data here (e.g., {"username":"...","ethereumAddress":"..."})'
+                    value={pastedQRData}
+                    onChange={(e) => handlePasteQRData(e.target.value)}
+                    minH="120px"
+                    fontFamily="monospace"
+                    fontSize="sm"
+                    bg="gray.950"
+                    borderColor="gray.700"
+                    _focus={{ borderColor: brandColors.primary }}
+                  />
+
+                  {parsedQRData && (
+                    <VStack gap={3} align="stretch">
+                      <Box
+                        p={4}
+                        bg={parsedQRData.error ? 'red.900/90' : 'gray.950'}
+                        borderRadius="md"
+                        border="1px solid"
+                        borderColor={parsedQRData.error ? 'red.700' : 'gray.800'}
+                      >
+                        {parsedQRData.error ? (
+                          <Text fontSize="sm" color="red.300">
+                            <strong>Error:</strong> {parsedQRData.error}
+                          </Text>
+                        ) : (
+                          <VStack align="stretch" gap={2}>
+                            <Text fontSize="sm" fontWeight="bold" color="white" mb={2}>
+                              Parsed Data:
+                            </Text>
+                            {parsedQRData.username && (
+                              <HStack>
+                                <Text fontSize="xs" color="gray.400" width="140px">Username:</Text>
+                                <Text fontSize="xs" color="white" fontWeight="medium">{parsedQRData.username}</Text>
+                              </HStack>
+                            )}
+                            {parsedQRData.ethereumAddress && (
+                              <HStack>
+                                <Text fontSize="xs" color="gray.400" width="140px">Ethereum Address:</Text>
+                                <Code fontSize="xs" bg="gray.900" color="gray.300" p={1} borderRadius="sm">
+                                  {parsedQRData.ethereumAddress}
+                                </Code>
+                              </HStack>
+                            )}
+                            {parsedQRData.index0Address && (
+                              <HStack>
+                                <Text fontSize="xs" color="gray.400" width="140px">Index #0:</Text>
+                                <Code fontSize="xs" bg="gray.900" color="gray.300" p={1} borderRadius="sm">
+                                  {parsedQRData.index0Address}
+                                </Code>
+                              </HStack>
+                            )}
+                            {parsedQRData.mainAddress && (
+                              <HStack>
+                                <Text fontSize="xs" color="gray.400" width="140px">MAIN-tagged:</Text>
+                                <Code fontSize="xs" bg="gray.900" color="gray.300" p={1} borderRadius="sm">
+                                  {parsedQRData.mainAddress}
+                                </Code>
+                              </HStack>
+                            )}
+                            {parsedQRData.openbarAddress && (
+                              <HStack>
+                                <Text fontSize="xs" color="gray.400" width="140px">OPENBAR-tagged:</Text>
+                                <Code fontSize="xs" bg="gray.900" color="gray.300" p={1} borderRadius="sm">
+                                  {parsedQRData.openbarAddress}
+                                </Code>
+                              </HStack>
+                            )}
+                            {parsedQRData.timestamp && (
+                              <HStack>
+                                <Text fontSize="xs" color="gray.400" width="140px">Generated:</Text>
+                                <Text fontSize="xs" color="gray.300">
+                                  {new Date(parsedQRData.timestamp).toLocaleString()}
+                                </Text>
+                              </HStack>
+                            )}
+                          </VStack>
+                        )}
+                      </Box>
+
+                      {!parsedQRData.error && (
+                        <>
+                          <Button
+                            bg={brandColors.primary}
+                            color="white"
+                            _hover={{ bg: brandColors.secondary }}
+                            onClick={handleSaveQRDataToStorage}
+                            width="full"
+                          >
+                            <Icon as={FiDatabase} mr={2} />
+                            Link This Wallet to Your Passkey Account
+                          </Button>
+
+                          <Box p={3} bg="blue.900/90" borderRadius="md">
+                            <Text fontSize="xs" color="gray.300">
+                              <strong>What happens when you link:</strong> This will save the wallet addresses to both localStorage and IndexedDB, creating a persistent link between your passkey account and this HD wallet. You can use this to verify or sync wallet data across devices.
+                            </Text>
+                          </Box>
+                        </>
+                      )}
+                    </VStack>
+                  )}
+                </VStack>
+              </Box>
+
+              {/* How QR Code Sync Works */}
+              <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
+                <HStack mb={4}>
+                  <Icon as={FiShield} color={brandColors.primary} boxSize={6} />
+                  <Heading size="md">How QR Code Wallet Sync Works</Heading>
+                </HStack>
                 <VStack align="stretch" gap={3} fontSize="sm" color="gray.400">
                   <Text>
-                    <strong>Cross-platform limitation:</strong> Passkey sync does not work across
-                    different ecosystems. For example, credentials created on an iPhone cannot
-                    automatically sync to an Android device.
+                    <strong>Step 1: Generate QR Code</strong> - On your primary device, generate a QR code containing your wallet&apos;s public addresses. This QR code is safe to share as it only contains public information.
                   </Text>
                   <Text>
-                    <strong>Recommendation:</strong> Always create an encrypted backup (Layer 2) to
-                    ensure you can access your wallet on any device, regardless of platform.
+                    <strong>Step 2: Scan & Verify</strong> - On your secondary device, scan the QR code using any QR scanner app, or manually copy the JSON data displayed in the QR code.
                   </Text>
                   <Text>
-                    <strong>Platform trust:</strong> Your passkey security depends on your platform
-                    provider&apos;s security. All major providers (Apple, Google, Microsoft) use
-                    industry-standard encryption and security practices.
+                    <strong>Step 3: Link Wallets</strong> - Paste the JSON data into the verification area above and click &quot;Link This Wallet&quot;. This creates a persistent connection between your passkey account and the HD wallet addresses.
+                  </Text>
+                  <Text>
+                    <strong>What Gets Stored:</strong> Only public wallet addresses are stored in localStorage and IndexedDB. Your private keys and recovery phrase remain secure and are never transmitted or stored through this sync mechanism.
                   </Text>
                 </VStack>
               </Box>
 
-              <Box
-                p={6}
-                borderColor={brandColors.accent}
-                border="2px solid"
-                borderRadius="xl"
-                textAlign="center"
-                boxShadow="0 10px 100px rgba(69, 162, 248, 0.2)"
-              >
-                <Heading size="md" mb={3} color="white">
-                  Learn More About Security
-                </Heading>
-                <Text fontSize="sm" color="gray.400" mb={4}>
-                  Read about w3pk&apos;s security architecture and sync mechanisms
-                </Text>
-                <ChakraLink
-                  href="https://github.com/w3hc/w3pk/blob/main/docs/SECURITY.md"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Button
-                    bg={brandColors.accent}
-                    color="white"
-                    _hover={{ bg: '#3690e0' }}
-                    size="sm"
-                    px={6}
-                  >
-                    View Security Docs
-                  </Button>
-                </ChakraLink>
+              {/* Passkey Platform Sync Info */}
+              <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
+                <HStack mb={4}>
+                  <Icon as={FiCloud} color={brandColors.primary} boxSize={6} />
+                  <Heading size="md">Passkey Platform Sync</Heading>
+                </HStack>
+                <VStack align="stretch" gap={3} fontSize="sm" color="gray.400">
+                  <Text>
+                    Your passkey credentials automatically sync across devices within the same ecosystem:
+                  </Text>
+                  <ListRoot gap={2} fontSize="sm" variant="plain">
+                    <ListItem>
+                      <Icon as={MdCheckCircle} color="green.400" mr={2} />
+                      <strong>Apple:</strong> Syncs via iCloud Keychain (iPhone, iPad, Mac)
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={MdCheckCircle} color="green.400" mr={2} />
+                      <strong>Google:</strong> Syncs via Password Manager (Android, Chrome)
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={MdWarning} color="yellow.400" mr={2} />
+                      <strong>Windows Hello:</strong> Device-specific, use encrypted backup for new devices
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={MdWarning} color="yellow.400" mr={2} />
+                      <strong>Hardware Keys:</strong> No sync, keep encrypted backup separately
+                    </ListItem>
+                  </ListRoot>
+                  <Box p={3} bg="yellow.900/90" borderRadius="md" mt={2}>
+                    <Text fontSize="xs" color="gray.300">
+                      <strong>Cross-platform limitation:</strong> Passkeys do not sync across different ecosystems (e.g., iPhone to Android). However, encrypted backups ARE fully cross-platform - you can restore your wallet on any device with the backup file and password, regardless of the original platform.
+                    </Text>
+                  </Box>
+                </VStack>
+              </Box>
+
+              {/* Best Practices */}
+              <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
+                <HStack mb={4}>
+                  <Icon as={FiCheckCircle} color={brandColors.primary} boxSize={6} />
+                  <Heading size="md">Best Practices</Heading>
+                </HStack>
+                <VStack align="stretch" gap={2} fontSize="sm" color="gray.400">
+                  <ListRoot gap={2} variant="plain">
+                    <ListItem>
+                      <Icon as={MdCheckCircle} color="green.400" mr={2} />
+                      Always create an encrypted backup before syncing to a new device
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={MdCheckCircle} color="green.400" mr={2} />
+                      Verify wallet addresses match after syncing
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={MdCheckCircle} color="green.400" mr={2} />
+                      Use the Debug & Inspect Storage tools to verify sync data was saved correctly
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={MdWarning} color="yellow.400" mr={2} />
+                      Never share your QR code publicly or on untrusted channels
+                    </ListItem>
+                    <ListItem>
+                      <Icon as={MdInfo} color="blue.400" mr={2} />
+                      QR codes only contain public addresses, but still treat them as sensitive account information
+                    </ListItem>
+                  </ListRoot>
+                </VStack>
               </Box>
             </VStack>
           </TabsContent>
