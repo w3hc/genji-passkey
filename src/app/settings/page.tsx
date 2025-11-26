@@ -96,6 +96,15 @@ const SettingsPage = () => {
   const [pastedQRData, setPastedQRData] = useState<string>('')
   const [parsedQRData, setParsedQRData] = useState<any>(null)
 
+  // Social Recovery state
+  const [guardianName, setGuardianName] = useState<string>('')
+  const [guardianEmail, setGuardianEmail] = useState<string>('')
+  const [guardiansList, setGuardiansList] = useState<Array<{ name: string; email?: string }>>([])
+  const [threshold, setThreshold] = useState<number>(3)
+  const [socialRecoveryConfig, setSocialRecoveryConfig] = useState<any>(null)
+  const [selectedGuardianForInvite, setSelectedGuardianForInvite] = useState<any>(null)
+  const [guardianInvite, setGuardianInvite] = useState<any>(null)
+
   const {
     isAuthenticated,
     user,
@@ -105,6 +114,10 @@ const SettingsPage = () => {
     logout,
     deriveWallet,
     deriveWalletWithCustomTag,
+    setupSocialRecovery,
+    getSocialRecoveryConfig,
+    generateGuardianInvite,
+    recoverFromGuardians,
   } = useW3PK()
 
   const handleInspectLocalStorage = async () => {
@@ -333,6 +346,13 @@ const SettingsPage = () => {
     loadAddressesAndStatus()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user])
+
+  useEffect(() => {
+    if (isAuthenticated && getSocialRecoveryConfig) {
+      const config = getSocialRecoveryConfig()
+      setSocialRecoveryConfig(config)
+    }
+  }, [isAuthenticated, getSocialRecoveryConfig])
 
   const handleDeleteAccount = (account: StoredAccount) => {
     setAccountToDelete(account)
@@ -1058,6 +1078,90 @@ const SettingsPage = () => {
     }
   }
 
+  const handleAddGuardian = () => {
+    if (!guardianName.trim()) {
+      toaster.create({
+        title: 'Invalid Input',
+        description: 'Guardian name is required',
+        type: 'error',
+        duration: 3000,
+      })
+      return
+    }
+
+    setGuardiansList([
+      ...guardiansList,
+      { name: guardianName.trim(), email: guardianEmail.trim() || undefined },
+    ])
+    setGuardianName('')
+    setGuardianEmail('')
+  }
+
+  const handleRemoveGuardian = (index: number) => {
+    setGuardiansList(guardiansList.filter((_, i) => i !== index))
+  }
+
+  const handleSetupSocialRecovery = async () => {
+    if (guardiansList.length < 2) {
+      toaster.create({
+        title: 'Not Enough Guardians',
+        description: 'You need at least 2 guardians to set up social recovery',
+        type: 'error',
+        duration: 3000,
+      })
+      return
+    }
+
+    if (threshold > guardiansList.length) {
+      toaster.create({
+        title: 'Invalid Threshold',
+        description: 'Threshold cannot be greater than number of guardians',
+        type: 'error',
+        duration: 3000,
+      })
+      return
+    }
+
+    try {
+      const guardians = await setupSocialRecovery(guardiansList, threshold)
+      const config = getSocialRecoveryConfig()
+      setSocialRecoveryConfig(config)
+
+      toaster.create({
+        title: 'Social Recovery Configured!',
+        description: `Successfully set up ${threshold}-of-${guardiansList.length} guardian recovery`,
+        type: 'success',
+        duration: 5000,
+      })
+    } catch (error) {
+      console.error('Error setting up social recovery:', error)
+    }
+  }
+
+  const handleGenerateInvite = async (guardian: any) => {
+    try {
+      const invite = await generateGuardianInvite(guardian)
+      setSelectedGuardianForInvite(guardian)
+      setGuardianInvite(invite)
+    } catch (error) {
+      console.error('Error generating guardian invite:', error)
+    }
+  }
+
+  const handleDownloadInvite = () => {
+    if (!guardianInvite) return
+
+    const blob = new Blob([guardianInvite.explainer + '\n\n' + guardianInvite.shareCode], {
+      type: 'text/plain',
+    })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `guardian-invite-${selectedGuardianForInvite?.name || 'guardian'}.txt`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   const handleSaveQRDataToStorage = async () => {
     if (!parsedQRData || parsedQRData.error || !user) {
       toaster.create({
@@ -1099,14 +1203,14 @@ const SettingsPage = () => {
         throw new Error('Failed to open IndexedDB')
       }
 
-      request.onupgradeneeded = (event) => {
+      request.onupgradeneeded = event => {
         const db = (event.target as IDBOpenDBRequest).result
         if (!db.objectStoreNames.contains('walletLinks')) {
           db.createObjectStore('walletLinks', { keyPath: 'passkeyAddress' })
         }
       }
 
-      request.onsuccess = (event) => {
+      request.onsuccess = event => {
         const db = (event.target as IDBOpenDBRequest).result
         const transaction = db.transaction(['walletLinks'], 'readwrite')
         const store = transaction.objectStore('walletLinks')
@@ -1158,88 +1262,129 @@ const SettingsPage = () => {
           </Text>
         </Box>
 
-        <TabsRoot colorPalette="purple" variant="plain" size="lg" defaultValue="accounts">
+        <TabsRoot colorPalette="gray" variant="plain" size="md" defaultValue="accounts">
           <TabsList
-            bg="gray.900"
-            p={2}
-            borderRadius="xl"
-            gap={2}
-            border="1px solid"
-            borderColor="gray.700"
+            bg="transparent"
+            p={0}
+            borderRadius="none"
+            gap={0}
+            border="none"
+            borderBottom="1px solid"
+            borderColor="gray.800"
             flexWrap={{ base: 'wrap', md: 'nowrap' }}
           >
             <TabsTrigger
               value="accounts"
-              px={{ base: 3, md: 6 }}
+              px={{ base: 4, md: 5 }}
               py={3}
-              borderRadius="lg"
-              fontWeight="medium"
+              borderRadius="none"
+              fontWeight="normal"
               transition="all 0.2s"
-              fontSize={{ base: 'sm', md: 'md' }}
+              fontSize={{ base: 'sm', md: 'sm' }}
+              color="gray.500"
+              position="relative"
               _selected={{
-                bg: brandColors.primary,
                 color: 'white',
-                shadow: 'lg',
+                fontWeight: 'medium',
+                _after: {
+                  content: '""',
+                  position: 'absolute',
+                  bottom: '-1px',
+                  left: 0,
+                  right: 0,
+                  height: '2px',
+                  bg: brandColors.primary,
+                },
               }}
               _hover={{
-                bg: 'gray.800',
+                color: 'gray.300',
               }}
             >
               Accounts
             </TabsTrigger>
             <TabsTrigger
               value="backup"
-              px={{ base: 3, md: 6 }}
+              px={{ base: 4, md: 5 }}
               py={3}
-              borderRadius="lg"
-              fontWeight="medium"
+              borderRadius="none"
+              fontWeight="normal"
               transition="all 0.2s"
-              fontSize={{ base: 'sm', md: 'md' }}
+              fontSize={{ base: 'sm', md: 'sm' }}
+              color="gray.500"
+              position="relative"
               _selected={{
-                bg: brandColors.primary,
                 color: 'white',
-                shadow: 'lg',
+                fontWeight: 'medium',
+                _after: {
+                  content: '""',
+                  position: 'absolute',
+                  bottom: '-1px',
+                  left: 0,
+                  right: 0,
+                  height: '2px',
+                  bg: brandColors.primary,
+                },
               }}
               _hover={{
-                bg: 'gray.800',
+                color: 'gray.300',
               }}
             >
               Backup
             </TabsTrigger>
             <TabsTrigger
               value="sync"
-              px={{ base: 3, md: 6 }}
+              px={{ base: 4, md: 5 }}
               py={3}
-              borderRadius="lg"
-              fontWeight="medium"
+              borderRadius="none"
+              fontWeight="normal"
               transition="all 0.2s"
-              fontSize={{ base: 'sm', md: 'md' }}
+              fontSize={{ base: 'sm', md: 'sm' }}
+              color="gray.500"
+              position="relative"
               _selected={{
-                bg: brandColors.primary,
                 color: 'white',
-                shadow: 'lg',
+                fontWeight: 'medium',
+                _after: {
+                  content: '""',
+                  position: 'absolute',
+                  bottom: '-1px',
+                  left: 0,
+                  right: 0,
+                  height: '2px',
+                  bg: brandColors.primary,
+                },
               }}
               _hover={{
-                bg: 'gray.800',
+                color: 'gray.300',
               }}
             >
               Sync
             </TabsTrigger>
             <TabsTrigger
               value="recovery"
-              px={{ base: 3, md: 6 }}
+              px={{ base: 4, md: 5 }}
               py={3}
-              borderRadius="lg"
-              fontWeight="medium"
+              borderRadius="none"
+              fontWeight="normal"
               transition="all 0.2s"
-              fontSize={{ base: 'sm', md: 'md' }}
+              fontSize={{ base: 'sm', md: 'sm' }}
+              color="gray.500"
+              position="relative"
               _selected={{
-                bg: brandColors.primary,
                 color: 'white',
-                shadow: 'lg',
+                fontWeight: 'medium',
+                _after: {
+                  content: '""',
+                  position: 'absolute',
+                  bottom: '-1px',
+                  left: 0,
+                  right: 0,
+                  height: '2px',
+                  bg: brandColors.primary,
+                },
               }}
               _hover={{
-                bg: 'gray.800',
+                color: 'gray.300',
               }}
             >
               Social recovery
@@ -1329,6 +1474,9 @@ const SettingsPage = () => {
                   </Text>
                 </Box>
               </Box>
+
+              {/* W3PK Build Verification */}
+              <BuildVerification />
             </VStack>
           </TabsContent>
 
@@ -1421,9 +1569,6 @@ const SettingsPage = () => {
                   )}
                 </VStack>
               </Box>
-
-              {/* W3PK Build Verification */}
-              <BuildVerification />
 
               {/* Security Score */}
               <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
@@ -1522,7 +1667,9 @@ const SettingsPage = () => {
                     Restore from Backup
                   </Heading>
                   <Text fontSize="sm" color="gray.400" mb={4}>
-                    Restore your wallet from an encrypted backup file{' \n'}
+                    Restore your wallet from an encrypted backup file
+                    <br />
+                    &nbsp;
                   </Text>
                   <Button
                     bg={brandColors.primary}
@@ -1576,218 +1723,298 @@ const SettingsPage = () => {
             <VStack gap={8} align="stretch">
               <Box>
                 <Heading size="lg" mb={4}>
-                  Recovery Options
+                  Social Recovery
                 </Heading>
                 <Text color="gray.400" mb={6}>
-                  Multiple ways to recover your wallet in case of device loss or failure
+                  Distribute your wallet recovery among trusted guardians using Shamir Secret
+                  Sharing
                 </Text>
               </Box>
 
-              <Box p={4} bg="rgba(139, 92, 246, 0.1)" borderRadius="lg">
-                <Box fontSize="sm">
-                  <Text fontWeight="bold" mb={1}>
-                    Coming Soon
-                  </Text>
-                  <Text>
-                    These recovery features are already available in the w3pk SDK and will be
-                    implemented in this app soon. w3pk provides a three-layer recovery system for
-                    maximum security and flexibility.
-                  </Text>
-                </Box>
-              </Box>
+              <SimpleGrid columns={{ base: 1 }} gap={6}>
+                {!socialRecoveryConfig ? (
+                  <>
+                    {/* Setup Social Recovery */}
+                    <Box
+                      bg="gray.900"
+                      p={6}
+                      borderRadius="lg"
+                      border="1px solid"
+                      borderColor="gray.700"
+                    >
+                      <HStack mb={4}>
+                        <Icon as={FiShield} color={brandColors.primary} boxSize={6} />
+                        <Heading size="md">Setup Social Recovery</Heading>
+                      </HStack>
+                      <Text fontSize="sm" color="gray.400" mb={6}>
+                        Add trusted guardians who will help you recover your wallet. You&apos;ll
+                        need {threshold} out of {guardiansList.length || '?'} guardians to recover.
+                      </Text>
 
-              <SimpleGrid columns={{ base: 1, md: 2 }} gap={6}>
-                <Box
-                  bg="gray.900"
-                  p={6}
-                  borderRadius="lg"
-                  border="1px solid"
-                  borderColor="gray.700"
-                  _hover={{ borderColor: brandColors.primary, transform: 'translateY(-2px)' }}
-                  transition="all 0.2s"
-                >
-                  <Icon as={FiKey} color={brandColors.primary} boxSize={8} mb={4} />
-                  <Badge colorPalette="purple" mb={2}>
-                    LAYER 1
-                  </Badge>
-                  <Heading size="md" mb={3}>
-                    Passkey Auto-Sync
-                  </Heading>
-                  <Text fontSize="sm" color="gray.400" mb={4}>
-                    WebAuthn credentials automatically sync via platform services (iCloud Keychain,
-                    Google Password Manager)
-                  </Text>
-                  <ListRoot gap={2} fontSize="sm" variant="plain">
-                    <ListItem>
-                      <Icon as={FiCheckCircle} color="green.400" mr={2} />
-                      Automatic (no user action needed)
-                    </ListItem>
-                    <ListItem>
-                      <Icon as={FiCheckCircle} color="green.400" mr={2} />
-                      Instant recovery on new device
-                    </ListItem>
-                    <ListItem>
-                      <Icon as={FiCheckCircle} color="green.400" mr={2} />
-                      Hardware-protected security
-                    </ListItem>
-                    <ListItem>
-                      <Icon as={MdWarning} color="yellow.400" mr={2} />
-                      Platform-specific (Apple/Google)
-                    </ListItem>
-                  </ListRoot>
-                </Box>
+                      {/* Add Guardian Form */}
+                      <VStack align="stretch" gap={4} mb={6}>
+                        <Box>
+                          <Text fontSize="sm" fontWeight="medium" mb={2}>
+                            Guardian Name *
+                          </Text>
+                          <input
+                            type="text"
+                            value={guardianName}
+                            onChange={e => setGuardianName(e.target.value)}
+                            placeholder="e.g., Alice Smith"
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              borderRadius: '6px',
+                              border: '1px solid #4A5568',
+                              background: '#1A202C',
+                              color: 'white',
+                              fontSize: '14px',
+                            }}
+                          />
+                        </Box>
+                        <Box>
+                          <Text fontSize="sm" fontWeight="medium" mb={2}>
+                            Guardian Email (Optional)
+                          </Text>
+                          <input
+                            type="email"
+                            value={guardianEmail}
+                            onChange={e => setGuardianEmail(e.target.value)}
+                            placeholder="e.g., alice@example.com"
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              borderRadius: '6px',
+                              border: '1px solid #4A5568',
+                              background: '#1A202C',
+                              color: 'white',
+                              fontSize: '14px',
+                            }}
+                          />
+                        </Box>
+                        <Button
+                          onClick={handleAddGuardian}
+                          colorPalette="purple"
+                          size="sm"
+                          width="fit-content"
+                        >
+                          Add Guardian
+                        </Button>
+                      </VStack>
 
-                <Box
-                  bg="gray.900"
-                  p={6}
-                  borderRadius="lg"
-                  border="1px solid"
-                  borderColor="gray.700"
-                  _hover={{ borderColor: brandColors.primary, transform: 'translateY(-2px)' }}
-                  transition="all 0.2s"
-                >
-                  <Icon as={FiDownload} color={brandColors.primary} boxSize={8} mb={4} />
-                  <Badge colorPalette="purple" mb={2}>
-                    LAYER 2
-                  </Badge>
-                  <Heading size="md" mb={3}>
-                    Encrypted Backups
-                  </Heading>
-                  <Text fontSize="sm" color="gray.400" mb={4}>
-                    Password-protected ZIP files or QR codes that you can store offline or in the
-                    cloud
-                  </Text>
-                  <ListRoot gap={2} fontSize="sm" variant="plain">
-                    <ListItem>
-                      <Icon as={FiCheckCircle} color="green.400" mr={2} />
-                      Works across any platform
-                    </ListItem>
-                    <ListItem>
-                      <Icon as={FiCheckCircle} color="green.400" mr={2} />
-                      Military-grade encryption (AES-256-GCM)
-                    </ListItem>
-                    <ListItem>
-                      <Icon as={FiCheckCircle} color="green.400" mr={2} />
-                      Multiple backup formats
-                    </ListItem>
-                    <ListItem>
-                      <Icon as={MdWarning} color="yellow.400" mr={2} />
-                      Must remember password
-                    </ListItem>
-                  </ListRoot>
-                </Box>
+                      {/* Guardians List */}
+                      {guardiansList.length > 0 && (
+                        <Box mb={6}>
+                          <Text fontSize="sm" fontWeight="medium" mb={3}>
+                            Guardians ({guardiansList.length})
+                          </Text>
+                          <VStack align="stretch" gap={2}>
+                            {guardiansList.map((guardian, index) => (
+                              <Box
+                                key={index}
+                                p={3}
+                                bg="gray.950"
+                                borderRadius="md"
+                                border="1px solid"
+                                borderColor="gray.800"
+                              >
+                                <HStack justify="space-between">
+                                  <Box>
+                                    <Text fontSize="sm" fontWeight="bold">
+                                      {guardian.name}
+                                    </Text>
+                                    {guardian.email && (
+                                      <Text fontSize="xs" color="gray.400">
+                                        {guardian.email}
+                                      </Text>
+                                    )}
+                                  </Box>
+                                  <IconButton
+                                    aria-label="Remove guardian"
+                                    size="xs"
+                                    colorPalette="red"
+                                    variant="ghost"
+                                    onClick={() => handleRemoveGuardian(index)}
+                                  >
+                                    <MdDelete />
+                                  </IconButton>
+                                </HStack>
+                              </Box>
+                            ))}
+                          </VStack>
+                        </Box>
+                      )}
 
-                <Box
-                  bg="gray.900"
-                  p={6}
-                  borderRadius="lg"
-                  border="1px solid"
-                  borderColor="gray.700"
-                  _hover={{ borderColor: brandColors.primary, transform: 'translateY(-2px)' }}
-                  transition="all 0.2s"
-                >
-                  <Icon as={FiUsers} color={brandColors.primary} boxSize={8} mb={4} />
-                  <Badge colorPalette="purple" mb={2}>
-                    LAYER 3
-                  </Badge>
-                  <Heading size="md" mb={3}>
-                    Social Recovery
-                  </Heading>
-                  <Text fontSize="sm" color="gray.400" mb={4}>
-                    Split your recovery phrase among trusted friends/family using Shamir Secret
-                    Sharing (e.g., 3-of-5)
-                  </Text>
-                  <ListRoot gap={2} fontSize="sm" variant="plain">
-                    <ListItem>
-                      <Icon as={FiCheckCircle} color="green.400" mr={2} />
-                      No single point of failure
-                    </ListItem>
-                    <ListItem>
-                      <Icon as={FiCheckCircle} color="green.400" mr={2} />
-                      Information-theoretic security
-                    </ListItem>
-                    <ListItem>
-                      <Icon as={FiCheckCircle} color="green.400" mr={2} />
-                      Survives forgotten passwords
-                    </ListItem>
-                    <ListItem>
-                      <Icon as={MdWarning} color="yellow.400" mr={2} />
-                      Requires trusted guardians
-                    </ListItem>
-                  </ListRoot>
-                </Box>
+                      {/* Threshold Selector */}
+                      {guardiansList.length >= 2 && (
+                        <Box mb={6}>
+                          <Text fontSize="sm" fontWeight="medium" mb={2}>
+                            Recovery Threshold: {threshold} of {guardiansList.length}
+                          </Text>
+                          <Text fontSize="xs" color="gray.400" mb={3}>
+                            Number of guardians needed to recover your wallet
+                          </Text>
+                          <input
+                            type="range"
+                            min="2"
+                            max={guardiansList.length}
+                            value={threshold}
+                            onChange={e => setThreshold(parseInt(e.target.value))}
+                            style={{ width: '100%' }}
+                          />
+                        </Box>
+                      )}
 
-                <Box
-                  bg="gray.900"
-                  p={6}
-                  borderRadius="lg"
-                  border="1px solid"
-                  borderColor="gray.700"
-                  _hover={{ borderColor: brandColors.primary, transform: 'translateY(-2px)' }}
-                  transition="all 0.2s"
-                >
-                  <Icon as={FiShield} color={brandColors.primary} boxSize={8} mb={4} />
-                  <Badge colorPalette="green" mb={2}>
-                    UNIVERSAL
-                  </Badge>
-                  <Heading size="md" mb={3}>
-                    Manual Mnemonic
-                  </Heading>
-                  <Text fontSize="sm" color="gray.400" mb={4}>
-                    Your 12-word recovery phrase - the ultimate backup that works with any
-                    BIP39-compatible wallet
-                  </Text>
-                  <ListRoot gap={2} fontSize="sm" variant="plain">
-                    <ListItem>
-                      <Icon as={FiCheckCircle} color="green.400" mr={2} />
-                      Compatible with MetaMask, Ledger, etc.
-                    </ListItem>
-                    <ListItem>
-                      <Icon as={FiCheckCircle} color="green.400" mr={2} />
-                      Never changes
-                    </ListItem>
-                    <ListItem>
-                      <Icon as={FiCheckCircle} color="green.400" mr={2} />
-                      Simple and universal
-                    </ListItem>
-                    <ListItem>
-                      <Icon as={MdWarning} color="yellow.400" mr={2} />
-                      Keep it absolutely secret
-                    </ListItem>
-                  </ListRoot>
-                </Box>
+                      {/* Setup Button */}
+                      <Button
+                        onClick={handleSetupSocialRecovery}
+                        bg={brandColors.primary}
+                        color="white"
+                        _hover={{ bg: brandColors.secondary }}
+                        disabled={guardiansList.length < 2}
+                        width="full"
+                      >
+                        Setup Social Recovery ({threshold}-of-{guardiansList.length || '?'})
+                      </Button>
+                    </Box>
+
+                    {/* Info Box */}
+                    <Box p={4} bg="blue.900/90" borderRadius="lg">
+                      <Text fontSize="sm">
+                        <strong>How it works:</strong> Your wallet recovery will be split into{' '}
+                        {guardiansList.length || '?'} encrypted shares using Shamir Secret Sharing.
+                        You&apos;ll need {threshold} guardians to combine their shares to recover
+                        your wallet. No single guardian can access your wallet alone.
+                      </Text>
+                    </Box>
+                  </>
+                ) : (
+                  <>
+                    {/* Social Recovery Configured */}
+                    <Box
+                      bg="gray.900"
+                      p={6}
+                      borderRadius="lg"
+                      border="1px solid"
+                      borderColor="green.700"
+                    >
+                      <HStack mb={4}>
+                        <Icon as={MdCheckCircle} color="green.400" boxSize={6} />
+                        <Heading size="md">Social Recovery Active</Heading>
+                      </HStack>
+                      <Text fontSize="sm" color="gray.400" mb={4}>
+                        Your wallet is protected with {socialRecoveryConfig.threshold}-of-
+                        {socialRecoveryConfig.totalGuardians} guardian recovery
+                      </Text>
+
+                      {/* Guardians List */}
+                      <VStack align="stretch" gap={3}>
+                        {socialRecoveryConfig.guardians.map((guardian: any, index: number) => (
+                          <Box
+                            key={guardian.id}
+                            p={4}
+                            bg="gray.950"
+                            borderRadius="md"
+                            border="1px solid"
+                            borderColor="gray.800"
+                          >
+                            <HStack justify="space-between" mb={2}>
+                              <Box>
+                                <HStack>
+                                  <Text fontSize="sm" fontWeight="bold">
+                                    {guardian.name}
+                                  </Text>
+                                  <Badge
+                                    colorPalette={
+                                      guardian.status === 'active'
+                                        ? 'green'
+                                        : guardian.status === 'pending'
+                                          ? 'yellow'
+                                          : 'gray'
+                                    }
+                                    fontSize="xs"
+                                  >
+                                    {guardian.status}
+                                  </Badge>
+                                </HStack>
+                                {guardian.email && (
+                                  <Text fontSize="xs" color="gray.400">
+                                    {guardian.email}
+                                  </Text>
+                                )}
+                              </Box>
+                              <Button
+                                size="xs"
+                                onClick={() => handleGenerateInvite(guardian)}
+                                colorPalette="purple"
+                                px={4}
+                                flexShrink={0}
+                              >
+                                Generate Invite
+                              </Button>
+                            </HStack>
+                          </Box>
+                        ))}
+                      </VStack>
+                    </Box>
+
+                    {/* Guardian Invite Modal Content */}
+                    {guardianInvite && (
+                      <Box
+                        bg="gray.900"
+                        p={6}
+                        borderRadius="lg"
+                        border="1px solid"
+                        borderColor="purple.700"
+                      >
+                        <HStack justify="space-between" mb={4}>
+                          <Heading size="md">Guardian Invitation</Heading>
+                          <CloseButton onClick={() => setGuardianInvite(null)} />
+                        </HStack>
+
+                        {/* QR Code */}
+                        <Box
+                          display="flex"
+                          justifyContent="center"
+                          alignItems="center"
+                          p={4}
+                          bg="white"
+                          borderRadius="lg"
+                          width="fit-content"
+                          mx="auto"
+                          mb={4}
+                        >
+                          <QRCodeSVG
+                            value={guardianInvite.shareCode}
+                            size={256}
+                            level="H"
+                            marginSize={4}
+                          />
+                        </Box>
+
+                        {/* Actions */}
+                        <VStack gap={3}>
+                          <Button
+                            onClick={handleDownloadInvite}
+                            bg={brandColors.primary}
+                            color="white"
+                            _hover={{ bg: brandColors.secondary }}
+                            width="full"
+                          >
+                            <Icon as={FiDownload} mr={2} />
+                            Download Invitation
+                          </Button>
+                          <Text fontSize="xs" color="gray.400" textAlign="center">
+                            Send this invitation to{' '}
+                            <strong>{selectedGuardianForInvite?.name}</strong> via a secure channel
+                          </Text>
+                        </VStack>
+                      </Box>
+                    )}
+                  </>
+                )}
               </SimpleGrid>
-
-              <Box
-                p={6}
-                borderColor={brandColors.accent}
-                border="2px solid"
-                borderRadius="xl"
-                textAlign="center"
-                boxShadow="0 10px 100px rgba(69, 162, 248, 0.2)"
-              >
-                <Heading size="md" mb={3} color="white">
-                  Learn More About Recovery
-                </Heading>
-                <Text fontSize="sm" color="gray.400" mb={4}>
-                  Read the complete recovery architecture documentation
-                </Text>
-                <ChakraLink
-                  href="https://github.com/w3hc/w3pk/blob/main/docs/RECOVERY.md"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Button
-                    bg={brandColors.accent}
-                    color="white"
-                    _hover={{ bg: '#3690e0' }}
-                    size="sm"
-                    px={6}
-                  >
-                    View Documentation
-                  </Button>
-                </ChakraLink>
-              </Box>
             </VStack>
           </TabsContent>
 
@@ -1811,7 +2038,8 @@ const SettingsPage = () => {
                   </HStack>
                 </HStack>
                 <Text fontSize="sm" color="gray.400" mb={4}>
-                  Generate a QR code containing your wallet addresses to easily sync or verify your account information on another device.
+                  Generate a QR code containing your wallet addresses to easily sync or verify your
+                  account information on another device.
                 </Text>
 
                 {!showQRCode ? (
@@ -1837,23 +2065,16 @@ const SettingsPage = () => {
                       width="fit-content"
                       mx="auto"
                     >
-                      <QRCodeSVG
-                        value={qrCodeData}
-                        size={256}
-                        level="H"
-                        marginSize={4}
-                      />
+                      <QRCodeSVG value={qrCodeData} size={256} level="H" marginSize={4} />
                     </Box>
                     <Box p={4} bg="yellow.900/90" borderRadius="md">
                       <Text fontSize="xs" color="gray.300">
-                        <strong>Note:</strong> This QR code contains your public wallet addresses only. It does NOT contain your private keys or recovery phrase. Use it to verify your account on another device.
+                        <strong>Note:</strong> This QR code contains your public wallet addresses
+                        only. It does NOT contain your private keys or recovery phrase. Use it to
+                        verify your account on another device.
                       </Text>
                     </Box>
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowQRCode(false)}
-                      width="full"
-                    >
+                    <Button variant="outline" onClick={() => setShowQRCode(false)} width="full">
                       Hide QR Code
                     </Button>
                   </VStack>
@@ -1874,7 +2095,7 @@ const SettingsPage = () => {
                   <Textarea
                     placeholder='Paste JSON data here (e.g., {"username":"...","ethereumAddress":"..."})'
                     value={pastedQRData}
-                    onChange={(e) => handlePasteQRData(e.target.value)}
+                    onChange={e => handlePasteQRData(e.target.value)}
                     minH="120px"
                     fontFamily="monospace"
                     fontSize="sm"
@@ -1903,45 +2124,83 @@ const SettingsPage = () => {
                             </Text>
                             {parsedQRData.username && (
                               <HStack>
-                                <Text fontSize="xs" color="gray.400" width="140px">Username:</Text>
-                                <Text fontSize="xs" color="white" fontWeight="medium">{parsedQRData.username}</Text>
+                                <Text fontSize="xs" color="gray.400" width="140px">
+                                  Username:
+                                </Text>
+                                <Text fontSize="xs" color="white" fontWeight="medium">
+                                  {parsedQRData.username}
+                                </Text>
                               </HStack>
                             )}
                             {parsedQRData.ethereumAddress && (
                               <HStack>
-                                <Text fontSize="xs" color="gray.400" width="140px">Ethereum Address:</Text>
-                                <Code fontSize="xs" bg="gray.900" color="gray.300" p={1} borderRadius="sm">
+                                <Text fontSize="xs" color="gray.400" width="140px">
+                                  Ethereum Address:
+                                </Text>
+                                <Code
+                                  fontSize="xs"
+                                  bg="gray.900"
+                                  color="gray.300"
+                                  p={1}
+                                  borderRadius="sm"
+                                >
                                   {parsedQRData.ethereumAddress}
                                 </Code>
                               </HStack>
                             )}
                             {parsedQRData.index0Address && (
                               <HStack>
-                                <Text fontSize="xs" color="gray.400" width="140px">Index #0:</Text>
-                                <Code fontSize="xs" bg="gray.900" color="gray.300" p={1} borderRadius="sm">
+                                <Text fontSize="xs" color="gray.400" width="140px">
+                                  Index #0:
+                                </Text>
+                                <Code
+                                  fontSize="xs"
+                                  bg="gray.900"
+                                  color="gray.300"
+                                  p={1}
+                                  borderRadius="sm"
+                                >
                                   {parsedQRData.index0Address}
                                 </Code>
                               </HStack>
                             )}
                             {parsedQRData.mainAddress && (
                               <HStack>
-                                <Text fontSize="xs" color="gray.400" width="140px">MAIN-tagged:</Text>
-                                <Code fontSize="xs" bg="gray.900" color="gray.300" p={1} borderRadius="sm">
+                                <Text fontSize="xs" color="gray.400" width="140px">
+                                  MAIN-tagged:
+                                </Text>
+                                <Code
+                                  fontSize="xs"
+                                  bg="gray.900"
+                                  color="gray.300"
+                                  p={1}
+                                  borderRadius="sm"
+                                >
                                   {parsedQRData.mainAddress}
                                 </Code>
                               </HStack>
                             )}
                             {parsedQRData.openbarAddress && (
                               <HStack>
-                                <Text fontSize="xs" color="gray.400" width="140px">OPENBAR-tagged:</Text>
-                                <Code fontSize="xs" bg="gray.900" color="gray.300" p={1} borderRadius="sm">
+                                <Text fontSize="xs" color="gray.400" width="140px">
+                                  OPENBAR-tagged:
+                                </Text>
+                                <Code
+                                  fontSize="xs"
+                                  bg="gray.900"
+                                  color="gray.300"
+                                  p={1}
+                                  borderRadius="sm"
+                                >
                                   {parsedQRData.openbarAddress}
                                 </Code>
                               </HStack>
                             )}
                             {parsedQRData.timestamp && (
                               <HStack>
-                                <Text fontSize="xs" color="gray.400" width="140px">Generated:</Text>
+                                <Text fontSize="xs" color="gray.400" width="140px">
+                                  Generated:
+                                </Text>
                                 <Text fontSize="xs" color="gray.300">
                                   {new Date(parsedQRData.timestamp).toLocaleString()}
                                 </Text>
@@ -1966,7 +2225,10 @@ const SettingsPage = () => {
 
                           <Box p={3} bg="blue.900/90" borderRadius="md">
                             <Text fontSize="xs" color="gray.300">
-                              <strong>What happens when you link:</strong> This will save the wallet addresses to both localStorage and IndexedDB, creating a persistent link between your passkey account and this HD wallet. You can use this to verify or sync wallet data across devices.
+                              <strong>What happens when you link:</strong> This will save the wallet
+                              addresses to both localStorage and IndexedDB, creating a persistent
+                              link between your passkey account and this HD wallet. You can use this
+                              to verify or sync wallet data across devices.
                             </Text>
                           </Box>
                         </>
@@ -1984,16 +2246,24 @@ const SettingsPage = () => {
                 </HStack>
                 <VStack align="stretch" gap={3} fontSize="sm" color="gray.400">
                   <Text>
-                    <strong>Step 1: Generate QR Code</strong> - On your primary device, generate a QR code containing your wallet&apos;s public addresses. This QR code is safe to share as it only contains public information.
+                    <strong>Step 1: Generate QR Code</strong> - On your primary device, generate a
+                    QR code containing your wallet&apos;s public addresses. This QR code is safe to
+                    share as it only contains public information.
                   </Text>
                   <Text>
-                    <strong>Step 2: Scan & Verify</strong> - On your secondary device, scan the QR code using any QR scanner app, or manually copy the JSON data displayed in the QR code.
+                    <strong>Step 2: Scan & Verify</strong> - On your secondary device, scan the QR
+                    code using any QR scanner app, or manually copy the JSON data displayed in the
+                    QR code.
                   </Text>
                   <Text>
-                    <strong>Step 3: Link Wallets</strong> - Paste the JSON data into the verification area above and click &quot;Link This Wallet&quot;. This creates a persistent connection between your passkey account and the HD wallet addresses.
+                    <strong>Step 3: Link Wallets</strong> - Paste the JSON data into the
+                    verification area above and click &quot;Link This Wallet&quot;. This creates a
+                    persistent connection between your passkey account and the HD wallet addresses.
                   </Text>
                   <Text>
-                    <strong>What Gets Stored:</strong> Only public wallet addresses are stored in localStorage and IndexedDB. Your private keys and recovery phrase remain secure and are never transmitted or stored through this sync mechanism.
+                    <strong>What Gets Stored:</strong> Only public wallet addresses are stored in
+                    localStorage and IndexedDB. Your private keys and recovery phrase remain secure
+                    and are never transmitted or stored through this sync mechanism.
                   </Text>
                 </VStack>
               </Box>
@@ -2006,7 +2276,8 @@ const SettingsPage = () => {
                 </HStack>
                 <VStack align="stretch" gap={3} fontSize="sm" color="gray.400">
                   <Text>
-                    Your passkey credentials automatically sync across devices within the same ecosystem:
+                    Your passkey credentials automatically sync across devices within the same
+                    ecosystem:
                   </Text>
                   <ListRoot gap={2} fontSize="sm" variant="plain">
                     <ListItem>
@@ -2019,7 +2290,8 @@ const SettingsPage = () => {
                     </ListItem>
                     <ListItem>
                       <Icon as={MdWarning} color="yellow.400" mr={2} />
-                      <strong>Windows Hello:</strong> Device-specific, use encrypted backup for new devices
+                      <strong>Windows Hello:</strong> Device-specific, use encrypted backup for new
+                      devices
                     </ListItem>
                     <ListItem>
                       <Icon as={MdWarning} color="yellow.400" mr={2} />
@@ -2028,7 +2300,10 @@ const SettingsPage = () => {
                   </ListRoot>
                   <Box p={3} bg="yellow.900/90" borderRadius="md" mt={2}>
                     <Text fontSize="xs" color="gray.300">
-                      <strong>Cross-platform limitation:</strong> Passkeys do not sync across different ecosystems (e.g., iPhone to Android). However, encrypted backups ARE fully cross-platform - you can restore your wallet on any device with the backup file and password, regardless of the original platform.
+                      <strong>Cross-platform limitation:</strong> Passkeys do not sync across
+                      different ecosystems (e.g., iPhone to Android). However, encrypted backups ARE
+                      fully cross-platform - you can restore your wallet on any device with the
+                      backup file and password, regardless of the original platform.
                     </Text>
                   </Box>
                 </VStack>
@@ -2060,7 +2335,8 @@ const SettingsPage = () => {
                     </ListItem>
                     <ListItem>
                       <Icon as={MdInfo} color="blue.400" mr={2} />
-                      QR codes only contain public addresses, but still treat them as sensitive account information
+                      QR codes only contain public addresses, but still treat them as sensitive
+                      account information
                     </ListItem>
                   </ListRoot>
                 </VStack>
