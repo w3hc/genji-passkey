@@ -1,14 +1,23 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Box, Heading, HStack, Icon, Text, VStack, Code, Link as ChakraLink } from '@chakra-ui/react'
+import {
+  Box,
+  Heading,
+  HStack,
+  Icon,
+  Text,
+  VStack,
+  Code,
+  Link as ChakraLink,
+} from '@chakra-ui/react'
 import { MdCheckCircle, MdError, MdInfo } from 'react-icons/md'
 import { FiShield, FiExternalLink } from 'react-icons/fi'
 import { brandColors } from '@/theme'
 import Spinner from '@/components/Spinner'
 import { verifyBuildHash, getCurrentBuildHash } from 'w3pk'
 
-const TRUSTED_BUILD_HASH = 'bafkreibgdbouxvkqgh4d4omcbtq3mqs2nm4r2do367jetfdpfn43fbrmri'
+const TRUSTED_BUILD_HASH = 'bafybeia7zk5yrwluoh7u6cwwvou7yermwi3qapdf2wyxgjckcy55dyucui'
 
 export const BuildVerification = () => {
   const [isVerifying, setIsVerifying] = useState(true)
@@ -116,7 +125,8 @@ export const BuildVerification = () => {
                 </Text>
               </HStack>
               <Text fontSize="xs" color="green.200">
-                This app is running a verified and trusted version of W3PK. The cryptographic build hash matches the official release.
+                This app is running a verified and trusted version of W3PK. The cryptographic build
+                hash matches the official release.
               </Text>
             </Box>
             <Box>
@@ -162,7 +172,9 @@ export const BuildVerification = () => {
                 </Text>
               </HStack>
               <Text fontSize="xs" color="red.200">
-                Warning: This app is running an unverified version of W3PK. The build hash does not match the trusted release. This could indicate a compromised package, development version, or tampering.
+                Warning: This app is running an unverified version of W3PK. The build hash does not
+                match the trusted release. This could indicate a compromised package, development
+                version, or tampering.
               </Text>
             </Box>
             <Box>
@@ -208,7 +220,9 @@ export const BuildVerification = () => {
             </Text>
           </HStack>
           <Text fontSize="xs" color="gray.400" mb={2}>
-            This verification ensures you&apos;re running an authentic, unmodified version of W3PK by comparing its cryptographic hash against the official trusted release. This protects you from supply chain attacks, compromised packages, and unauthorized modifications.
+            This verification ensures you&apos;re running an authentic, unmodified version of W3PK
+            by comparing its cryptographic hash against the official trusted release. This protects
+            you from supply chain attacks, compromised packages, and unauthorized modifications.
           </Text>
           <VStack align="stretch" gap={1} mb={0}>
             <ChakraLink
