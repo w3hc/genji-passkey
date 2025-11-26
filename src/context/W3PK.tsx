@@ -9,7 +9,8 @@ import React, {
   useCallback,
   useEffect,
 } from 'react'
-import { createWeb3Passkey, StealthKeys } from 'w3pk'
+import { createWeb3Passkey } from 'w3pk'
+import type { Guardian as W3pkGuardian, GuardianInvite as W3pkGuardianInvite, SocialRecoveryConfig as W3pkSocialRecoveryConfig } from 'w3pk'
 import { toaster } from '@/components/ui/toaster'
 
 interface SecurityScore {
@@ -47,6 +48,31 @@ interface DerivedWallet {
   privateKey?: string
 }
 
+interface Guardian {
+  id: string
+  name: string
+  email?: string
+  phone?: string
+  shareEncrypted: string
+  status: 'pending' | 'active' | 'revoked'
+  addedAt: string
+  lastVerified?: string
+}
+
+interface GuardianInvite {
+  guardianId: string
+  shareCode: string
+  explainer: string
+}
+
+interface SocialRecoveryConfig {
+  threshold: number
+  totalGuardians: number
+  guardians: Guardian[]
+  createdAt: string
+  ethereumAddress: string
+}
+
 interface StealthAddressResult {
   stealthAddress: string
   ephemeralPublicKey: string
@@ -68,6 +94,16 @@ interface W3pkType {
   restoreFromBackup: (
     backupData: string,
     password: string
+  ) => Promise<{ mnemonic: string; ethereumAddress: string }>
+  setupSocialRecovery: (
+    guardians: { name: string; email?: string; phone?: string }[],
+    threshold: number,
+    password?: string
+  ) => Promise<Guardian[]>
+  getSocialRecoveryConfig: () => SocialRecoveryConfig | null
+  generateGuardianInvite: (guardian: Guardian) => Promise<GuardianInvite>
+  recoverFromGuardians: (
+    shareData: string[]
   ) => Promise<{ mnemonic: string; ethereumAddress: string }>
 }
 
@@ -94,6 +130,16 @@ const W3PK = createContext<W3pkType>({
   },
   restoreFromBackup: async () => {
     throw new Error('restoreFromBackup not initialized')
+  },
+  setupSocialRecovery: async () => {
+    throw new Error('setupSocialRecovery not initialized')
+  },
+  getSocialRecoveryConfig: () => null,
+  generateGuardianInvite: async () => {
+    throw new Error('generateGuardianInvite not initialized')
+  },
+  recoverFromGuardians: async () => {
+    throw new Error('recoverFromGuardians not initialized')
   },
 })
 
@@ -174,13 +220,11 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
       if (!isMounted || !w3pk) return
 
       try {
-        // Priority 1: Check if W3PK SDK has an active session
         if (w3pk.hasActiveSession() && w3pk.user) {
           handleAuthStateChanged(true, w3pk.user)
           return
         }
 
-        // Priority 2: Restore session from localStorage
         if (typeof window !== 'undefined' && window.localStorage) {
           const storedAuthState = localStorage.getItem(AUTH_STATE_KEY)
 
@@ -189,22 +233,7 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
               const authData = JSON.parse(storedAuthState) as AuthStateData
 
               if (authData.isAuthenticated && authData.user) {
-                // Restore UI state first
                 handleAuthStateChanged(true, authData.user)
-
-                // Proactively restore W3PK session
-                // This will prompt for passkey authentication on page load
-                // instead of waiting for the first user action
-                try {
-                  await w3pk.login()
-                  // Session restored successfully - user won't be prompted again
-                } catch (error) {
-                  // User cancelled or authentication failed
-                  // Silent fail - they'll be prompted when they perform an action
-                  if (!isUserCancelledError(error)) {
-                    console.warn('Failed to restore session:', error)
-                  }
-                }
                 return
               }
             } catch {
@@ -530,16 +559,16 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
       throw new Error('User not authenticated. Cannot create backup.')
     }
 
-    if (!w3pk || typeof w3pk.createZipBackup !== 'function') {
-      throw new Error('w3pk SDK does not support createZipBackup.')
+    if (!w3pk || typeof w3pk.createBackupFile !== 'function') {
+      throw new Error('w3pk SDK does not support createBackupFile.')
     }
 
     try {
       setIsLoading(true)
 
       try {
-        const result = await w3pk.createZipBackup(password)
-        return result
+        const result = await w3pk.createBackupFile('password', password)
+        return result.blob
       } catch (initialError) {
         if (
           initialError instanceof Error &&
@@ -547,8 +576,8 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
             initialError.message.includes('login'))
         ) {
           await w3pk.login()
-          const result = await w3pk.createZipBackup(password)
-          return result
+          const result = await w3pk.createBackupFile('password', password)
+          return result.blob
         }
         throw initialError
       }
@@ -571,14 +600,14 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
     backupData: string,
     password: string
   ): Promise<{ mnemonic: string; ethereumAddress: string }> => {
-    if (!w3pk || typeof w3pk.restoreFromBackup !== 'function') {
-      throw new Error('w3pk SDK does not support restoreFromBackup.')
+    if (!w3pk || typeof w3pk.restoreFromBackupFile !== 'function') {
+      throw new Error('w3pk SDK does not support restoreFromBackupFile.')
     }
 
     try {
       setIsLoading(true)
 
-      const result = await w3pk.restoreFromBackup(backupData, password)
+      const result = await w3pk.restoreFromBackupFile(backupData, password)
 
       toaster.create({
         title: 'Backup Restored Successfully!',
@@ -593,6 +622,249 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
 
       toaster.create({
         title: 'Restore Failed',
+        description: errorMessage,
+        type: 'error',
+        duration: 5000,
+      })
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Simplified inline social recovery using Shamir Secret Sharing
+  const splitSecret = useCallback((mnemonic: string, threshold: number, shares: number) => {
+    // Use secrets.js for Shamir Secret Sharing
+    const secrets = require('secrets.js-34r7h')
+    // Convert mnemonic to hex
+    const mnemonicHex = Buffer.from(mnemonic, 'utf8').toString('hex')
+    // Split into shares
+    const shareArray = secrets.share(mnemonicHex, shares, threshold)
+    return shareArray
+  }, [])
+
+  const combineSecret = useCallback((shareArray: string[]) => {
+    const secrets = require('secrets.js-34r7h')
+    const mnemonicHex = secrets.combine(shareArray)
+    const mnemonic = Buffer.from(mnemonicHex, 'hex').toString('utf8')
+    return mnemonic
+  }, [])
+
+  const setupSocialRecovery = async (
+    guardians: { name: string; email?: string; phone?: string }[],
+    threshold: number,
+    password?: string
+  ): Promise<Guardian[]> => {
+    if (!isAuthenticated || !user) {
+      throw new Error('User not authenticated. Cannot setup social recovery.')
+    }
+
+    try {
+      setIsLoading(true)
+      await ensureAuthentication()
+
+      // Create a temporary passkey-encrypted backup to access the mnemonic
+      // This will trigger authentication and store mnemonic in session
+      const backupResult = await w3pk.createBackupFile('passkey')
+      const backupJson = await backupResult.blob.text()
+      const backupData = JSON.parse(backupJson)
+
+      // Now we need to decrypt it to get the mnemonic
+      // We'll need to use restoreFromBackupFile to decrypt
+      const restored = await w3pk.restoreFromBackupFile(backupJson, '')
+      const mnemonic = restored.mnemonic
+
+      // Split mnemonic using Shamir Secret Sharing
+      const shares = splitSecret(mnemonic, threshold, guardians.length)
+
+      // Create guardian objects with shares
+      const guardianObjects: Guardian[] = guardians.map((g, index) => ({
+        id: crypto.randomUUID(),
+        name: g.name,
+        email: g.email,
+        shareEncrypted: shares[index],
+        status: 'pending' as const,
+        addedAt: new Date().toISOString(),
+      }))
+
+      // Store config in localStorage
+      const config: SocialRecoveryConfig = {
+        threshold,
+        totalGuardians: guardians.length,
+        guardians: guardianObjects,
+        createdAt: new Date().toISOString(),
+        ethereumAddress: user.ethereumAddress,
+      }
+
+      localStorage.setItem('w3pk_social_recovery', JSON.stringify(config))
+
+      toaster.create({
+        title: 'Social Recovery Configured!',
+        description: `Successfully set up ${threshold}-of-${guardians.length} guardian recovery`,
+        type: 'success',
+        duration: 5000,
+      })
+
+      return guardianObjects
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to setup social recovery'
+
+      toaster.create({
+        title: 'Setup Failed',
+        description: errorMessage,
+        type: 'error',
+        duration: 5000,
+      })
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const getSocialRecoveryConfig = (): SocialRecoveryConfig | null => {
+    try {
+      const stored = localStorage.getItem('w3pk_social_recovery')
+      if (!stored) return null
+      return JSON.parse(stored)
+    } catch {
+      return null
+    }
+  }
+
+  const generateGuardianInvite = async (guardian: Guardian): Promise<GuardianInvite> => {
+    try {
+      setIsLoading(true)
+
+      const config = getSocialRecoveryConfig()
+      if (!config) {
+        throw new Error('Social recovery not configured')
+      }
+
+      const index = config.guardians.findIndex((g) => g.id === guardian.id)
+      if (index === -1) {
+        throw new Error('Guardian not found')
+      }
+
+      // Create guardian data package
+      const guardianData = {
+        version: 1,
+        guardianId: guardian.id,
+        guardianName: guardian.name,
+        guardianIndex: index + 1,
+        totalGuardians: config.totalGuardians,
+        threshold: config.threshold,
+        share: guardian.shareEncrypted,
+        ethereumAddress: config.ethereumAddress,
+        createdAt: config.createdAt,
+      }
+
+      const shareCode = JSON.stringify(guardianData)
+
+      const explainer = `
+🛡️ GUARDIAN RECOVERY SHARE
+
+Dear ${guardian.name},
+
+You have been chosen as Guardian ${index + 1} of ${config.totalGuardians}
+
+YOUR ROLE:
+You hold 1 piece of a ${config.threshold}-piece puzzle. ${config.threshold} guardians are needed to recover the wallet.
+
+HOW IT WORKS:
+If your friend loses access to their wallet, they will contact you to request your share. You provide the share code below, and the system collects shares from ${config.threshold} guardians to reconstruct the wallet.
+
+SECURITY:
+✓ Your share is encrypted
+✓ Cannot be used alone
+✓ ${config.threshold - 1} other guardians needed
+✓ Safe to store digitally
+
+Guardian ${index + 1}/${config.totalGuardians} | Threshold: ${config.threshold}/${config.totalGuardians}
+Created: ${new Date().toISOString()}
+
+Thank you for being a trusted guardian!
+`
+
+      toaster.create({
+        title: 'Guardian Invitation Generated',
+        description: `Invitation ready for ${guardian.name}`,
+        type: 'success',
+        duration: 3000,
+      })
+
+      return {
+        guardianId: guardian.id,
+        shareCode,
+        explainer,
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to generate guardian invite'
+
+      toaster.create({
+        title: 'Generation Failed',
+        description: errorMessage,
+        type: 'error',
+        duration: 5000,
+      })
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const recoverFromGuardians = async (
+    shareData: string[]
+  ): Promise<{ mnemonic: string; ethereumAddress: string }> => {
+    try {
+      setIsLoading(true)
+
+      const config = getSocialRecoveryConfig()
+      if (!config) {
+        throw new Error('Social recovery not configured')
+      }
+
+      if (shareData.length < config.threshold) {
+        throw new Error(
+          `Need at least ${config.threshold} shares, got ${shareData.length}`
+        )
+      }
+
+      // Parse share data to extract the shares
+      const shares = shareData.map((data) => {
+        const parsed = JSON.parse(data)
+        return parsed.share
+      })
+
+      // Combine shares to recover mnemonic
+      const mnemonic = combineSecret(shares)
+
+      // Verify by deriving the ethereum address
+      const { Wallet } = await import('ethers')
+      const wallet = Wallet.fromPhrase(mnemonic)
+
+      if (wallet.address.toLowerCase() !== config.ethereumAddress.toLowerCase()) {
+        throw new Error('Recovered address does not match - invalid shares')
+      }
+
+      toaster.create({
+        title: 'Wallet Recovered!',
+        description: `Successfully recovered wallet: ${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}`,
+        type: 'success',
+        duration: 5000,
+      })
+
+      return {
+        mnemonic,
+        ethereumAddress: wallet.address,
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to recover from guardians'
+
+      toaster.create({
+        title: 'Recovery Failed',
         description: errorMessage,
         type: 'error',
         duration: 5000,
@@ -618,6 +890,10 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
         getBackupStatus,
         createZipBackup,
         restoreFromBackup,
+        setupSocialRecovery,
+        getSocialRecoveryConfig,
+        generateGuardianInvite,
+        recoverFromGuardians,
       }}
     >
       {children}

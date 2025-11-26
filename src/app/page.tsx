@@ -18,50 +18,45 @@ export default function Home() {
   const [isLoadingOpenbar, setIsLoadingOpenbar] = useState(false)
 
   useEffect(() => {
+    let cancelled = false
+
     const loadAddresses = async () => {
-      if (isAuthenticated && user && (!mainAddress || !openbarAddress)) {
-        // Add a small delay to ensure W3PK session is fully established
-        await new Promise(resolve => setTimeout(resolve, 100))
+      if (!isAuthenticated || !user || mainAddress || openbarAddress) {
+        return
+      }
 
-        // Load MAIN address
-        if (!mainAddress) {
-          setIsLoadingMain(true)
-          try {
-            const derivedWallet = await deriveWalletWithCustomTag('MAIN')
-            setMainAddress(derivedWallet.address)
-          } catch (error) {
-            console.error('Failed to derive MAIN address:', error)
-          } finally {
-            setIsLoadingMain(false)
-          }
+      try {
+        setIsLoadingMain(true)
+        const mainWallet = await deriveWalletWithCustomTag('MAIN')
+        if (cancelled) return
+        setMainAddress(mainWallet.address)
+        setIsLoadingMain(false)
+
+        setIsLoadingOpenbar(true)
+        const openbarWallet = await deriveWalletWithCustomTag('OPENBAR')
+        if (cancelled) return
+        setOpenbarAddress(openbarWallet.address)
+        if (openbarWallet.privateKey) {
+          setOpenbarPrivateKey(openbarWallet.privateKey)
         }
-
-        // Load OPENBAR address
-        if (!openbarAddress) {
-          setIsLoadingOpenbar(true)
-          try {
-            const derivedWallet = await deriveWalletWithCustomTag('OPENBAR')
-            setOpenbarAddress(derivedWallet.address)
-            if (derivedWallet.privateKey) {
-              setOpenbarPrivateKey(derivedWallet.privateKey)
-            }
-          } catch (error) {
-            console.error('Failed to derive OPENBAR address:', error)
-            toaster.create({
-              title: 'Failed to Load OPENBAR Address',
-              description: error instanceof Error ? error.message : 'Unknown error occurred',
-              type: 'error',
-              duration: 5000,
-            })
-          } finally {
-            setIsLoadingOpenbar(false)
-          }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Failed to derive addresses:', error)
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingMain(false)
+          setIsLoadingOpenbar(false)
         }
       }
     }
 
     loadAddresses()
-  }, [isAuthenticated, user, deriveWalletWithCustomTag, mainAddress, openbarAddress])
+
+    return () => {
+      cancelled = true
+    }
+  }, [isAuthenticated, user, mainAddress, openbarAddress, deriveWalletWithCustomTag])
 
   const handleSignMessage = async (addressType: string, address: string) => {
     const message = `Sign this message from ${addressType} address: ${address}`

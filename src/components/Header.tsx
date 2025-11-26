@@ -155,7 +155,13 @@ export default function Header() {
     <>
       <Box as="header" py={4} position="fixed" w="100%" top={0} zIndex={10} overflow="visible">
         <Container maxW="100%" px={{ base: 4, md: 6 }} overflow="visible">
-          <Flex as="nav" aria-label="Main navigation" justify="space-between" align="center" overflow="visible">
+          <Flex
+            as="nav"
+            aria-label="Main navigation"
+            justify="space-between"
+            align="center"
+            overflow="visible"
+          >
             <Box
               transform={`translateX(-${leftSlideValue}px)`}
               transition="transform 0.5s ease-in-out"
@@ -198,8 +204,7 @@ export default function Header() {
                     size="xs"
                     px={4}
                   >
-                    {isLoading && <Spinner size="16px" />}
-                    {!isLoading && t.common.login}
+                    {t.common.login}
                   </Button>
                 </Flex>
               ) : (
@@ -266,58 +271,52 @@ export default function Header() {
                 <Dialog.Title>Register New Account</Dialog.Title>
               </Dialog.Header>
               <Dialog.Body pt={4}>
-            <VStack gap={4}>
-              <Text fontSize="sm" color="gray.400">
-                An Ethereum wallet will be created and securely stored on your device, protected by
-                your biometric or PIN thanks to{' '}
-                <ChakraLink
-                  href={'https://github.com/w3hc/w3pk/blob/main/src/auth/register.ts#L17-L102'}
-                  color={brandColors.accent}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  w3pk
-                </ChakraLink>
-                .
-              </Text>
-              <Field invalid={isUsernameInvalid} label="Username">
-                <Input
-                  id="username-input"
-                  aria-describedby={
-                    isUsernameInvalid && username.trim() ? 'username-error' : undefined
-                  }
-                  aria-invalid={isUsernameInvalid && username.trim() ? true : undefined}
-                  value={username}
-                  onChange={e => setUsername(e.target.value)}
-                  placeholder="Enter your username"
-                  pl={3}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && username.trim()) {
-                      handleRegister()
-                    }
-                  }}
-                />
-                {isUsernameInvalid && username.trim() && (
-                  <Field.ErrorText id="username-error">
-                    Username must be 3-50 characters long and contain only letters, numbers,
-                    underscores, and hyphens. It must start and end with a letter or number.
-                  </Field.ErrorText>
-                )}
-              </Field>
-            </VStack>
+                <VStack gap={4}>
+                  <Text fontSize="sm" color="gray.400">
+                    An Ethereum wallet will be created and securely stored on your device, protected
+                    by your biometric or PIN thanks to{' '}
+                    <ChakraLink
+                      href={'https://github.com/w3hc/w3pk/blob/main/src/auth/register.ts#L17-L102'}
+                      color={brandColors.accent}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      w3pk
+                    </ChakraLink>
+                    .
+                  </Text>
+                  <Field invalid={isUsernameInvalid} label="Username">
+                    <Input
+                      id="username-input"
+                      aria-describedby={
+                        isUsernameInvalid && username.trim() ? 'username-error' : undefined
+                      }
+                      aria-invalid={isUsernameInvalid && username.trim() ? true : undefined}
+                      value={username}
+                      onChange={e => setUsername(e.target.value)}
+                      placeholder="Enter your username"
+                      pl={3}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && username.trim()) {
+                          handleRegister()
+                        }
+                      }}
+                    />
+                    {isUsernameInvalid && username.trim() && (
+                      <Field.ErrorText id="username-error">
+                        Username must be 3-50 characters long and contain only letters, numbers,
+                        underscores, and hyphens. It must start and end with a letter or number.
+                      </Field.ErrorText>
+                    )}
+                  </Field>
+                </VStack>
               </Dialog.Body>
 
               <Dialog.Footer gap={3} pt={6}>
                 <Dialog.ActionTrigger asChild>
-                  <Button variant="outline">
-                    Cancel
-                  </Button>
+                  <Button variant="outline">Cancel</Button>
                 </Dialog.ActionTrigger>
-                <Button
-                  colorPalette="blue"
-                  onClick={handleRegister}
-                  disabled={!username.trim()}
-                >
+                <Button colorPalette="blue" onClick={handleRegister} disabled={!username.trim()}>
                   {isRegistering && <Spinner size="16px" />}
                   {!isRegistering && 'Create Account'}
                 </Button>
