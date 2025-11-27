@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect } from 'react'
-import { Box, Button, Heading, Text, VStack, Code } from '@chakra-ui/react'
+import { Box, Heading, Text, VStack, Code } from '@chakra-ui/react'
+import { Button } from '@/components/ui/button'
 import { brandColors } from '@/theme'
 
 export default function Error({
