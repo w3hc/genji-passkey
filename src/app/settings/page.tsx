@@ -4,7 +4,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   Box,
-  Button,
   Heading,
   VStack,
   Text,
@@ -13,7 +12,6 @@ import {
   TabsList,
   TabsContent,
   TabsTrigger,
-  IconButton,
   useDisclosure,
   HStack,
   SimpleGrid,
@@ -26,6 +24,8 @@ import {
   CloseButton,
   Textarea,
 } from '@chakra-ui/react'
+import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
 import { Dialog, Portal } from '@/components/ui/dialog'
 import { toaster } from '@/components/ui/toaster'
 import { MdDelete, MdCheckCircle, MdWarning, MdInfo, MdDownload, MdLock } from 'react-icons/md'
@@ -105,11 +105,17 @@ const SettingsPage = () => {
   const [selectedGuardianForInvite, setSelectedGuardianForInvite] = useState<any>(null)
   const [guardianInvite, setGuardianInvite] = useState<any>(null)
 
+  // Recovery state
+  const [recoveryShares, setRecoveryShares] = useState<string[]>([])
+  const [currentShareInput, setCurrentShareInput] = useState<string>('')
+  const [isRecovering, setIsRecovering] = useState(false)
+  const [showRecoverySection, setShowRecoverySection] = useState(false)
+
   const {
     isAuthenticated,
     user,
     getBackupStatus,
-    createZipBackup,
+    createBackup,
     restoreFromBackup,
     logout,
     deriveWallet,
@@ -118,6 +124,7 @@ const SettingsPage = () => {
     getSocialRecoveryConfig,
     generateGuardianInvite,
     recoverFromGuardians,
+    clearSocialRecoveryConfig,
   } = useW3PK()
 
   const handleInspectLocalStorage = async () => {
@@ -427,7 +434,7 @@ const SettingsPage = () => {
   const handleRestoreBackup = () => {
     const fileInput = document.createElement('input')
     fileInput.type = 'file'
-    fileInput.accept = '.zip,.json,.enc'
+    fileInput.accept = '.json,.enc'
     fileInput.onchange = async (e: Event) => {
       const target = e.target as HTMLInputElement
       const file = target.files?.[0]
@@ -443,35 +450,8 @@ const SettingsPage = () => {
           return
         } catch (jsonError) {}
 
-        if (file.name.endsWith('.zip')) {
-          const JSZip = (await import('jszip')).default
-
-          const arrayBuffer = await file.arrayBuffer()
-
-          try {
-            const zip = await JSZip.loadAsync(arrayBuffer)
-
-            const encFileName = Object.keys(zip.files).find(
-              name =>
-                name.endsWith('.txt.enc') && !name.startsWith('__MACOSX') && !zip.files[name].dir
-            )
-
-            if (!encFileName) {
-              throw new Error('No encrypted recovery file found in ZIP backup')
-            }
-
-            const encryptedContent = await zip.files[encFileName].async('string')
-
-            setSelectedBackupFile(encryptedContent)
-            setShowRestorePasswordModal(true)
-          } catch (zipError) {
-            setSelectedBackupFile(textContent)
-            setShowRestorePasswordModal(true)
-          }
-        } else {
-          setSelectedBackupFile(textContent)
-          setShowRestorePasswordModal(true)
-        }
+        setSelectedBackupFile(textContent)
+        setShowRestorePasswordModal(true)
       } catch (error) {
         toaster.create({
           title: 'Error reading file',
@@ -541,7 +521,7 @@ const SettingsPage = () => {
     setSelectedBackupFile(null)
   }
 
-  if (!isAuthenticated || !getBackupStatus || !createZipBackup) {
+  if (!isAuthenticated || !getBackupStatus || !createBackup) {
     const browserInfo = detectBrowser()
     const webAuthnAvailable = isWebAuthnAvailable()
 
@@ -999,10 +979,10 @@ const SettingsPage = () => {
     setShowPasswordModal(false)
 
     try {
-      const backupBlob = await createZipBackup(password)
+      const backupBlob = await createBackup(password)
 
-      let fileExtension = '.zip'
-      let mimeType = 'application/zip'
+      let fileExtension = '.json'
+      let mimeType = 'application/json'
 
       try {
         const fullText = await backupBlob.text()
@@ -1160,6 +1140,141 @@ const SettingsPage = () => {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+  }
+
+  const handleClearSocialRecovery = () => {
+    clearSocialRecoveryConfig()
+    setSocialRecoveryConfig(null)
+  }
+
+  const handleAddRecoveryShare = () => {
+    if (!currentShareInput.trim()) {
+      toaster.create({
+        title: 'Invalid Input',
+        description: 'Please paste a guardian share code',
+        type: 'error',
+        duration: 3000,
+      })
+      return
+    }
+
+    try {
+      // Validate JSON format
+      const parsed = JSON.parse(currentShareInput)
+      if (!parsed.share || !parsed.guardianId) {
+        throw new Error('Invalid share format')
+      }
+
+      // Check for duplicates
+      const isDuplicate = recoveryShares.some(share => {
+        const existingParsed = JSON.parse(share)
+        return existingParsed.guardianId === parsed.guardianId
+      })
+
+      if (isDuplicate) {
+        toaster.create({
+          title: 'Duplicate Share',
+          description: 'This guardian share has already been added',
+          type: 'warning',
+          duration: 3000,
+        })
+        return
+      }
+
+      setRecoveryShares([...recoveryShares, currentShareInput])
+      setCurrentShareInput('')
+
+      toaster.create({
+        title: 'Share Added',
+        description: `Added share from ${parsed.guardianName || 'guardian'}`,
+        type: 'success',
+        duration: 2000,
+      })
+    } catch (error) {
+      toaster.create({
+        title: 'Invalid Share Format',
+        description: 'Please paste a valid guardian share code (JSON format)',
+        type: 'error',
+        duration: 3000,
+      })
+    }
+  }
+
+  const handleRemoveRecoveryShare = (index: number) => {
+    setRecoveryShares(recoveryShares.filter((_, i) => i !== index))
+  }
+
+  const handleRecoverWallet = async () => {
+    if (recoveryShares.length < 2) {
+      toaster.create({
+        title: 'Not Enough Shares',
+        description: 'You need at least 2 guardian shares to recover your wallet',
+        type: 'error',
+        duration: 3000,
+      })
+      return
+    }
+
+    setIsRecovering(true)
+    try {
+      const result = await recoverFromGuardians(recoveryShares)
+
+      toaster.create({
+        title: 'Wallet Recovered Successfully!',
+        description: `Your wallet has been recovered: ${result.ethereumAddress.slice(0, 6)}...${result.ethereumAddress.slice(-4)}`,
+        type: 'success',
+        duration: 5000,
+      })
+
+      // Clear recovery state
+      setRecoveryShares([])
+      setCurrentShareInput('')
+      setShowRecoverySection(false)
+    } catch (error) {
+      console.error('Recovery error:', error)
+      // Error toast already shown in recoverFromGuardians
+    } finally {
+      setIsRecovering(false)
+    }
+  }
+
+  const handleUploadShareFile = () => {
+    const fileInput = document.createElement('input')
+    fileInput.type = 'file'
+    fileInput.accept = '.txt,.json'
+    fileInput.onchange = async (e: Event) => {
+      const target = e.target as HTMLInputElement
+      const file = target.files?.[0]
+      if (!file) return
+
+      try {
+        const textContent = await file.text()
+
+        // Try to extract JSON from the file
+        // Guardian files contain both explainer text and JSON
+        const jsonMatch = textContent.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          setCurrentShareInput(jsonMatch[0])
+        } else {
+          setCurrentShareInput(textContent)
+        }
+
+        toaster.create({
+          title: 'File Loaded',
+          description: 'Guardian share loaded from file. Click "Add Share" to add it.',
+          type: 'info',
+          duration: 3000,
+        })
+      } catch (error) {
+        toaster.create({
+          title: 'Error reading file',
+          description: (error as Error).message || 'Failed to read guardian share file',
+          type: 'error',
+          duration: 3000,
+        })
+      }
+    }
+    fileInput.click()
   }
 
   const handleSaveQRDataToStorage = async () => {
@@ -1633,10 +1748,10 @@ const SettingsPage = () => {
                 >
                   <Icon as={MdDownload} color={brandColors.primary} boxSize={6} mb={3} />
                   <Heading size="sm" mb={3}>
-                    Create ZIP Backup
+                    Create Backup
                   </Heading>
                   <Text fontSize="sm" color="gray.400" mb={4}>
-                    Download an encrypted ZIP file protected by your password
+                    Download an encrypted backup file protected by your password
                   </Text>
                   <Button
                     bg={brandColors.primary}
@@ -1696,7 +1811,7 @@ const SettingsPage = () => {
                     Your wallet&apos;s core secret (the mnemonic phrase) is generated and encrypted
                     entirely on your device. The backup process retrieves this encrypted data from
                     your browser&apos;s local storage using your password, then packages it into a
-                    secure ZIP file for you to download.
+                    secure file for you to download.
                   </Text>
                   <Text>
                     The encryption key for your wallet is derived using a WebAuthn signature, which
@@ -1705,7 +1820,7 @@ const SettingsPage = () => {
                     browser, they cannot decrypt it without your physical device and authentication.
                   </Text>
                   <Text>
-                    Your backup ZIP file is encrypted using AES-256-GCM with a key derived from the
+                    Your backup file is encrypted using AES-256-GCM with a key derived from the
                     password you provide. Store this file securely and remember your password.
                   </Text>
                   <Box p={4} bg="yellow.900/90" mt={2}>
@@ -1888,6 +2003,194 @@ const SettingsPage = () => {
                         your wallet. No single guardian can access your wallet alone.
                       </Text>
                     </Box>
+
+                    {/* Recover Wallet Section */}
+                    <Box
+                      bg="gray.900"
+                      p={6}
+                      borderRadius="lg"
+                      border="1px solid"
+                      borderColor="orange.700"
+                    >
+                      <HStack mb={4} justify="space-between">
+                        <HStack>
+                          <Icon as={FiKey} color="orange.400" boxSize={6} />
+                          <Heading size="md">Recover Wallet</Heading>
+                        </HStack>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setShowRecoverySection(!showRecoverySection)}
+                        >
+                          {showRecoverySection ? 'Hide' : 'Show'}
+                        </Button>
+                      </HStack>
+
+                      {showRecoverySection && (
+                        <VStack align="stretch" gap={4}>
+                          <Text fontSize="sm" color="gray.400">
+                            Lost access to your wallet? Collect guardian shares to recover it.
+                          </Text>
+
+                          {/* Share Input */}
+                          <Box>
+                            <Text fontSize="sm" fontWeight="medium" mb={2}>
+                              Guardian Share Code
+                            </Text>
+                            <Textarea
+                              placeholder='Paste guardian share JSON here (e.g., {"guardianId":"...","share":"..."})'
+                              value={currentShareInput}
+                              onChange={e => setCurrentShareInput(e.target.value)}
+                              minH="100px"
+                              fontFamily="monospace"
+                              fontSize="sm"
+                              bg="gray.950"
+                              borderColor="gray.700"
+                              _focus={{ borderColor: brandColors.primary }}
+                            />
+                          </Box>
+
+                          {/* Action Buttons */}
+                          <SimpleGrid columns={{ base: 1, md: 3 }} gap={3}>
+                            <Button
+                              onClick={handleAddRecoveryShare}
+                              colorPalette="purple"
+                              size="sm"
+                            >
+                              Add Share
+                            </Button>
+                            <Button
+                              onClick={handleUploadShareFile}
+                              variant="outline"
+                              colorPalette="purple"
+                              size="sm"
+                            >
+                              <Icon as={FiUpload} mr={2} />
+                              Upload File
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                setRecoveryShares([])
+                                setCurrentShareInput('')
+                              }}
+                              variant="outline"
+                              colorPalette="gray"
+                              size="sm"
+                            >
+                              Clear All
+                            </Button>
+                          </SimpleGrid>
+
+                          {/* Collected Shares List */}
+                          {recoveryShares.length > 0 && (
+                            <Box>
+                              <Text fontSize="sm" fontWeight="medium" mb={3}>
+                                Collected Shares ({recoveryShares.length})
+                              </Text>
+                              <VStack align="stretch" gap={2}>
+                                {recoveryShares.map((share, index) => {
+                                  try {
+                                    const parsed = JSON.parse(share)
+                                    return (
+                                      <Box
+                                        key={index}
+                                        p={3}
+                                        bg="gray.950"
+                                        borderRadius="md"
+                                        border="1px solid"
+                                        borderColor="purple.800"
+                                      >
+                                        <HStack justify="space-between">
+                                          <Box>
+                                            <Text fontSize="sm" fontWeight="bold">
+                                              {parsed.guardianName || 'Guardian'} (#{parsed.guardianIndex || index + 1})
+                                            </Text>
+                                            <Text fontSize="xs" color="gray.400">
+                                              Added {new Date().toLocaleTimeString()}
+                                            </Text>
+                                          </Box>
+                                          <IconButton
+                                            aria-label="Remove share"
+                                            size="xs"
+                                            colorPalette="red"
+                                            variant="ghost"
+                                            onClick={() => handleRemoveRecoveryShare(index)}
+                                          >
+                                            <MdDelete />
+                                          </IconButton>
+                                        </HStack>
+                                      </Box>
+                                    )
+                                  } catch {
+                                    return (
+                                      <Box
+                                        key={index}
+                                        p={3}
+                                        bg="gray.950"
+                                        borderRadius="md"
+                                        border="1px solid"
+                                        borderColor="red.800"
+                                      >
+                                        <HStack justify="space-between">
+                                          <Text fontSize="sm" color="red.300">
+                                            Invalid share #{index + 1}
+                                          </Text>
+                                          <IconButton
+                                            aria-label="Remove share"
+                                            size="xs"
+                                            colorPalette="red"
+                                            variant="ghost"
+                                            onClick={() => handleRemoveRecoveryShare(index)}
+                                          >
+                                            <MdDelete />
+                                          </IconButton>
+                                        </HStack>
+                                      </Box>
+                                    )
+                                  }
+                                })}
+                              </VStack>
+                            </Box>
+                          )}
+
+                          {/* Recovery Progress */}
+                          {recoveryShares.length > 0 && (
+                            <Box p={4} bg="purple.900/50" borderRadius="lg">
+                              <Text fontSize="sm" fontWeight="medium" mb={2}>
+                                Recovery Progress
+                              </Text>
+                              <Text fontSize="xs" color="gray.300">
+                                {recoveryShares.length} share(s) collected. You need at least 2 shares to attempt recovery.
+                              </Text>
+                            </Box>
+                          )}
+
+                          {/* Recover Button */}
+                          <Button
+                            onClick={handleRecoverWallet}
+                            bg="orange.500"
+                            color="white"
+                            _hover={{ bg: 'orange.600' }}
+                            disabled={recoveryShares.length < 2 || isRecovering}
+                            loading={isRecovering}
+                            spinner={<Spinner size="16px" />}
+                            loadingText="Recovering..."
+                            width="full"
+                            size="lg"
+                          >
+                            <Icon as={FiKey} mr={2} />
+                            Recover Wallet ({recoveryShares.length} shares)
+                          </Button>
+
+                          {/* Warning */}
+                          <Box p={3} bg="yellow.900/90" borderRadius="md">
+                            <Text fontSize="xs" color="gray.300">
+                              <strong>Important:</strong> Make sure the shares are from the correct guardians. Invalid shares will cause recovery to fail.
+                            </Text>
+                          </Box>
+                        </VStack>
+                      )}
+                    </Box>
                   </>
                 ) : (
                   <>
@@ -1909,7 +2212,7 @@ const SettingsPage = () => {
                       </Text>
 
                       {/* Guardians List */}
-                      <VStack align="stretch" gap={3}>
+                      <VStack align="stretch" gap={3} mb={4}>
                         {socialRecoveryConfig.guardians.map((guardian: any, index: number) => (
                           <Box
                             key={guardian.id}
@@ -1957,6 +2260,26 @@ const SettingsPage = () => {
                           </Box>
                         ))}
                       </VStack>
+
+                      {/* Clear Local Storage Button */}
+                      <Box p={4} bg="blue.900/90" borderRadius="lg">
+                        <VStack gap={3} align="stretch">
+                          <Text fontSize="sm" color="gray.300">
+                            <strong>All guardians have their shares?</strong> You can now remove the
+                            guardian configuration from local storage. The shares are safely stored
+                            with your guardians and can be used for recovery anytime.
+                          </Text>
+                          <Button
+                            onClick={handleClearSocialRecovery}
+                            colorPalette="red"
+                            variant="outline"
+                            width="full"
+                            size="sm"
+                          >
+                            Clear Guardian Config from Local Storage
+                          </Button>
+                        </VStack>
+                      </Box>
                     </Box>
 
                     {/* Guardian Invite Modal Content */}

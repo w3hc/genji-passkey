@@ -128,7 +128,7 @@ export default function About() {
           <Text>🛡️ Three-layer backup & recovery system</Text>
           <VStack align="stretch" pl={6} gap={1}>
             <Text>• Passkey auto-sync (iCloud/Google/Microsoft)</Text>
-            <Text>• Encrypted backups (ZIP/QR with password protection)</Text>
+            <Text>• Encrypted backups (QR with password protection)</Text>
             <Text>• Social recovery (Shamir Secret Sharing)</Text>
           </VStack>
         </VStack>

@@ -10,7 +10,11 @@ import React, {
   useEffect,
 } from 'react'
 import { createWeb3Passkey } from 'w3pk'
-import type { Guardian as W3pkGuardian, GuardianInvite as W3pkGuardianInvite, SocialRecoveryConfig as W3pkSocialRecoveryConfig } from 'w3pk'
+import type {
+  Guardian as W3pkGuardian,
+  GuardianInvite as W3pkGuardianInvite,
+  SocialRecoveryConfig as W3pkSocialRecoveryConfig,
+} from 'w3pk'
 import { toaster } from '@/components/ui/toaster'
 
 interface SecurityScore {
@@ -90,7 +94,7 @@ interface W3pkType {
   deriveWallet: (index: number) => Promise<DerivedWallet>
   deriveWalletWithCustomTag: (tag: string) => Promise<DerivedWallet>
   getBackupStatus: () => Promise<BackupStatus>
-  createZipBackup: (password: string) => Promise<Blob>
+  createBackup: (password: string) => Promise<Blob>
   restoreFromBackup: (
     backupData: string,
     password: string
@@ -105,11 +109,7 @@ interface W3pkType {
   recoverFromGuardians: (
     shareData: string[]
   ) => Promise<{ mnemonic: string; ethereumAddress: string }>
-}
-
-interface AuthStateData {
-  isAuthenticated: boolean
-  user: W3pkUser
+  clearSocialRecoveryConfig: () => void
 }
 
 const W3PK = createContext<W3pkType>({
@@ -125,8 +125,8 @@ const W3PK = createContext<W3pkType>({
   getBackupStatus: async () => {
     throw new Error('getBackupStatus not initialized')
   },
-  createZipBackup: async () => {
-    throw new Error('createZipBackup not initialized')
+  createBackup: async () => {
+    throw new Error('createBackup not initialized')
   },
   restoreFromBackup: async () => {
     throw new Error('restoreFromBackup not initialized')
@@ -141,6 +141,7 @@ const W3PK = createContext<W3pkType>({
   recoverFromGuardians: async () => {
     throw new Error('recoverFromGuardians not initialized')
   },
+  clearSocialRecoveryConfig: () => {},
 })
 
 export const useW3PK = () => useContext(W3PK)
@@ -149,7 +150,6 @@ interface W3pkProviderProps {
   children: ReactNode
 }
 
-const AUTH_STATE_KEY = 'w3pk_auth_state' // For UI state restoration only
 const REGISTRATION_TIMEOUT_MS = 45000 // 45 seconds
 
 export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
@@ -186,22 +186,9 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
       }
       setUser(userData)
       setIsAuthenticated(true)
-
-      // Store UI state only - W3PK SDK handles session management
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const authStateData: AuthStateData = {
-          isAuthenticated: true,
-          user: userData,
-        }
-        localStorage.setItem(AUTH_STATE_KEY, JSON.stringify(authStateData))
-      }
     } else {
       setUser(null)
       setIsAuthenticated(false)
-
-      if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.removeItem(AUTH_STATE_KEY)
-      }
     }
   }, [])
 
@@ -220,36 +207,19 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
       if (!isMounted || !w3pk) return
 
       try {
+        // W3PK sessions are RAM-only and cleared on page refresh (by design for security)
         if (w3pk.hasActiveSession() && w3pk.user) {
           handleAuthStateChanged(true, w3pk.user)
-          return
+        } else {
+          handleAuthStateChanged(false)
         }
-
-        if (typeof window !== 'undefined' && window.localStorage) {
-          const storedAuthState = localStorage.getItem(AUTH_STATE_KEY)
-
-          if (storedAuthState) {
-            try {
-              const authData = JSON.parse(storedAuthState) as AuthStateData
-
-              if (authData.isAuthenticated && authData.user) {
-                handleAuthStateChanged(true, authData.user)
-                return
-              }
-            } catch {
-              localStorage.removeItem(AUTH_STATE_KEY)
-            }
-          }
-        }
-
-        handleAuthStateChanged(false)
       } catch {
         handleAuthStateChanged(false)
       }
     }
 
     checkExistingAuth()
-  }, [isMounted, w3pk, handleAuthStateChanged, isUserCancelledError])
+  }, [isMounted, w3pk, handleAuthStateChanged])
 
   const register = async (username: string): Promise<void> => {
     try {
@@ -497,12 +467,7 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
 
   const logout = (): void => {
     w3pk.logout()
-    w3pk.clearSession() // Explicitly clear W3PK session
-
-    // Clear UI state from localStorage
-    if (typeof window !== 'undefined' && window.localStorage) {
-      localStorage.removeItem(AUTH_STATE_KEY)
-    }
+    w3pk.clearSession()
 
     toaster.create({
       title: 'Logged Out',
@@ -554,7 +519,7 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
     }
   }
 
-  const createZipBackup = async (password: string): Promise<Blob> => {
+  const createBackup = async (password: string): Promise<Blob> => {
     if (!isAuthenticated || !user) {
       throw new Error('User not authenticated. Cannot create backup.')
     }
@@ -741,7 +706,7 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
         throw new Error('Social recovery not configured')
       }
 
-      const index = config.guardians.findIndex((g) => g.id === guardian.id)
+      const index = config.guardians.findIndex(g => g.id === guardian.id)
       if (index === -1) {
         throw new Error('Guardian not found')
       }
@@ -826,13 +791,11 @@ Thank you for being a trusted guardian!
       }
 
       if (shareData.length < config.threshold) {
-        throw new Error(
-          `Need at least ${config.threshold} shares, got ${shareData.length}`
-        )
+        throw new Error(`Need at least ${config.threshold} shares, got ${shareData.length}`)
       }
 
       // Parse share data to extract the shares
-      const shares = shareData.map((data) => {
+      const shares = shareData.map(data => {
         const parsed = JSON.parse(data)
         return parsed.share
       })
@@ -875,6 +838,31 @@ Thank you for being a trusted guardian!
     }
   }
 
+  const clearSocialRecoveryConfig = (): void => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.removeItem('w3pk_social_recovery')
+
+        toaster.create({
+          title: 'Social Recovery Config Cleared',
+          description: 'Guardian shares removed from local storage',
+          type: 'success',
+          duration: 3000,
+        })
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to clear social recovery config'
+
+      toaster.create({
+        title: 'Clear Failed',
+        description: errorMessage,
+        type: 'error',
+        duration: 3000,
+      })
+    }
+  }
+
   return (
     <W3PK.Provider
       value={{
@@ -888,12 +876,13 @@ Thank you for being a trusted guardian!
         deriveWallet,
         deriveWalletWithCustomTag,
         getBackupStatus,
-        createZipBackup,
+        createBackup,
         restoreFromBackup,
         setupSocialRecovery,
         getSocialRecoveryConfig,
         generateGuardianInvite,
         recoverFromGuardians,
+        clearSocialRecoveryConfig,
       }}
     >
       {children}
