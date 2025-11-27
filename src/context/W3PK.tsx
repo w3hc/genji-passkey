@@ -255,20 +255,49 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
     }
   }, [])
 
-  const w3pk = useMemo(
-    () =>
-      createWeb3Passkey({
-        stealthAddresses: {},
-        onAuthStateChanged: handleAuthStateChanged,
-        sessionDuration: 24, // 24 hours session duration
-        persistentSession: {
-          enabled: true,
-          duration: 7 * 24, // 7 days
-          requireReauth: false // Silent session restore (no biometric prompt on page refresh)
+  const w3pk = useMemo(() => {
+    const config = {
+      stealthAddresses: {},
+      onAuthStateChanged: handleAuthStateChanged,
+      sessionDuration: 24, // 24 hours session duration
+      persistentSession: {
+        enabled: true,
+        duration: 7 * 24, // 7 days in hours
+        requireReauth: false // Silent session restore (no biometric prompt on page refresh)
+      }
+    }
+    console.log('[W3PK] Creating w3pk instance with config:', JSON.stringify(config, null, 2))
+
+    // Fix: Delete broken persistent sessions database and let SDK recreate it
+    if (typeof window !== 'undefined' && window.indexedDB) {
+      const dbName = 'Web3PasskeyPersistentSessions'
+
+      // Check if DB exists and has no object stores (broken state)
+      const checkRequest = indexedDB.open(dbName)
+      checkRequest.onsuccess = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result
+        const hasStores = db.objectStoreNames.length > 0
+
+        if (!hasStores) {
+          console.warn('[W3PK] Persistent sessions DB exists but has no stores - deleting and recreating...')
+          db.close()
+
+          // Delete the broken database
+          const deleteRequest = indexedDB.deleteDatabase(dbName)
+          deleteRequest.onsuccess = () => {
+            console.log('[W3PK] Broken persistent sessions DB deleted - SDK will recreate it')
+          }
+          deleteRequest.onerror = () => {
+            console.warn('[W3PK] Failed to delete broken persistent sessions DB')
+          }
+        } else {
+          db.close()
         }
-      }),
-    [handleAuthStateChanged]
-  )
+      }
+    }
+
+    return createWeb3Passkey(config)
+  }, [handleAuthStateChanged])
 
   useEffect(() => {
     const checkExistingAuth = async (): Promise<void> => {
@@ -366,6 +395,12 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
       const result = await w3pk.login()
       const hasWallet = w3pk.isAuthenticated
       const displayName = result.displayName || result.username || 'Anon'
+
+      // Debug: Check if persistent session was created
+      setTimeout(async () => {
+        const hasPersistent = await checkIndexedDBForPersistentSession()
+        console.log('[W3PK] After login - persistent session exists:', hasPersistent)
+      }, 1000)
 
       toaster.create({
         title: "You're in!",
