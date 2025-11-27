@@ -119,7 +119,6 @@ const SettingsPage = () => {
     restoreFromBackup,
     logout,
     deriveWallet,
-    deriveWalletWithCustomTag,
     setupSocialRecovery,
     getSocialRecoveryConfig,
     generateGuardianInvite,
@@ -297,16 +296,16 @@ const SettingsPage = () => {
     const loadAddressesAndStatus = async () => {
       if (!isAuthenticated || !user) return
 
-      if (deriveWallet && deriveWalletWithCustomTag && !isLoadingAddresses && !index0Address) {
+      if (deriveWallet && !isLoadingAddresses && !index0Address) {
         setIsLoadingAddresses(true)
         try {
-          const index0Wallet = await deriveWallet(0)
+          const index0Wallet = await deriveWallet('STANDARD', 'WALLET_0')
           setIndex0Address(index0Wallet.address)
 
-          const mainWallet = await deriveWalletWithCustomTag('MAIN')
+          const mainWallet = await deriveWallet('STANDARD', 'MAIN')
           setMainAddress(mainWallet.address)
 
-          const openbarWallet = await deriveWalletWithCustomTag('OPENBAR')
+          const openbarWallet = await deriveWallet('YOLO', 'OPENBAR')
           setOpenbarAddress(openbarWallet.address)
         } catch (error) {
           console.error('Failed to load addresses:', error)
@@ -1650,7 +1649,7 @@ const SettingsPage = () => {
                       </Box>
                       <Box>
                         <Text fontSize="xs" color="gray.500" mb={1}>
-                          MAIN-tagged address:
+                          Origin-specific, STANDARD mode, MAIN-tagged address (default wallet):
                         </Text>
                         <Code
                           fontSize="xs"
@@ -1662,22 +1661,6 @@ const SettingsPage = () => {
                           wordBreak="break-all"
                         >
                           {mainAddress || 'Loading...'}
-                        </Code>
-                      </Box>
-                      <Box>
-                        <Text fontSize="xs" color="gray.500" mb={1}>
-                          OPENBAR-tagged address:
-                        </Text>
-                        <Code
-                          fontSize="xs"
-                          bg="gray.800"
-                          color="gray.300"
-                          px={2}
-                          py={1}
-                          display="block"
-                          wordBreak="break-all"
-                        >
-                          {openbarAddress || 'Loading...'}
                         </Code>
                       </Box>
                     </>
