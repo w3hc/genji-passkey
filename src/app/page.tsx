@@ -8,7 +8,7 @@ import { useState, useEffect } from 'react'
 import { toaster } from '@/components/ui/toaster'
 
 export default function Home() {
-  const { isAuthenticated, user, login, signMessage, deriveWalletWithCustomTag } = useW3PK()
+  const { isAuthenticated, user, login, signMessage, deriveWallet } = useW3PK()
   const t = useTranslation()
   const [mainAddress, setMainAddress] = useState<string>('')
   const [openbarAddress, setOpenbarAddress] = useState<string>('')
@@ -27,13 +27,13 @@ export default function Home() {
 
       try {
         setIsLoadingMain(true)
-        const mainWallet = await deriveWalletWithCustomTag('MAIN')
+        const mainWallet = await deriveWallet('STANDARD', 'MAIN')
         if (cancelled) return
         setMainAddress(mainWallet.address)
         setIsLoadingMain(false)
 
         setIsLoadingOpenbar(true)
-        const openbarWallet = await deriveWalletWithCustomTag('OPENBAR')
+        const openbarWallet = await deriveWallet('YOLO', 'OPENBAR')
         if (cancelled) return
         setOpenbarAddress(openbarWallet.address)
         if (openbarWallet.privateKey) {
@@ -56,7 +56,7 @@ export default function Home() {
     return () => {
       cancelled = true
     }
-  }, [isAuthenticated, user, mainAddress, openbarAddress, deriveWalletWithCustomTag])
+  }, [isAuthenticated, user, mainAddress, openbarAddress, deriveWallet])
 
   const handleSignMessage = async (addressType: string, address: string) => {
     const message = `Sign this message from ${addressType} address: ${address}`

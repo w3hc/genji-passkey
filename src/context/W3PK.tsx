@@ -91,8 +91,7 @@ interface W3pkType {
   register: (username: string) => Promise<void>
   logout: () => void
   signMessage: (message: string) => Promise<string | null>
-  deriveWallet: (index: number) => Promise<DerivedWallet>
-  deriveWalletWithCustomTag: (tag: string) => Promise<DerivedWallet>
+  deriveWallet: (mode?: string, tag?: string) => Promise<DerivedWallet>
   getBackupStatus: () => Promise<BackupStatus>
   createBackup: (password: string) => Promise<Blob>
   restoreFromBackup: (
@@ -121,7 +120,6 @@ const W3PK = createContext<W3pkType>({
   logout: () => {},
   signMessage: async () => null,
   deriveWallet: async () => ({ address: '', privateKey: '' }),
-  deriveWalletWithCustomTag: async () => ({ address: '', privateKey: '' }),
   getBackupStatus: async () => {
     throw new Error('getBackupStatus not initialized')
   },
@@ -151,6 +149,58 @@ interface W3pkProviderProps {
 }
 
 const REGISTRATION_TIMEOUT_MS = 45000 // 45 seconds
+
+/**
+ * Check if any persistent session exists in IndexedDB
+ * This allows us to avoid triggering WebAuthn prompt when no session exists
+ */
+async function checkIndexedDBForPersistentSession(): Promise<boolean> {
+  try {
+    const dbName = 'Web3PasskeyPersistentSessions'
+    const storeName = 'sessions'
+
+    return new Promise((resolve) => {
+      const request = indexedDB.open(dbName)
+
+      request.onerror = () => {
+        // Database doesn't exist or error opening
+        resolve(false)
+      }
+
+      request.onsuccess = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result
+
+        // Check if the object store exists
+        if (!db.objectStoreNames.contains(storeName)) {
+          db.close()
+          resolve(false)
+          return
+        }
+
+        try {
+          const transaction = db.transaction([storeName], 'readonly')
+          const objectStore = transaction.objectStore(storeName)
+          const countRequest = objectStore.count()
+
+          countRequest.onsuccess = () => {
+            db.close()
+            resolve(countRequest.result > 0)
+          }
+
+          countRequest.onerror = () => {
+            db.close()
+            resolve(false)
+          }
+        } catch {
+          db.close()
+          resolve(false)
+        }
+      }
+    })
+  } catch {
+    return false
+  }
+}
 
 export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -198,6 +248,11 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
         stealthAddresses: {},
         onAuthStateChanged: handleAuthStateChanged,
         sessionDuration: 24, // 24 hours session duration
+        persistentSession: {
+          enabled: true,
+          duration: 7 * 24, // 7 days
+          requireReauth: false // Silent session restore (no biometric prompt on page refresh)
+        }
       }),
     [handleAuthStateChanged]
   )
@@ -207,10 +262,26 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
       if (!isMounted || !w3pk) return
 
       try {
-        // W3PK sessions are RAM-only and cleared on page refresh (by design for security)
+        // Check for active in-memory session
         if (w3pk.hasActiveSession() && w3pk.user) {
           handleAuthStateChanged(true, w3pk.user)
+          return
+        }
+
+        // Check if persistent session exists in IndexedDB
+        const hasPersistentSession = await checkIndexedDBForPersistentSession()
+
+        if (hasPersistentSession) {
+          // Try to restore from persistent session via login()
+          try {
+            await w3pk.login()
+            // Silent restore succeeded - handleAuthStateChanged called by SDK
+          } catch (error) {
+            // Silent restore failed - user is logged out
+            handleAuthStateChanged(false)
+          }
         } else {
+          // No persistent session - user is logged out
           handleAuthStateChanged(false)
         }
       } catch {
@@ -328,12 +399,12 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
 
     try {
       await ensureAuthentication()
-      const signature = await w3pk.signMessage(message)
+      const result = await w3pk.signMessage(message)
 
       // Extend session after successful operation for better UX
       w3pk.extendSession()
 
-      return signature
+      return result.signature
     } catch (error) {
       if (!isUserCancelledError(error)) {
         const errorMessage =
@@ -350,71 +421,15 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
     }
   }
 
-  const deriveWallet = async (index: number): Promise<DerivedWallet> => {
-    if (!user) {
-      throw new Error('Not authenticated. Please log in first.')
-    }
-
-    const tag = `WALLET_${index}`
-
-    try {
-      await ensureAuthentication()
-      const derivedWallet = await w3pk.deriveWallet(tag)
-
-      // Extend session after successful operation
-      w3pk.extendSession()
-
-      return derivedWallet
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        (error.message.includes('Not authenticated') || error.message.includes('login'))
-      ) {
-        try {
-          await w3pk.login()
-          const derivedWallet = await w3pk.deriveWallet(tag)
-
-          // Extend session after successful retry
-          w3pk.extendSession()
-
-          return derivedWallet
-        } catch (retryError) {
-          if (!isUserCancelledError(retryError)) {
-            toaster.create({
-              title: 'Authentication Required',
-              description: 'Please authenticate to derive addresses',
-              type: 'error',
-              duration: 5000,
-            })
-          }
-          throw retryError
-        }
-      }
-
-      if (!isUserCancelledError(error)) {
-        const errorMessage =
-          error instanceof Error ? error.message : `Failed to derive wallet at index ${index}`
-
-        toaster.create({
-          title: 'Derivation Failed',
-          description: errorMessage,
-          type: 'error',
-          duration: 5000,
-        })
-      }
-      throw error
-    }
-  }
-
-  const deriveWalletWithCustomTag = useCallback(
-    async (tag: string): Promise<DerivedWallet> => {
+  const deriveWallet = useCallback(
+    async (mode?: string, tag?: string): Promise<DerivedWallet> => {
       if (!user) {
         throw new Error('Not authenticated. Please log in first.')
       }
 
       try {
         await ensureAuthentication()
-        const derivedWallet = await w3pk.deriveWallet(tag)
+        const derivedWallet = await w3pk.deriveWallet(mode as any, tag as any)
 
         // Extend session after successful operation
         w3pk.extendSession()
@@ -429,7 +444,7 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
         ) {
           try {
             await w3pk.login()
-            const derivedWallet = await w3pk.deriveWallet(tag)
+            const derivedWallet = await w3pk.deriveWallet(mode as any, tag as any)
 
             // Extend session after successful retry
             w3pk.extendSession()
@@ -450,7 +465,7 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
 
         if (!isUserCancelledError(error)) {
           const errorMessage =
-            error instanceof Error ? error.message : `Failed to derive wallet with tag ${tag}`
+            error instanceof Error ? error.message : `Failed to derive wallet (${mode || 'STANDARD'}, ${tag || 'MAIN'})`
 
           toaster.create({
             title: 'Derivation Failed',
@@ -466,8 +481,8 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
   )
 
   const logout = (): void => {
+    // The SDK's logout() method clears both in-memory and ALL persistent sessions from IndexedDB
     w3pk.logout()
-    w3pk.clearSession()
 
     toaster.create({
       title: 'Logged Out',
@@ -874,7 +889,6 @@ Thank you for being a trusted guardian!
         logout,
         signMessage,
         deriveWallet,
-        deriveWalletWithCustomTag,
         getBackupStatus,
         createBackup,
         restoreFromBackup,
