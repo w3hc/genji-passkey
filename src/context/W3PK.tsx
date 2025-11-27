@@ -89,7 +89,7 @@ interface W3pkType {
   isLoading: boolean
   login: () => Promise<void>
   register: (username: string) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
   signMessage: (message: string) => Promise<string | null>
   deriveWallet: (mode?: string, tag?: string) => Promise<DerivedWallet>
   getBackupStatus: () => Promise<BackupStatus>
@@ -117,7 +117,7 @@ const W3PK = createContext<W3pkType>({
   isLoading: false,
   login: async () => {},
   register: async () => {},
-  logout: () => {},
+  logout: async () => {},
   signMessage: async () => null,
   deriveWallet: async () => ({ address: '', privateKey: '' }),
   getBackupStatus: async () => {
@@ -149,6 +149,108 @@ interface W3pkProviderProps {
 }
 
 const REGISTRATION_TIMEOUT_MS = 45000 // 45 seconds
+
+/**
+ * Check if any persistent session exists in IndexedDB
+ * This allows us to avoid triggering WebAuthn prompt when no session exists
+ */
+async function checkIndexedDBForPersistentSession(): Promise<boolean> {
+  try {
+    const dbName = 'Web3PasskeyPersistentSessions'
+    const storeName = 'sessions'
+
+    return new Promise((resolve) => {
+      const request = indexedDB.open(dbName)
+
+      request.onerror = () => {
+        // Database doesn't exist or error opening
+        resolve(false)
+      }
+
+      request.onsuccess = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result
+
+        // Check if the object store exists
+        if (!db.objectStoreNames.contains(storeName)) {
+          db.close()
+          resolve(false)
+          return
+        }
+
+        try {
+          const transaction = db.transaction([storeName], 'readonly')
+          const objectStore = transaction.objectStore(storeName)
+          const countRequest = objectStore.count()
+
+          countRequest.onsuccess = () => {
+            db.close()
+            resolve(countRequest.result > 0)
+          }
+
+          countRequest.onerror = () => {
+            db.close()
+            resolve(false)
+          }
+        } catch {
+          db.close()
+          resolve(false)
+        }
+      }
+    })
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Clear all persistent sessions from IndexedDB
+ * Called on logout to ensure no persistent sessions remain
+ */
+async function clearPersistentSessionsFromIndexedDB(): Promise<void> {
+  try {
+    const dbName = 'Web3PasskeyPersistentSessions'
+    const storeName = 'sessions'
+
+    return new Promise((resolve) => {
+      const request = indexedDB.open(dbName)
+
+      request.onerror = () => {
+        resolve()
+      }
+
+      request.onsuccess = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result
+
+        if (!db.objectStoreNames.contains(storeName)) {
+          db.close()
+          resolve()
+          return
+        }
+
+        try {
+          const transaction = db.transaction([storeName], 'readwrite')
+          const objectStore = transaction.objectStore(storeName)
+          const clearRequest = objectStore.clear()
+
+          clearRequest.onsuccess = () => {
+            db.close()
+            resolve()
+          }
+
+          clearRequest.onerror = () => {
+            db.close()
+            resolve()
+          }
+        } catch {
+          db.close()
+          resolve()
+        }
+      }
+    })
+  } catch {
+    // Silently fail - not critical
+  }
+}
 
 export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -210,21 +312,26 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
       if (!isMounted || !w3pk) return
 
       try {
-        // Check for active session first (in-memory)
+        // Check for active in-memory session
         if (w3pk.hasActiveSession() && w3pk.user) {
           handleAuthStateChanged(true, w3pk.user)
           return
         }
 
-        // Try to restore from persistent session
-        // The SDK's login() method will attempt silent restore first if requireReauth is false
-        // If no persistent session exists, it will fail without triggering WebAuthn prompt
-        try {
-          await w3pk.login()
-          // Login successful - session was restored silently or user authenticated
-          // handleAuthStateChanged will be called by the SDK's onAuthStateChanged callback
-        } catch (error) {
-          // No persistent session or login failed - user is logged out
+        // Check if persistent session exists in IndexedDB
+        const hasPersistentSession = await checkIndexedDBForPersistentSession()
+
+        if (hasPersistentSession) {
+          // Try to restore from persistent session via login()
+          try {
+            await w3pk.login()
+            // Silent restore succeeded - handleAuthStateChanged called by SDK
+          } catch (error) {
+            // Silent restore failed - user is logged out
+            handleAuthStateChanged(false)
+          }
+        } else {
+          // No persistent session - user is logged out
           handleAuthStateChanged(false)
         }
       } catch {
@@ -423,9 +530,12 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
     [user, w3pk, isUserCancelledError, ensureAuthentication]
   )
 
-  const logout = (): void => {
+  const logout = async (): Promise<void> => {
+    // The SDK's logout() method already clears both in-memory and persistent sessions
     w3pk.logout()
-    w3pk.clearSession()
+
+    // Also clear persistent sessions from IndexedDB to ensure complete cleanup
+    await clearPersistentSessionsFromIndexedDB()
 
     toaster.create({
       title: 'Logged Out',
