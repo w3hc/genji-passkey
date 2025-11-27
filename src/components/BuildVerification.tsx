@@ -17,7 +17,7 @@ import { brandColors } from '@/theme'
 import Spinner from '@/components/Spinner'
 import { verifyBuildHash, getCurrentBuildHash } from 'w3pk'
 
-const TRUSTED_BUILD_HASH = 'bafybeif5vae62gg5sj3d2nzieh4tk3rgqozsduhlwm7dqk4g3ba7bhr5tm'
+const TRUSTED_BUILD_HASH = 'bafybeia3i2dbrloph6lxjlzl6aetkb5tcoelcq4l3d3kqjrkq4x2u4sbvq'
 
 export const BuildVerification = () => {
   const [isVerifying, setIsVerifying] = useState(true)
@@ -81,7 +81,7 @@ export const BuildVerification = () => {
           <Heading size="md">W3PK Build Verification</Heading>
         </HStack>
         {isVerifying ? (
-          <Spinner size="sm" />
+          <Spinner size="md" />
         ) : isVerified === true ? (
           <Icon as={MdCheckCircle} color="green.400" boxSize={6} />
         ) : (
@@ -92,7 +92,7 @@ export const BuildVerification = () => {
       <VStack align="stretch" gap={3}>
         {isVerifying ? (
           <HStack justify="center" py={4}>
-            <Spinner size="sm" />
+            <Spinner size="md" />
             <Text fontSize="sm" color="gray.400">
               Verifying w3pk version...
             </Text>

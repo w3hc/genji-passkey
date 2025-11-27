@@ -89,7 +89,7 @@ interface W3pkType {
   isLoading: boolean
   login: () => Promise<void>
   register: (username: string) => Promise<void>
-  logout: () => Promise<void>
+  logout: () => void
   signMessage: (message: string) => Promise<string | null>
   deriveWallet: (mode?: string, tag?: string) => Promise<DerivedWallet>
   getBackupStatus: () => Promise<BackupStatus>
@@ -117,7 +117,7 @@ const W3PK = createContext<W3pkType>({
   isLoading: false,
   login: async () => {},
   register: async () => {},
-  logout: async () => {},
+  logout: () => {},
   signMessage: async () => null,
   deriveWallet: async () => ({ address: '', privateKey: '' }),
   getBackupStatus: async () => {
@@ -199,56 +199,6 @@ async function checkIndexedDBForPersistentSession(): Promise<boolean> {
     })
   } catch {
     return false
-  }
-}
-
-/**
- * Clear all persistent sessions from IndexedDB
- * Called on logout to ensure no persistent sessions remain
- */
-async function clearPersistentSessionsFromIndexedDB(): Promise<void> {
-  try {
-    const dbName = 'Web3PasskeyPersistentSessions'
-    const storeName = 'sessions'
-
-    return new Promise((resolve) => {
-      const request = indexedDB.open(dbName)
-
-      request.onerror = () => {
-        resolve()
-      }
-
-      request.onsuccess = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result
-
-        if (!db.objectStoreNames.contains(storeName)) {
-          db.close()
-          resolve()
-          return
-        }
-
-        try {
-          const transaction = db.transaction([storeName], 'readwrite')
-          const objectStore = transaction.objectStore(storeName)
-          const clearRequest = objectStore.clear()
-
-          clearRequest.onsuccess = () => {
-            db.close()
-            resolve()
-          }
-
-          clearRequest.onerror = () => {
-            db.close()
-            resolve()
-          }
-        } catch {
-          db.close()
-          resolve()
-        }
-      }
-    })
-  } catch {
-    // Silently fail - not critical
   }
 }
 
@@ -530,12 +480,9 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
     [user, w3pk, isUserCancelledError, ensureAuthentication]
   )
 
-  const logout = async (): Promise<void> => {
-    // The SDK's logout() method already clears both in-memory and persistent sessions
+  const logout = (): void => {
+    // The SDK's logout() method clears both in-memory and ALL persistent sessions from IndexedDB
     w3pk.logout()
-
-    // Also clear persistent sessions from IndexedDB to ensure complete cleanup
-    await clearPersistentSessionsFromIndexedDB()
 
     toaster.create({
       title: 'Logged Out',
