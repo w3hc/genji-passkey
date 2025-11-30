@@ -10,12 +10,26 @@ import { toaster } from '@/components/ui/toaster'
 export default function Home() {
   const { isAuthenticated, user, login, signMessage, deriveWallet } = useW3PK()
   const t = useTranslation()
+  const [primaryAddress, setPrimaryAddress] = useState<string>('')
+  const [primaryPublicKey, setPrimaryPublicKey] = useState<string>('')
   const [mainAddress, setMainAddress] = useState<string>('')
+  const [strictAddress, setStrictAddress] = useState<string>('')
   const [openbarAddress, setOpenbarAddress] = useState<string>('')
   const [openbarPrivateKey, setOpenbarPrivateKey] = useState<string>('')
   const [showPrivateKey, setShowPrivateKey] = useState(false)
+  const [isLoadingPrimary, setIsLoadingPrimary] = useState(false)
   const [isLoadingMain, setIsLoadingMain] = useState(false)
+  const [isLoadingStrict, setIsLoadingStrict] = useState(false)
   const [isLoadingOpenbar, setIsLoadingOpenbar] = useState(false)
+  const [verificationResult, setVerificationResult] = useState<{
+    success: boolean
+    messageHash: string
+    signedHash: string
+    signature: { r: string; s: string }
+    publicKey: { qx: string; qy: string }
+    contractAddress: string
+    timestamp: Date
+  } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -58,22 +72,450 @@ export default function Home() {
     }
   }, [isAuthenticated, user, mainAddress, openbarAddress, deriveWallet])
 
+  const handleDisplayPrimaryAddress = async () => {
+    setIsLoadingPrimary(true)
+    try {
+      const primaryWallet = await deriveWallet('PRIMARY', 'PRIMARY')
+      console.log('PRIMARY wallet received:', primaryWallet)
+      console.log('Has publicKey?', !!primaryWallet.publicKey)
+      console.log('Full wallet object:', JSON.stringify(primaryWallet, null, 2))
+
+      setPrimaryAddress(primaryWallet.address)
+      if (primaryWallet.publicKey) {
+        setPrimaryPublicKey(primaryWallet.publicKey)
+        console.log('Public key stored in state')
+      } else {
+        console.error('No public key in PRIMARY wallet!')
+      }
+    } catch (error) {
+      console.error('Failed to derive PRIMARY address:', error)
+      toaster.create({
+        title: 'Error',
+        description: 'Failed to derive address',
+        type: 'error',
+        duration: 5000,
+      })
+    } finally {
+      setIsLoadingPrimary(false)
+    }
+  }
+
+  const handleDisplayStrictAddress = async () => {
+    setIsLoadingStrict(true)
+    try {
+      const strictWallet = await deriveWallet('STRICT', 'STRICT')
+      setStrictAddress(strictWallet.address)
+    } catch (error) {
+      console.error('Failed to derive STRICT address:', error)
+      toaster.create({
+        title: 'Error',
+        description: 'Failed to derive address',
+        type: 'error',
+        duration: 5000,
+      })
+    } finally {
+      setIsLoadingStrict(false)
+    }
+  }
+
   const handleSignMessage = async (addressType: string, address: string) => {
     const message = `Sign this message from ${addressType} address: ${address}`
 
     try {
-      const signature = await signMessage(message)
-      if (signature) {
-        toaster.create({
-          title: 'Message Signed',
-          description: `Signature: ${signature.substring(0, 20)}...`,
-          type: 'success',
-          duration: 5000,
-        })
+      // For PRIMARY mode, use WebAuthn signing
+      if (addressType === 'PRIMARY') {
+        await handleSignMessageWithWebAuthn(message)
+      } else {
+        // For other modes, use the regular signMessage (mnemonic-based)
+        const signature = await signMessage(message)
+        if (signature) {
+          toaster.create({
+            title: 'Message Signed',
+            description: `Signature: ${signature.substring(0, 20)}...`,
+            type: 'success',
+            duration: 5000,
+          })
+        }
       }
     } catch (error) {
       console.error('Failed to sign message:', error)
     }
+  }
+
+  const handleSignMessageWithWebAuthn = async (message: string) => {
+    try {
+      if (!user) {
+        throw new Error('No user found')
+      }
+
+      // Hash the message
+      const messageHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(message))
+      const h = '0x' + Buffer.from(messageHash).toString('hex')
+
+      console.log('Message to sign:', message)
+      console.log('Message hash:', h)
+
+      // Generate a challenge (use the message hash bytes)
+      const challengeBytes = new Uint8Array(Buffer.from(h.slice(2), 'hex'))
+
+      // Get credential ID from user object
+      const credentialId = (user as any).credentialId
+      if (!credentialId) {
+        throw new Error('Credential ID not found in user object')
+      }
+
+      // Request WebAuthn signature
+      const assertionOptions: PublicKeyCredentialRequestOptions = {
+        challenge: challengeBytes,
+        rpId: window.location.hostname,
+        allowCredentials: [
+          {
+            id: base64UrlDecode(credentialId),
+            type: 'public-key',
+            transports: ['internal', 'hybrid', 'usb', 'nfc', 'ble'],
+          },
+        ],
+        userVerification: 'required',
+        timeout: 60000,
+      }
+
+      const assertion = (await navigator.credentials.get({
+        publicKey: assertionOptions,
+      })) as PublicKeyCredential | null
+
+      if (!assertion || !assertion.response) {
+        throw new Error('WebAuthn signature failed')
+      }
+
+      const response = assertion.response as AuthenticatorAssertionResponse
+
+      // WebAuthn signs: SHA-256(authenticatorData || SHA-256(clientDataJSON))
+      const authenticatorData = new Uint8Array(response.authenticatorData)
+      const clientDataJSON = new Uint8Array(response.clientDataJSON)
+      const clientDataHash = await crypto.subtle.digest('SHA-256', clientDataJSON)
+
+      // Concatenate authenticatorData + clientDataHash
+      const signedData = new Uint8Array(authenticatorData.length + clientDataHash.byteLength)
+      signedData.set(authenticatorData, 0)
+      signedData.set(new Uint8Array(clientDataHash), authenticatorData.length)
+
+      // Hash the concatenation to get what was actually signed
+      const actualMessageHash = await crypto.subtle.digest('SHA-256', signedData.buffer)
+      const actualH = '0x' + Buffer.from(actualMessageHash).toString('hex')
+
+      // Extract r and s from the DER-encoded signature
+      const signature = new Uint8Array(response.signature)
+      const { r, s } = extractRS(signature)
+
+      // Format signature in Ethereum-compatible format (r + s + v)
+      // For P-256, we use v=0 since there's no recovery ID in WebAuthn signatures
+      const v = '00'
+      const ethereumSignature = r + s.slice(2) + v
+
+      console.log('WebAuthn signature:')
+      console.log('  Original hash:', h)
+      console.log('  Signed hash:', actualH)
+      console.log('  r:', r)
+      console.log('  s:', s)
+      console.log('  Ethereum format:', ethereumSignature)
+
+      toaster.create({
+        title: 'Message Signed with WebAuthn!',
+        description: `Signature: ${ethereumSignature.substring(0, 20)}...`,
+        type: 'success',
+        duration: 7000,
+      })
+    } catch (error) {
+      console.error('Failed to sign message with WebAuthn:', error)
+      toaster.create({
+        title: 'Signing Failed',
+        description: error instanceof Error ? error.message : 'Failed to sign message',
+        type: 'error',
+        duration: 5000,
+      })
+    }
+  }
+
+  const handleSendVerifyP256Tx = async () => {
+    try {
+      if (!user) {
+        throw new Error('No user found')
+      }
+
+      // Use the stored public key from state
+      if (!primaryPublicKey) {
+        throw new Error('No public key found for PRIMARY wallet')
+      }
+
+      // Decode the public key to get x and y coordinates
+      const publicKeySpki = primaryPublicKey
+      const publicKeyBuffer = base64UrlToArrayBuffer(publicKeySpki)
+
+      // Import the public key
+      const publicKey = await crypto.subtle.importKey(
+        'spki',
+        publicKeyBuffer,
+        {
+          name: 'ECDSA',
+          namedCurve: 'P-256',
+        },
+        true,
+        ['verify']
+      )
+
+      // Export as JWK to get x and y coordinates
+      const jwk = await crypto.subtle.exportKey('jwk', publicKey)
+
+      if (!jwk.x || !jwk.y) {
+        throw new Error('Invalid P-256 public key: missing x or y coordinates')
+      }
+
+      // Convert base64url x and y to hex (each is 32 bytes for P-256)
+      const qx = '0x' + Buffer.from(base64UrlToArrayBuffer(jwk.x)).toString('hex')
+      const qy = '0x' + Buffer.from(base64UrlToArrayBuffer(jwk.y)).toString('hex')
+
+      // Create a test message hash
+      const testMessage = 'Hello from EIP-7951!'
+      const messageHash = await crypto.subtle.digest(
+        'SHA-256',
+        new TextEncoder().encode(testMessage)
+      )
+      const h = '0x' + Buffer.from(messageHash).toString('hex')
+
+      console.log('Message hash to sign:', h)
+      console.log('Public key coordinates:')
+      console.log('  qx:', qx)
+      console.log('  qy:', qy)
+
+      // Step 1: Sign the message hash with WebAuthn
+
+      // Generate a challenge (use the raw message hash bytes)
+      const challengeBytes = new Uint8Array(Buffer.from(h.slice(2), 'hex'))
+
+      // Get credential ID from user object
+      const credentialId = (user as any).credentialId
+      if (!credentialId) {
+        throw new Error('Credential ID not found in user object')
+      }
+
+      // Request WebAuthn signature
+      const assertionOptions: PublicKeyCredentialRequestOptions = {
+        challenge: challengeBytes,
+        rpId: window.location.hostname,
+        allowCredentials: [
+          {
+            id: base64UrlDecode(credentialId),
+            type: 'public-key',
+            transports: ['internal', 'hybrid', 'usb', 'nfc', 'ble'],
+          },
+        ],
+        userVerification: 'required',
+        timeout: 60000,
+      }
+
+      const assertion = (await navigator.credentials.get({
+        publicKey: assertionOptions,
+      })) as PublicKeyCredential | null
+
+      if (!assertion || !assertion.response) {
+        throw new Error('WebAuthn signature failed')
+      }
+
+      const response = assertion.response as AuthenticatorAssertionResponse
+
+      // WebAuthn signs: SHA-256(authenticatorData || SHA-256(clientDataJSON))
+      // We need to reconstruct what was actually signed
+      const authenticatorData = new Uint8Array(response.authenticatorData)
+      const clientDataJSON = new Uint8Array(response.clientDataJSON)
+      const clientDataHash = await crypto.subtle.digest('SHA-256', clientDataJSON)
+
+      // Concatenate authenticatorData + clientDataHash
+      const signedData = new Uint8Array(authenticatorData.length + clientDataHash.byteLength)
+      signedData.set(authenticatorData, 0)
+      signedData.set(new Uint8Array(clientDataHash), authenticatorData.length)
+
+      // Hash the concatenation to get what was actually signed
+      const actualMessageHash = await crypto.subtle.digest('SHA-256', signedData.buffer)
+      const actualH = '0x' + Buffer.from(actualMessageHash).toString('hex')
+
+      console.log('Original message hash:', h)
+      console.log('Actual signed hash (WebAuthn):', actualH)
+      console.log('Authenticator data length:', authenticatorData.length)
+      console.log('Client data JSON:', new TextDecoder().decode(clientDataJSON))
+
+      // Extract r and s from the DER-encoded signature
+      const signature = new Uint8Array(response.signature)
+      const { r, s } = extractRS(signature)
+
+      console.log('Signature components:')
+      console.log('  r:', r)
+      console.log('  s:', s)
+
+      // Step 2: Call the verifyP256 contract
+      // toaster.create({
+      //   title: 'Calling Contract',
+      //   description: 'Sending transaction to verifyP256 precompile...',
+      //   type: 'info',
+      //   duration: 3000,
+      // })
+
+      // Import ethers for contract interaction
+      const { ethers } = await import('ethers')
+
+      // Use Sepolia RPC URL for the contract call (read-only)
+      const sepoliaRpcUrl = 'https://1rpc.io/sepolia'
+      const provider = new ethers.JsonRpcProvider(sepoliaRpcUrl)
+
+      // First, check if the contract exists
+      const contractAddress = '0x8cb7b478776B60784415931eA213B41d363a107e'
+      const code = await provider.getCode(contractAddress)
+
+      console.log('Contract code at', contractAddress, ':', code)
+
+      if (code === '0x') {
+        throw new Error(
+          `No contract found at ${contractAddress}. The EIP-7951 precompile might not be deployed on Sepolia yet, or you may need to use a different network (like Holesky or mainnet after the Fusaka upgrade).`
+        )
+      }
+
+      const contractABI = [
+        'function verifyP256(bytes32 h, bytes32 r, bytes32 s, bytes32 qx, bytes32 qy) external view returns (bool)',
+      ]
+
+      const contract = new ethers.Contract(contractAddress, contractABI, provider)
+
+      // Call the contract with the actual hash that WebAuthn signed
+      const result = await contract.verifyP256(actualH, r, s, qx, qy)
+
+      console.log('Verification parameters sent to contract:')
+      console.log('  h (actualH):', actualH)
+      console.log('  r:', r)
+      console.log('  s:', s)
+      console.log('  qx:', qx)
+      console.log('  qy:', qy)
+
+      console.log('Contract verification result:', result)
+
+      if (result) {
+        // Store the verification result
+        setVerificationResult({
+          success: true,
+          messageHash: h,
+          signedHash: actualH,
+          signature: { r, s },
+          publicKey: { qx, qy },
+          contractAddress: contractAddress,
+          timestamp: new Date(),
+        })
+
+        toaster.create({
+          title: 'Verification Successful!',
+          description: 'P-256 signature verified on-chain using EIP-7951 precompile.',
+          type: 'success',
+          duration: 7000,
+        })
+      } else {
+        throw new Error('Signature verification failed on contract')
+      }
+
+      console.log('PRIMARY address:', primaryAddress)
+      console.log('Contract: 0x8cb7b478776B60784415931eA213B41d363a107e')
+      console.log('Verification result:', result)
+    } catch (error) {
+      console.error('Failed to send verifyP256 tx:', error)
+      toaster.create({
+        title: 'Transaction Failed',
+        description: error instanceof Error ? error.message : 'Failed to send transaction',
+        type: 'error',
+        duration: 5000,
+      })
+    }
+  }
+
+  // Helper function to extract r and s from DER-encoded ECDSA signature
+  function extractRS(derSignature: Uint8Array): { r: string; s: string } {
+    let offset = 0
+
+    // Check sequence tag
+    if (derSignature[offset++] !== 0x30) {
+      throw new Error('Invalid DER signature: missing sequence tag')
+    }
+
+    // Skip sequence length
+    offset++
+
+    // Read r
+    if (derSignature[offset++] !== 0x02) {
+      throw new Error('Invalid DER signature: missing r integer tag')
+    }
+    let rLength = derSignature[offset++]
+    // Handle high byte padding
+    if (rLength > 32) {
+      offset++
+      rLength--
+    }
+    const rBytes = derSignature.slice(offset, offset + rLength)
+    offset += rLength
+
+    // Read s
+    if (derSignature[offset++] !== 0x02) {
+      throw new Error('Invalid DER signature: missing s integer tag')
+    }
+    let sLength = derSignature[offset++]
+    // Handle high byte padding
+    if (sLength > 32) {
+      offset++
+      sLength--
+    }
+    const sBytes = derSignature.slice(offset, offset + sLength)
+
+    // Pad to 32 bytes if needed
+    const rPadded = new Uint8Array(32)
+    const sPadded = new Uint8Array(32)
+    rPadded.set(rBytes, 32 - rBytes.length)
+    sPadded.set(sBytes, 32 - sBytes.length)
+
+    // P-256 curve order
+    const n = BigInt('0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551')
+    let sBigInt = BigInt('0x' + Buffer.from(sPadded).toString('hex'))
+
+    // Normalize s to lower half (low-s normalization)
+    // If s > n/2, then s = n - s
+    if (sBigInt > n / 2n) {
+      sBigInt = n - sBigInt
+      console.log('Applied low-s normalization to signature')
+    }
+
+    const r = '0x' + Buffer.from(rPadded).toString('hex')
+    const s = '0x' + sBigInt.toString(16).padStart(64, '0')
+
+    return { r, s }
+  }
+
+  // Helper function to decode from base64url
+  function base64UrlDecode(base64url: string): ArrayBuffer {
+    const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/')
+    const padding = '='.repeat((4 - (base64.length % 4)) % 4)
+    const base64Padded = base64 + padding
+    const binaryString = atob(base64Padded)
+    const bytes = new Uint8Array(binaryString.length)
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i)
+    }
+    return bytes.buffer
+  }
+
+  // Helper function to decode base64url to ArrayBuffer
+  function base64UrlToArrayBuffer(base64url: string): ArrayBuffer {
+    const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/')
+    const padding = '='.repeat((4 - (base64.length % 4)) % 4)
+    const base64Padded = base64 + padding
+    const binaryString = atob(base64Padded)
+    const bytes = new Uint8Array(binaryString.length)
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i)
+    }
+    return bytes.buffer
   }
 
   return (
@@ -118,17 +560,213 @@ export default function Home() {
 
       {isAuthenticated && user && (
         <>
-          <SimpleGrid columns={{ base: 1, md: 2 }} gap={6}>
+          <SimpleGrid columns={{ base: 1, md: 1 }} gap={6}>
             <Box p={6} borderWidth="1px" borderRadius="lg" borderColor="gray.700" bg="gray.900">
               <VStack gap={4} align="stretch">
                 <Heading as="h3" size="md">
-                  Default Derived Address
+                  PRIMARY mode
+                </Heading>
+                {!primaryAddress ? (
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    colorPalette="blue"
+                    onClick={handleDisplayPrimaryAddress}
+                    disabled={isLoadingPrimary}
+                  >
+                    {isLoadingPrimary ? 'Loading...' : 'Display public address'}
+                  </Button>
+                ) : (
+                  <Text fontSize="sm" color="gray.400" wordBreak="break-all">
+                    {primaryAddress}
+                  </Text>
+                )}
+                <Text fontSize="xs" color="gray.500" fontStyle="italic">
+                  This wallet is derived from your WebAuthn credential stored in your device&apos;s
+                  secure element. There&apos;s simply <strong>no private key at all</strong>.
+                  It&apos;s compliant with EIP-7951 that was introduced in Fusaka upgrade (Dec 3,
+                  2025), meaning you can send a transaction with passkey (fingerprint or face
+                  recognition).
+                </Text>
+                <Button
+                  bg="brand.accent"
+                  color="white"
+                  _hover={{ bg: 'brand.accent', opacity: 0.9 }}
+                  onClick={() => handleSignMessage('PRIMARY', primaryAddress)}
+                  disabled={!primaryAddress || isLoadingPrimary}
+                >
+                  Sign a message
+                </Button>
+                <Button
+                  bg="blue.600"
+                  color="white"
+                  _hover={{ bg: 'blue.700' }}
+                  onClick={() => handleSendVerifyP256Tx()}
+                  disabled={!primaryAddress || isLoadingPrimary}
+                >
+                  Send tx (verifyP256)
+                </Button>
+
+                {verificationResult && (
+                  <Box
+                    mt={4}
+                    p={4}
+                    borderWidth="1px"
+                    borderRadius="md"
+                    borderColor="green.500"
+                    bg="green.900"
+                  >
+                    <VStack gap={3} align="stretch">
+                      <Heading as="h4" size="sm" color="green.300">
+                        ✓ Verification Successful
+                      </Heading>
+                      <Text fontSize="xs" color="gray.400">
+                        {verificationResult.timestamp.toLocaleString()}
+                      </Text>
+
+                      <Box>
+                        <Text fontSize="xs" fontWeight="bold" color="gray.300" mb={1}>
+                          Contract Address:
+                        </Text>
+                        <Text
+                          fontSize="xs"
+                          color="gray.400"
+                          fontFamily="mono"
+                          wordBreak="break-all"
+                        >
+                          {verificationResult.contractAddress}
+                        </Text>
+                      </Box>
+
+                      <Box>
+                        <Text fontSize="xs" fontWeight="bold" color="gray.300" mb={1}>
+                          Message Hash:
+                        </Text>
+                        <Text
+                          fontSize="xs"
+                          color="gray.400"
+                          fontFamily="mono"
+                          wordBreak="break-all"
+                        >
+                          {verificationResult.messageHash}
+                        </Text>
+                      </Box>
+
+                      <Box>
+                        <Text fontSize="xs" fontWeight="bold" color="gray.300" mb={1}>
+                          WebAuthn Signed Hash:
+                        </Text>
+                        <Text
+                          fontSize="xs"
+                          color="gray.400"
+                          fontFamily="mono"
+                          wordBreak="break-all"
+                        >
+                          {verificationResult.signedHash}
+                        </Text>
+                      </Box>
+
+                      <Box>
+                        <Text fontSize="xs" fontWeight="bold" color="gray.300" mb={1}>
+                          Signature (r, s):
+                        </Text>
+                        <Text
+                          fontSize="xs"
+                          color="gray.400"
+                          fontFamily="mono"
+                          wordBreak="break-all"
+                        >
+                          r: {verificationResult.signature.r}
+                        </Text>
+                        <Text
+                          fontSize="xs"
+                          color="gray.400"
+                          fontFamily="mono"
+                          wordBreak="break-all"
+                        >
+                          s: {verificationResult.signature.s}
+                        </Text>
+                      </Box>
+
+                      <Box>
+                        <Text fontSize="xs" fontWeight="bold" color="gray.300" mb={1}>
+                          Public Key (qx, qy):
+                        </Text>
+                        <Text
+                          fontSize="xs"
+                          color="gray.400"
+                          fontFamily="mono"
+                          wordBreak="break-all"
+                        >
+                          qx: {verificationResult.publicKey.qx}
+                        </Text>
+                        <Text
+                          fontSize="xs"
+                          color="gray.400"
+                          fontFamily="mono"
+                          wordBreak="break-all"
+                        >
+                          qy: {verificationResult.publicKey.qy}
+                        </Text>
+                      </Box>
+                    </VStack>
+                  </Box>
+                )}
+              </VStack>
+            </Box>
+
+            <Box p={6} borderWidth="1px" borderRadius="lg" borderColor="gray.700" bg="gray.900">
+              <VStack gap={4} align="stretch">
+                <Heading as="h3" size="md">
+                  STRICT mode
+                </Heading>
+                {!strictAddress ? (
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    colorPalette="blue"
+                    onClick={handleDisplayStrictAddress}
+                    disabled={isLoadingStrict}
+                  >
+                    {isLoadingStrict ? 'Loading...' : 'Display public address'}
+                  </Button>
+                ) : (
+                  <Text fontSize="sm" color="gray.400" wordBreak="break-all">
+                    {strictAddress}
+                  </Text>
+                )}
+                <Text fontSize="xs" color="gray.500" fontStyle="italic">
+                  The app <strong>can&apos;t</strong> access the private key and persistent sessions
+                  are <strong>not</strong> allowed. These wallets are orgin-specific and derived
+                  from the mnemonic encrypted with user&apos;s WebAuthn credentials and stored in
+                  device indexed DB. You can make use of tags and derive as many wallets as you
+                  want.
+                </Text>
+                <Button
+                  bg="brand.accent"
+                  color="white"
+                  _hover={{ bg: 'brand.accent', opacity: 0.9 }}
+                  onClick={() => handleSignMessage('STRICT', strictAddress)}
+                  disabled={!strictAddress || isLoadingStrict}
+                >
+                  Sign a message
+                </Button>
+              </VStack>
+            </Box>
+
+            <Box p={6} borderWidth="1px" borderRadius="lg" borderColor="gray.700" bg="gray.900">
+              <VStack gap={4} align="stretch">
+                <Heading as="h3" size="md">
+                  STANDARD mode
                 </Heading>
                 <Text fontSize="sm" color="gray.400" wordBreak="break-all">
                   {isLoadingMain ? 'Loading...' : mainAddress || 'Not available'}
                 </Text>
                 <Text fontSize="xs" color="gray.500" fontStyle="italic">
-                  Private key cannot be displayed (secure MAIN wallet)
+                  The app <strong>can&apos;t</strong> access the private key. Persistent sessions{' '}
+                  <strong>are</strong> allowed. These wallets are orgin-specific and derived from
+                  the mnemonic encrypted with user&apos;s WebAuthn credentials and stored in device
+                  indexed DB. You can make use of tags and derive as many wallets as you want.
                 </Text>
                 <Button
                   bg="brand.accent"
@@ -145,10 +783,16 @@ export default function Home() {
             <Box p={6} borderWidth="1px" borderRadius="lg" borderColor="gray.700" bg="gray.900">
               <VStack gap={4} align="stretch">
                 <Heading as="h3" size="md">
-                  OPENBAR Tagged Address
+                  YOLO mode
                 </Heading>
                 <Text fontSize="sm" color="gray.400" wordBreak="break-all">
                   {isLoadingOpenbar ? 'Loading...' : openbarAddress || 'Not available'}
+                </Text>
+                <Text fontSize="xs" color="gray.500" fontStyle="italic">
+                  The app <strong>can</strong> access the private key. Persistent sessions{' '}
+                  <strong>are</strong> allowed. These wallets are orgin-specific and derived from
+                  the mnemonic encrypted with user&apos;s WebAuthn credentials and stored in device
+                  indexed DB. You can make use of tags and derive as many wallets as you want.
                 </Text>
                 {!showPrivateKey ? (
                   <Button
@@ -189,7 +833,7 @@ export default function Home() {
             </Box>
           </SimpleGrid>
 
-          <Box p={6} borderWidth="1px" borderRadius="lg" borderColor="blue.900" bg="blue.950">
+          {/* <Box p={6} borderWidth="1px" borderRadius="lg" borderColor="blue.900" bg="blue.950">
             <VStack gap={3} align="stretch">
               <Heading as="h4" size="sm" color="blue.300">
                 What&apos;s the difference?
@@ -218,7 +862,7 @@ export default function Home() {
                 </Text>
               </VStack>
             </VStack>
-          </Box>
+          </Box> */}
         </>
       )}
     </VStack>
