@@ -45,11 +45,13 @@ interface W3pkUser {
   username: string
   displayName: string
   ethereumAddress: string
+  credentialId: string
 }
 
 interface DerivedWallet {
   address: string
   privateKey?: string
+  publicKey?: string
 }
 
 interface Guardian {
@@ -235,6 +237,7 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
         username: userObj.username,
         displayName: userObj.displayName,
         ethereumAddress: userObj.ethereumAddress,
+        credentialId: userObj.credentialId,
       }
       setUser(userData)
       setIsAuthenticated(true)
@@ -270,8 +273,13 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
           return
         }
 
-        // Check if persistent session exists in IndexedDB
-        const hasPersistentSession = await checkIndexedDBForPersistentSession()
+        // Check if persistent session exists in IndexedDB with timeout for mobile
+        const checkPromise = checkIndexedDBForPersistentSession()
+        const timeoutPromise = new Promise<boolean>((resolve) =>
+          setTimeout(() => resolve(false), 3000) // 3 second timeout for mobile
+        )
+
+        const hasPersistentSession = await Promise.race([checkPromise, timeoutPromise])
 
         if (hasPersistentSession) {
           // Try to restore from persistent session via login()
@@ -297,6 +305,7 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
   const register = async (username: string): Promise<void> => {
     try {
       setIsLoading(true)
+      console.log('[W3PK] Registration initiated for username:', username)
 
       const registrationPromise = w3pk.register({ username })
       const timeoutPromise = new Promise<never>((_, reject) =>
@@ -313,6 +322,8 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
 
       await Promise.race([registrationPromise, timeoutPromise])
 
+      console.log('[W3PK] Registration successful')
+
       toaster.create({
         title: 'Done! 🎉',
         description:
@@ -321,13 +332,15 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
         duration: 3000,
       })
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to register with w3pk'
+      console.error('[W3PK] Registration failed:', error)
+
+      const errorDetails = error instanceof Error ? `${error.name}: ${error.message}` : JSON.stringify(error)
 
       toaster.create({
         title: 'Registration Failed',
-        description: errorMessage,
+        description: errorDetails,
         type: 'error',
-        duration: 8000,
+        duration: 15000, // Longer duration so you can read it on mobile
       })
       throw error
     } finally {
@@ -338,10 +351,13 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
   const login = async (): Promise<void> => {
     try {
       setIsLoading(true)
+      console.log('[W3PK] Login initiated')
 
       const result = await w3pk.login()
       const hasWallet = w3pk.isAuthenticated
       const displayName = result.displayName || result.username || 'Anon'
+
+      console.log('[W3PK] Login successful:', { hasWallet, displayName })
 
       toaster.create({
         title: "You're in!",
@@ -352,6 +368,8 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
         duration: 5000,
       })
     } catch (error) {
+      console.error('[W3PK] Login failed:', error)
+
       if (!isUserCancelledError(error)) {
         const errorMessage =
           error instanceof Error ? error.message : 'Failed to authenticate with w3pk'

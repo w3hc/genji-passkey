@@ -299,8 +299,7 @@ const SettingsPage = () => {
       if (deriveWallet && !isLoadingAddresses && !index0Address) {
         setIsLoadingAddresses(true)
         try {
-          const index0Wallet = await deriveWallet('STANDARD', 'WALLET_0')
-          setIndex0Address(index0Wallet.address)
+          setIndex0Address(user.ethereumAddress)
 
           const mainWallet = await deriveWallet('STANDARD', 'MAIN')
           setMainAddress(mainWallet.address)
@@ -1859,7 +1858,7 @@ const SettingsPage = () => {
                             type="text"
                             value={guardianName}
                             onChange={e => setGuardianName(e.target.value)}
-                            placeholder="e.g., Alice Smith"
+                            placeholder="Julien"
                             style={{
                               width: '100%',
                               padding: '8px 12px',
@@ -1879,7 +1878,7 @@ const SettingsPage = () => {
                             type="email"
                             value={guardianEmail}
                             onChange={e => setGuardianEmail(e.target.value)}
-                            placeholder="e.g., alice@example.com"
+                            placeholder="julien@strat.cc"
                             style={{
                               width: '100%',
                               padding: '8px 12px',
@@ -2086,7 +2085,8 @@ const SettingsPage = () => {
                                         <HStack justify="space-between">
                                           <Box>
                                             <Text fontSize="sm" fontWeight="bold">
-                                              {parsed.guardianName || 'Guardian'} (#{parsed.guardianIndex || index + 1})
+                                              {parsed.guardianName || 'Guardian'} (#
+                                              {parsed.guardianIndex || index + 1})
                                             </Text>
                                             <Text fontSize="xs" color="gray.400">
                                               Added {new Date().toLocaleTimeString()}
@@ -2143,7 +2143,8 @@ const SettingsPage = () => {
                                 Recovery Progress
                               </Text>
                               <Text fontSize="xs" color="gray.300">
-                                {recoveryShares.length} share(s) collected. You need at least 2 shares to attempt recovery.
+                                {recoveryShares.length} share(s) collected. You need at least 2
+                                shares to attempt recovery.
                               </Text>
                             </Box>
                           )}
@@ -2168,7 +2169,8 @@ const SettingsPage = () => {
                           {/* Warning */}
                           <Box p={3} bg="yellow.900/90" borderRadius="md">
                             <Text fontSize="xs" color="gray.300">
-                              <strong>Important:</strong> Make sure the shares are from the correct guardians. Invalid shares will cause recovery to fail.
+                              <strong>Important:</strong> Make sure the shares are from the correct
+                              guardians. Invalid shares will cause recovery to fail.
                             </Text>
                           </Box>
                         </VStack>
