@@ -242,6 +242,14 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
     }
   }, [])
 
+  // Get persistent session duration from localStorage (default: 7 days)
+  const getPersistentSessionDuration = (): number => {
+    if (typeof window === 'undefined') return 7
+    const stored = localStorage.getItem('persistentSessionDuration')
+    const days = stored ? parseInt(stored, 10) : 7
+    return days >= 1 && days <= 30 ? days : 7 // Validate between 1-30 days
+  }
+
   const w3pk = useMemo(
     () =>
       createWeb3Passkey({
@@ -250,7 +258,7 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
         sessionDuration: 24, // 24 hours session duration
         persistentSession: {
           enabled: true,
-          duration: 7 * 24, // 7 days
+          duration: getPersistentSessionDuration() * 24, // Convert days to hours
           requireReauth: false, // Silent session restore (no biometric prompt on page refresh)
         },
       }),
@@ -358,7 +366,7 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
       toaster.create({
         title: "You're in!",
         description: hasWallet
-          ? `Welcome back, ${displayName}! Your wallet is available.`
+          ? `Welcome back, ${displayName}!`
           : `Welcome back, ${displayName}! No wallet found on this device.`,
         type: hasWallet ? 'success' : 'warning',
         duration: 5000,
@@ -501,13 +509,6 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
   const logout = (): void => {
     // The SDK's logout() method clears both in-memory and ALL persistent sessions from IndexedDB
     w3pk.logout()
-
-    toaster.create({
-      title: 'Logged Out',
-      description: 'You have been logged out.',
-      type: 'info',
-      duration: 4000,
-    })
   }
 
   const getBackupStatus = async (): Promise<BackupStatus> => {

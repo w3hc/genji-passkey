@@ -39,6 +39,7 @@ import {
   FiDatabase,
   FiHardDrive,
   FiUpload,
+  FiClock,
 } from 'react-icons/fi'
 import { useW3PK } from '../../../src/context/W3PK'
 import { useTranslation } from '@/hooks/useTranslation'
@@ -59,6 +60,15 @@ import {
   type IndexedDBInfo,
 } from '../../../src/utils/storageInspection'
 import { QRCodeSVG } from 'qrcode.react'
+import {
+  SliderRoot,
+  SliderLabel,
+  SliderValueText,
+  SliderControl,
+  SliderTrack,
+  SliderRange,
+  SliderThumb,
+} from '@/components/ui/slider'
 
 interface StoredAccount {
   username: string
@@ -96,6 +106,35 @@ const SettingsPage = () => {
   const [pastedQRData, setPastedQRData] = useState<string>('')
   const [parsedQRData, setParsedQRData] = useState<any>(null)
 
+  // Persistent session duration state
+  const [persistentSessionDays, setPersistentSessionDays] = useState<number>(() => {
+    if (typeof window === 'undefined') return 7
+    const stored = localStorage.getItem('persistentSessionDuration')
+    const days = stored ? parseInt(stored, 10) : 7
+    return days >= 1 && days <= 30 ? days : 7
+  })
+
+  // Handler for session duration change
+  const handleSessionDurationChange = async (details: { value: number[] }) => {
+    const days = details.value[0]
+    setPersistentSessionDays(days)
+    localStorage.setItem('persistentSessionDuration', days.toString())
+
+    // Wait 3 seconds then logout and login to apply the new duration
+    setTimeout(async () => {
+      logout()
+      // Wait a bit for logout to complete, then trigger login
+      setTimeout(async () => {
+        try {
+          await login()
+        } catch (error) {
+          // User cancelled login, that's okay
+          console.log('Login cancelled by user')
+        }
+      }, 500)
+    }, 3000)
+  }
+
   // Social Recovery state
   const [guardianName, setGuardianName] = useState<string>('')
   const [guardianEmail, setGuardianEmail] = useState<string>('')
@@ -117,6 +156,7 @@ const SettingsPage = () => {
     getBackupStatus,
     createBackup,
     restoreFromBackup,
+    login,
     logout,
     deriveWallet,
     setupSocialRecovery,
@@ -1576,14 +1616,58 @@ const SettingsPage = () => {
                 ))
               )}
 
-              <Box p={4} bg="yellow.900/90" borderRadius="lg">
-                <Box fontSize="sm">
-                  <Text fontWeight="bold" mb={1}>
-                    Warning
-                  </Text>
+              {/* Keep my session alive */}
+              <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
+                <HStack mb={4}>
+                  <Icon as={FiClock} color={brandColors.primary} boxSize={6} />
+                  <Heading size="md">Keep my session alive</Heading>
+                </HStack>
+                <Text fontSize="sm" color="gray.400" mb={6}>
+                  Set how long your session should stay active. The duration timer resets every time
+                  you log in. This setting applies to STANDARD and YOLO modes only. STRICT and
+                  PRIMARY modes always require fresh authentication and do not use persistent
+                  sessions.
+                </Text>
+                <SliderRoot
+                  value={[persistentSessionDays]}
+                  onValueChange={handleSessionDurationChange}
+                  min={1}
+                  max={30}
+                  step={1}
+                  width="full"
+                >
+                  <HStack justify="space-between" mb={2}>
+                    <SliderLabel fontSize="sm" fontWeight="medium">
+                      Session Duration
+                    </SliderLabel>
+                    <SliderValueText fontSize="sm" fontWeight="bold" color={brandColors.accent}>
+                      {persistentSessionDays} day{persistentSessionDays > 1 ? 's' : ''}
+                    </SliderValueText>
+                  </HStack>
+                  <SliderControl>
+                    <SliderTrack bg="gray.700" height="8px">
+                      <SliderRange bg={brandColors.primary} />
+                    </SliderTrack>
+                    <SliderThumb
+                      index={0}
+                      boxSize="20px"
+                      bg={brandColors.accent}
+                      border="3px solid"
+                      borderColor="gray.800"
+                      _focus={{ boxShadow: `0 0 0 3px ${brandColors.primary}40` }}
+                    />
+                  </SliderControl>
+                </SliderRoot>
+                <HStack justify="space-between" mt={2} fontSize="xs" color="gray.500">
+                  <Text>1 day</Text>
+                  <Text>30 days</Text>
+                </HStack>
+                <Box p={3} bg="blue.900/90" borderRadius="md" mt={4}>
                   <Text fontSize="xs" color="gray.300">
-                    Removing an account will delete all its data from this device. Make sure you
-                    have a backup before removing an account. This action cannot be undone.
+                    <strong>How it works:</strong> Your session is encrypted with your WebAuthn
+                    credentials and stored securely in IndexedDB. The countdown starts fresh each
+                    time you log in. For example, with a 7-day duration, if you log in today, your
+                    session will expire 7 days from today.
                   </Text>
                 </Box>
               </Box>
