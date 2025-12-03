@@ -13,12 +13,26 @@ export async function POST(request: NextRequest) {
       publicKeyQy,
       contractAddress,
       txHash,
-      verificationTimestamp
+      verificationTimestamp,
+      contractValid,
+      contractInputHash,
+      contractReturnedAddress,
+      contractChainId,
+      contractBlockTimestamp,
     } = await request.json()
 
     // Validate required fields
-    if (!walletAddress || !messageHash || !signedHash || !signatureR || !signatureS ||
-        !publicKeyQx || !publicKeyQy || !contractAddress || !verificationTimestamp) {
+    if (
+      !walletAddress ||
+      !messageHash ||
+      !signedHash ||
+      !signatureR ||
+      !signatureS ||
+      !publicKeyQx ||
+      !publicKeyQy ||
+      !contractAddress ||
+      !verificationTimestamp
+    ) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
@@ -30,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     const sql = neon(databaseUrl)
 
-    // Insert the verification record
+    // Insert the verification record with on-chain response data
     await sql`
       INSERT INTO eip7951 (
         wallet_address,
@@ -42,7 +56,12 @@ export async function POST(request: NextRequest) {
         public_key_qy,
         contract_address,
         tx_hash,
-        verification_timestamp
+        verification_timestamp,
+        contract_valid,
+        contract_input_hash,
+        contract_returned_address,
+        contract_chain_id,
+        contract_block_timestamp
       )
       VALUES (
         ${walletAddress},
@@ -54,20 +73,31 @@ export async function POST(request: NextRequest) {
         ${publicKeyQy},
         ${contractAddress},
         ${txHash},
-        ${verificationTimestamp}
+        ${verificationTimestamp},
+        ${contractValid ?? null},
+        ${contractInputHash ?? null},
+        ${contractReturnedAddress ?? null},
+        ${contractChainId ?? null},
+        ${contractBlockTimestamp ?? null}
       )
     `
 
-    return NextResponse.json({
-      message: 'EIP-7951 verification recorded successfully',
-      data: { walletAddress, verificationTimestamp }
-    }, { status: 200 })
+    return NextResponse.json(
+      {
+        message: 'EIP-7951 verification recorded successfully',
+        data: { walletAddress, verificationTimestamp },
+      },
+      { status: 200 }
+    )
   } catch (error: any) {
     console.error('Error saving EIP-7951 verification:', error)
-    return NextResponse.json({
-      error: 'Failed to record verification',
-      details: error.message
-    }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: 'Failed to record verification',
+        details: error.message,
+      },
+      { status: 500 }
+    )
   }
 }
 
@@ -96,15 +126,21 @@ export async function GET(request: NextRequest) {
       ORDER BY verification_timestamp DESC
     `
 
-    return NextResponse.json({
-      verifications,
-      count: verifications.length
-    }, { status: 200 })
+    return NextResponse.json(
+      {
+        verifications,
+        count: verifications.length,
+      },
+      { status: 200 }
+    )
   } catch (error: any) {
     console.error('Error fetching EIP-7951 verifications:', error)
-    return NextResponse.json({
-      error: 'Failed to fetch verifications',
-      details: error.message
-    }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: 'Failed to fetch verifications',
+        details: error.message,
+      },
+      { status: 500 }
+    )
   }
 }

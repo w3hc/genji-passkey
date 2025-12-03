@@ -1,11 +1,13 @@
 'use client'
 
-import { Text, VStack, Box, Heading, SimpleGrid } from '@chakra-ui/react'
+import { Text, VStack, Box, Heading, SimpleGrid, Link } from '@chakra-ui/react'
 import { Button } from '@/components/ui/button'
 import { useW3PK, base64UrlToArrayBuffer, base64UrlDecode, extractRS } from '@/context/W3PK'
 import { useTranslation } from '@/hooks/useTranslation'
 import { useState, useEffect } from 'react'
 import { toaster } from '@/components/ui/toaster'
+
+const CONTRACT_ADDRESS = '0x5586d2Ab0e2Cbf4e44F36cD7d1A5B544ecb13510'
 
 export default function Home() {
   const { isAuthenticated, user, login, signMessage, deriveWallet } = useW3PK()
@@ -28,6 +30,8 @@ export default function Home() {
     signature: { r: string; s: string }
     publicKey: { qx: string; qy: string }
     contractAddress: string
+    inputHash?: string
+    chainId?: number
     savedToDatabase?: boolean
     timestamp: Date
   } | null>(null)
@@ -352,14 +356,6 @@ export default function Home() {
       console.log('  r:', r)
       console.log('  s:', s)
 
-      // Step 2: Call the verifyP256 contract
-      // toaster.create({
-      //   title: 'Calling Contract',
-      //   description: 'Sending transaction to verifyP256 precompile...',
-      //   type: 'info',
-      //   duration: 3000,
-      // })
-
       // Import ethers for contract interaction
       const { ethers } = await import('ethers')
 
@@ -368,22 +364,21 @@ export default function Home() {
       const provider = new ethers.JsonRpcProvider(sepoliaRpcUrl)
 
       // First, check if the contract exists
-      const contractAddress = '0x8cb7b478776B60784415931eA213B41d363a107e'
-      const code = await provider.getCode(contractAddress)
+      const code = await provider.getCode(CONTRACT_ADDRESS)
 
-      console.log('Contract code at', contractAddress, ':', code)
+      console.log('Contract code at', CONTRACT_ADDRESS, ':', code)
 
       if (code === '0x') {
         throw new Error(
-          `No contract found at ${contractAddress}. The EIP-7951 precompile might not be deployed on Sepolia yet, or you may need to use a different network (like Holesky or mainnet after the Fusaka upgrade).`
+          `No contract found at ${CONTRACT_ADDRESS}. The EIP-7951 precompile might not be deployed on Sepolia yet, or you may need to use a different network (like Holesky or mainnet after the Fusaka upgrade).`
         )
       }
 
       const contractABI = [
-        'function verifyP256(bytes32 h, bytes32 r, bytes32 s, bytes32 qx, bytes32 qy) external view returns (bool)',
+        'function verifyP256(bytes32 h, bytes32 r, bytes32 s, bytes32 qx, bytes32 qy) external view returns (tuple(bool valid, bytes32 inputHash, address contractAddress, uint256 chainId, uint256 timestamp))',
       ]
 
-      const contract = new ethers.Contract(contractAddress, contractABI, provider)
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI, provider)
 
       // Call the contract with the actual hash that WebAuthn signed
       const result = await contract.verifyP256(actualH, r, s, qx, qy)
@@ -397,17 +392,29 @@ export default function Home() {
 
       console.log('Contract verification result:', result)
 
-      if (result) {
-        const timestamp = new Date()
+      // Extract values from the returned struct
+      const [valid, inputHash, returnedContractAddress, chainId, blockTimestamp] = result
 
-        // Store the verification result
+      console.log('Verification proof from contract:')
+      console.log('  valid:', valid)
+      console.log('  inputHash:', inputHash)
+      console.log('  contractAddress:', returnedContractAddress)
+      console.log('  chainId:', Number(chainId))
+      console.log('  timestamp:', Number(blockTimestamp))
+
+      if (valid) {
+        const timestamp = new Date(Number(blockTimestamp) * 1000)
+
+        // Store the verification result with additional contract data
         setVerificationResult({
           success: true,
           messageHash: h,
           signedHash: actualH,
           signature: { r, s },
           publicKey: { qx, qy },
-          contractAddress: contractAddress,
+          contractAddress: returnedContractAddress,
+          inputHash: inputHash,
+          chainId: Number(chainId),
           timestamp,
           savedToDatabase: false,
         })
@@ -419,7 +426,7 @@ export default function Home() {
           duration: 7000,
         })
 
-        // Save to database - "I was there" feature
+        // Save to database - "I was there" feature with on-chain response
         try {
           const response = await fetch('/api/eip7951', {
             method: 'POST',
@@ -432,25 +439,46 @@ export default function Home() {
               signatureS: s,
               publicKeyQx: qx,
               publicKeyQy: qy,
-              contractAddress: contractAddress,
+              contractAddress: CONTRACT_ADDRESS,
               txHash: null,
               verificationTimestamp: timestamp.toISOString(),
+              // On-chain response data from contract
+              contractValid: valid,
+              contractInputHash: inputHash,
+              contractReturnedAddress: returnedContractAddress,
+              contractChainId: Number(chainId),
+              contractBlockTimestamp: Number(blockTimestamp),
             }),
           })
 
           if (response.ok) {
             setVerificationResult(prev => (prev ? { ...prev, savedToDatabase: true } : null))
-            console.log('EIP-7951 verification saved to database')
+            console.log('✅ EIP-7951 verification saved to database')
+          } else {
+            const errorData = await response.json()
+            console.error('❌ Failed to save to database:', errorData)
+            toaster.create({
+              title: 'Database Save Failed',
+              description: `Could not save verification: ${errorData.error || 'Unknown error'}`,
+              type: 'warning',
+              duration: 5000,
+            })
           }
         } catch (error) {
-          console.error('Failed to save verification to database:', error)
+          console.error('❌ Failed to save verification to database:', error)
+          toaster.create({
+            title: 'Database Error',
+            description: 'Could not connect to database. Please check your connection.',
+            type: 'warning',
+            duration: 5000,
+          })
         }
       } else {
         throw new Error('Signature verification failed on contract')
       }
 
       console.log('PRIMARY address:', primaryAddress)
-      console.log('Contract: 0x8cb7b478776B60784415931eA213B41d363a107e')
+      console.log('Contract: 0x5586d2Ab0e2Cbf4e44F36cD7d1A5B544ecb13510')
       console.log('Verification result:', result)
     } catch (error) {
       console.error('Failed to send verifyP256 tx:', error)
@@ -574,14 +602,19 @@ export default function Home() {
                         <Text fontSize="xs" fontWeight="bold" color="gray.300" mb={1}>
                           Contract Address:
                         </Text>
-                        <Text
+                        <Link
+                          href={`https://sepolia.etherscan.io/address/${verificationResult.contractAddress}#code`}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           fontSize="xs"
-                          color="gray.400"
+                          color="blue.400"
                           fontFamily="mono"
                           wordBreak="break-all"
+                          textDecoration="underline"
+                          _hover={{ color: 'blue.300' }}
                         >
                           {verificationResult.contractAddress}
-                        </Text>
+                        </Link>
                       </Box>
 
                       <Box>
@@ -655,6 +688,34 @@ export default function Home() {
                           qy: {verificationResult.publicKey.qy}
                         </Text>
                       </Box>
+
+                      {verificationResult.inputHash && (
+                        <Box>
+                          <Text fontSize="xs" fontWeight="bold" color="gray.300" mb={1}>
+                            Input Hash:
+                          </Text>
+                          <Text
+                            fontSize="xs"
+                            color="gray.400"
+                            fontFamily="mono"
+                            wordBreak="break-all"
+                          >
+                            {verificationResult.inputHash}
+                          </Text>
+                        </Box>
+                      )}
+
+                      {verificationResult.chainId && (
+                        <Box>
+                          <Text fontSize="xs" fontWeight="bold" color="gray.300" mb={1}>
+                            Chain ID:
+                          </Text>
+                          <Text fontSize="xs" color="gray.400">
+                            {verificationResult.chainId}
+                          </Text>
+                        </Box>
+                      )}
+
                       {verificationResult.savedToDatabase && (
                         <Box
                           p={2}
