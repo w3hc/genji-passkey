@@ -549,7 +549,7 @@ export default function Home() {
                   onClick={() => handleSendVerifyP256Tx()}
                   disabled={!primaryAddress || isLoadingPrimary}
                 >
-                  Send tx (verifyP256)
+                  Verify onchain
                 </Button>
 
                 {verificationResult && (
