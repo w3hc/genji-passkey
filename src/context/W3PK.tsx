@@ -10,11 +10,6 @@ import React, {
   useEffect,
 } from 'react'
 import { createWeb3Passkey } from 'w3pk'
-import type {
-  Guardian as W3pkGuardian,
-  GuardianInvite as W3pkGuardianInvite,
-  SocialRecoveryConfig as W3pkSocialRecoveryConfig,
-} from 'w3pk'
 import { toaster } from '@/components/ui/toaster'
 
 interface SecurityScore {
@@ -165,14 +160,14 @@ async function checkIndexedDBForPersistentSession(): Promise<boolean> {
     const dbName = 'Web3PasskeyPersistentSessions'
     const storeName = 'sessions'
 
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const request = indexedDB.open(dbName)
 
       request.onerror = () => {
         resolve(false)
       }
 
-      request.onsuccess = (event) => {
+      request.onsuccess = event => {
         const db = (event.target as IDBOpenDBRequest).result
 
         if (!db.objectStoreNames.contains(storeName)) {
@@ -256,8 +251,8 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
         persistentSession: {
           enabled: true,
           duration: 7 * 24, // 7 days
-          requireReauth: false // Silent session restore (no biometric prompt on page refresh)
-        }
+          requireReauth: false, // Silent session restore (no biometric prompt on page refresh)
+        },
       }),
     [handleAuthStateChanged]
   )
@@ -275,8 +270,8 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
 
         // Check if persistent session exists in IndexedDB with timeout for mobile
         const checkPromise = checkIndexedDBForPersistentSession()
-        const timeoutPromise = new Promise<boolean>((resolve) =>
-          setTimeout(() => resolve(false), 3000) // 3 second timeout for mobile
+        const timeoutPromise = new Promise<boolean>(
+          resolve => setTimeout(() => resolve(false), 3000) // 3 second timeout for mobile
         )
 
         const hasPersistentSession = await Promise.race([checkPromise, timeoutPromise])
@@ -334,7 +329,8 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('[W3PK] Registration failed:', error)
 
-      const errorDetails = error instanceof Error ? `${error.name}: ${error.message}` : JSON.stringify(error)
+      const errorDetails =
+        error instanceof Error ? `${error.name}: ${error.message}` : JSON.stringify(error)
 
       toaster.create({
         title: 'Registration Failed',
@@ -485,7 +481,9 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
 
         if (!isUserCancelledError(error)) {
           const errorMessage =
-            error instanceof Error ? error.message : `Failed to derive wallet (${mode || 'STANDARD'}, ${tag || 'MAIN'})`
+            error instanceof Error
+              ? error.message
+              : `Failed to derive wallet (${mode || 'STANDARD'}, ${tag || 'MAIN'})`
 
           toaster.create({
             title: 'Derivation Failed',
@@ -923,3 +921,6 @@ Thank you for being a trusted guardian!
     </W3PK.Provider>
   )
 }
+
+// Export w3pk utilities for use in components
+export { base64UrlToArrayBuffer, base64UrlDecode, extractRS } from 'w3pk'

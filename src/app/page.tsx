@@ -2,7 +2,7 @@
 
 import { Text, VStack, Box, Heading, SimpleGrid } from '@chakra-ui/react'
 import { Button } from '@/components/ui/button'
-import { useW3PK } from '@/context/W3PK'
+import { useW3PK, base64UrlToArrayBuffer, base64UrlDecode, extractRS } from '@/context/W3PK'
 import { useTranslation } from '@/hooks/useTranslation'
 import { useState, useEffect } from 'react'
 import { toaster } from '@/components/ui/toaster'
@@ -430,92 +430,6 @@ export default function Home() {
         duration: 5000,
       })
     }
-  }
-
-  // Helper function to extract r and s from DER-encoded ECDSA signature
-  function extractRS(derSignature: Uint8Array): { r: string; s: string } {
-    let offset = 0
-
-    // Check sequence tag
-    if (derSignature[offset++] !== 0x30) {
-      throw new Error('Invalid DER signature: missing sequence tag')
-    }
-
-    // Skip sequence length
-    offset++
-
-    // Read r
-    if (derSignature[offset++] !== 0x02) {
-      throw new Error('Invalid DER signature: missing r integer tag')
-    }
-    let rLength = derSignature[offset++]
-    // Handle high byte padding
-    if (rLength > 32) {
-      offset++
-      rLength--
-    }
-    const rBytes = derSignature.slice(offset, offset + rLength)
-    offset += rLength
-
-    // Read s
-    if (derSignature[offset++] !== 0x02) {
-      throw new Error('Invalid DER signature: missing s integer tag')
-    }
-    let sLength = derSignature[offset++]
-    // Handle high byte padding
-    if (sLength > 32) {
-      offset++
-      sLength--
-    }
-    const sBytes = derSignature.slice(offset, offset + sLength)
-
-    // Pad to 32 bytes if needed
-    const rPadded = new Uint8Array(32)
-    const sPadded = new Uint8Array(32)
-    rPadded.set(rBytes, 32 - rBytes.length)
-    sPadded.set(sBytes, 32 - sBytes.length)
-
-    // P-256 curve order
-    const n = BigInt('0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551')
-    let sBigInt = BigInt('0x' + Buffer.from(sPadded).toString('hex'))
-
-    // Normalize s to lower half (low-s normalization)
-    // If s > n/2, then s = n - s
-    if (sBigInt > n / 2n) {
-      sBigInt = n - sBigInt
-      console.log('Applied low-s normalization to signature')
-    }
-
-    const r = '0x' + Buffer.from(rPadded).toString('hex')
-    const s = '0x' + sBigInt.toString(16).padStart(64, '0')
-
-    return { r, s }
-  }
-
-  // Helper function to decode from base64url
-  function base64UrlDecode(base64url: string): ArrayBuffer {
-    const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/')
-    const padding = '='.repeat((4 - (base64.length % 4)) % 4)
-    const base64Padded = base64 + padding
-    const binaryString = atob(base64Padded)
-    const bytes = new Uint8Array(binaryString.length)
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i)
-    }
-    return bytes.buffer
-  }
-
-  // Helper function to decode base64url to ArrayBuffer
-  function base64UrlToArrayBuffer(base64url: string): ArrayBuffer {
-    const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/')
-    const padding = '='.repeat((4 - (base64.length % 4)) % 4)
-    const base64Padded = base64 + padding
-    const binaryString = atob(base64Padded)
-    const bytes = new Uint8Array(binaryString.length)
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i)
-    }
-    return bytes.buffer
   }
 
   return (
