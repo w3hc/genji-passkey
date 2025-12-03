@@ -26,6 +26,8 @@ import {
 } from '@chakra-ui/react'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
+import { Input } from '@/components/ui/input'
+import { Field } from '@/components/ui/field'
 import { Dialog, Portal } from '@/components/ui/dialog'
 import { toaster } from '@/components/ui/toaster'
 import { MdDelete, MdCheckCircle, MdWarning, MdInfo, MdDownload, MdLock } from 'react-icons/md'
@@ -39,6 +41,8 @@ import {
   FiDatabase,
   FiHardDrive,
   FiUpload,
+  FiClock,
+  FiUserPlus,
 } from 'react-icons/fi'
 import { useW3PK } from '../../../src/context/W3PK'
 import { useTranslation } from '@/hooks/useTranslation'
@@ -59,6 +63,15 @@ import {
   type IndexedDBInfo,
 } from '../../../src/utils/storageInspection'
 import { QRCodeSVG } from 'qrcode.react'
+import {
+  SliderRoot,
+  SliderLabel,
+  SliderValueText,
+  SliderControl,
+  SliderTrack,
+  SliderRange,
+  SliderThumb,
+} from '@/components/ui/slider'
 
 interface StoredAccount {
   username: string
@@ -96,6 +109,35 @@ const SettingsPage = () => {
   const [pastedQRData, setPastedQRData] = useState<string>('')
   const [parsedQRData, setParsedQRData] = useState<any>(null)
 
+  // Persistent session duration state
+  const [persistentSessionDays, setPersistentSessionDays] = useState<number>(() => {
+    if (typeof window === 'undefined') return 7
+    const stored = localStorage.getItem('persistentSessionDuration')
+    const days = stored ? parseInt(stored, 10) : 7
+    return days >= 1 && days <= 30 ? days : 7
+  })
+
+  // Handler for session duration change
+  const handleSessionDurationChange = async (details: { value: number[] }) => {
+    const days = details.value[0]
+    setPersistentSessionDays(days)
+    localStorage.setItem('persistentSessionDuration', days.toString())
+
+    // Wait 3 seconds then logout and login to apply the new duration
+    setTimeout(async () => {
+      logout()
+      // Wait a bit for logout to complete, then trigger login
+      setTimeout(async () => {
+        try {
+          await login()
+        } catch (error) {
+          // User cancelled login, that's okay
+          console.log('Login cancelled by user')
+        }
+      }, 500)
+    }, 3000)
+  }
+
   // Social Recovery state
   const [guardianName, setGuardianName] = useState<string>('')
   const [guardianEmail, setGuardianEmail] = useState<string>('')
@@ -111,13 +153,21 @@ const SettingsPage = () => {
   const [isRecovering, setIsRecovering] = useState(false)
   const [showRecoverySection, setShowRecoverySection] = useState(false)
 
+  // Registration state
+  const { open: isRegisterModalOpen, onOpen: onRegisterModalOpen, onClose: onRegisterModalClose } = useDisclosure()
+  const [registerUsername, setRegisterUsername] = useState('')
+  const [isRegistering, setIsRegistering] = useState(false)
+  const [isRegisterUsernameInvalid, setIsRegisterUsernameInvalid] = useState(false)
+
   const {
     isAuthenticated,
     user,
     getBackupStatus,
     createBackup,
     restoreFromBackup,
+    login,
     logout,
+    register,
     deriveWallet,
     setupSocialRecovery,
     getSocialRecoveryConfig,
@@ -125,6 +175,88 @@ const SettingsPage = () => {
     recoverFromGuardians,
     clearSocialRecoveryConfig,
   } = useW3PK()
+
+  const validateUsername = (input: string): boolean => {
+    if (!input.trim()) {
+      return true
+    }
+
+    const trimmedInput = input.trim()
+
+    // Check overall format and length (3-50 chars)
+    // Alphanumeric, underscore, and hyphen allowed
+    // Must start and end with alphanumeric
+    const formatValid =
+      /^[a-zA-Z0-9]([a-zA-Z0-9_-]*[a-zA-Z0-9])?$/.test(trimmedInput) &&
+      trimmedInput.length >= 3 &&
+      trimmedInput.length <= 50
+
+    return formatValid
+  }
+
+  const handleRegister = async () => {
+    if (!registerUsername.trim()) {
+      toaster.create({
+        title: 'Username Required',
+        description: 'Please enter a username to register.',
+        type: 'warning',
+        duration: 3000,
+      })
+      setIsRegisterUsernameInvalid(true)
+      return
+    }
+
+    const isValid = validateUsername(registerUsername)
+    if (!isValid) {
+      setIsRegisterUsernameInvalid(true)
+      return
+    }
+
+    setIsRegisterUsernameInvalid(false)
+
+    try {
+      setIsRegistering(true)
+      console.log('[Settings] Starting registration for:', registerUsername.trim())
+
+      // Add timeout to prevent infinite loading
+      const registrationPromise = register(registerUsername.trim())
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Registration timeout after 60 seconds')), 60000)
+      )
+
+      await Promise.race([registrationPromise, timeoutPromise])
+
+      console.log('[Settings] Registration completed successfully')
+      setRegisterUsername('')
+      onRegisterModalClose()
+
+      toaster.create({
+        title: 'Registration Successful',
+        description: 'Your new account has been created.',
+        type: 'success',
+        duration: 5000,
+      })
+    } catch (error: any) {
+      console.error('[Settings] Registration failed:', error)
+
+      // Show user-friendly error message
+      toaster.create({
+        title: 'Registration Failed',
+        description: error.message || 'Unable to complete registration. Please try again.',
+        type: 'error',
+        duration: 8000,
+      })
+    } finally {
+      console.log('[Settings] Cleaning up registration state')
+      setIsRegistering(false)
+    }
+  }
+
+  const handleRegisterModalClose = () => {
+    setRegisterUsername('')
+    setIsRegisterUsernameInvalid(false)
+    onRegisterModalClose()
+  }
 
   const handleInspectLocalStorage = async () => {
     setIsInspectingLocalStorage(true)
@@ -291,6 +423,13 @@ const SettingsPage = () => {
   useEffect(() => {
     loadAccounts()
   }, [loadAccounts])
+
+  useEffect(() => {
+    const isValid = validateUsername(registerUsername)
+    if (isValid) {
+      setIsRegisterUsernameInvalid(false)
+    }
+  }, [registerUsername])
 
   useEffect(() => {
     const loadAddressesAndStatus = async () => {
@@ -1576,16 +1715,83 @@ const SettingsPage = () => {
                 ))
               )}
 
-              <Box p={4} bg="yellow.900/90" borderRadius="lg">
-                <Box fontSize="sm">
-                  <Text fontWeight="bold" mb={1}>
-                    Warning
-                  </Text>
+              {/* Keep my session alive */}
+              <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
+                <HStack mb={4}>
+                  <Icon as={FiClock} color={brandColors.primary} boxSize={6} />
+                  <Heading size="md">Keep my session alive</Heading>
+                </HStack>
+                <Text fontSize="sm" color="gray.400" mb={6}>
+                  Set how long your session should stay active. The duration timer resets every time
+                  you log in. This setting applies to STANDARD and YOLO modes only. STRICT and
+                  PRIMARY modes always require fresh authentication and do not use persistent
+                  sessions.
+                </Text>
+                <SliderRoot
+                  value={[persistentSessionDays]}
+                  onValueChange={handleSessionDurationChange}
+                  min={1}
+                  max={30}
+                  step={1}
+                  width="full"
+                >
+                  <HStack justify="space-between" mb={2}>
+                    <SliderLabel fontSize="sm" fontWeight="medium">
+                      Session Duration
+                    </SliderLabel>
+                    <SliderValueText fontSize="sm" fontWeight="bold" color={brandColors.accent}>
+                      {persistentSessionDays} day{persistentSessionDays > 1 ? 's' : ''}
+                    </SliderValueText>
+                  </HStack>
+                  <SliderControl>
+                    <SliderTrack bg="gray.700" height="8px">
+                      <SliderRange bg={brandColors.primary} />
+                    </SliderTrack>
+                    <SliderThumb
+                      index={0}
+                      boxSize="20px"
+                      bg={brandColors.accent}
+                      border="3px solid"
+                      borderColor="gray.800"
+                      _focus={{ boxShadow: `0 0 0 3px ${brandColors.primary}40` }}
+                    />
+                  </SliderControl>
+                </SliderRoot>
+                <HStack justify="space-between" mt={2} fontSize="xs" color="gray.500">
+                  <Text>1 day</Text>
+                  <Text>30 days</Text>
+                </HStack>
+                <Box p={3} bg="blue.900/90" borderRadius="md" mt={4}>
                   <Text fontSize="xs" color="gray.300">
-                    Removing an account will delete all its data from this device. Make sure you
-                    have a backup before removing an account. This action cannot be undone.
+                    <strong>How it works:</strong> Your session is encrypted with your WebAuthn
+                    credentials and stored securely in IndexedDB. The countdown starts fresh each
+                    time you log in. For example, with a 7-day duration, if you log in today, your
+                    session will expire 7 days from today.
                   </Text>
                 </Box>
+              </Box>
+
+              {/* Register a new account */}
+              <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
+                <HStack mb={4}>
+                  <Icon as={FiUserPlus} color={brandColors.primary} boxSize={6} />
+                  <Heading size="md">Register a new account</Heading>
+                </HStack>
+                <Text fontSize="sm" color="gray.400" mb={4}>
+                  Create a new Web3 passkey account. Each account is secured with your device&apos;s biometric authentication or PIN, and has its own Ethereum wallet.
+                </Text>
+                <Button
+                  bg={brandColors.primary}
+                  color="white"
+                  _hover={{
+                    bg: brandColors.secondary,
+                  }}
+                  onClick={onRegisterModalOpen}
+                  size="md"
+                >
+                  <Icon as={FiUserPlus} />
+                  Register
+                </Button>
               </Box>
 
               {/* W3PK Build Verification */}
@@ -2900,6 +3106,77 @@ const SettingsPage = () => {
               </Dialog.Body>
               <Dialog.Footer gap={3} pt={6}>
                 <Button onClick={() => setShowIndexedDBModal(false)}>Close</Button>
+              </Dialog.Footer>
+              <Dialog.CloseTrigger asChild>
+                <CloseButton size="sm" />
+              </Dialog.CloseTrigger>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
+
+      {/* Registration Modal */}
+      <Dialog.Root
+        open={isRegisterModalOpen}
+        onOpenChange={(e: { open: boolean }) => (e.open ? null : handleRegisterModalClose())}
+      >
+        <Portal>
+          <Dialog.Backdrop />
+          <Dialog.Positioner>
+            <Dialog.Content p={6}>
+              <Dialog.Header>
+                <Dialog.Title>Register New Account</Dialog.Title>
+              </Dialog.Header>
+              <Dialog.Body pt={4}>
+                <VStack gap={4}>
+                  <Text fontSize="sm" color="gray.400">
+                    An Ethereum wallet will be created and securely stored on your device, protected
+                    by your biometric or PIN thanks to{' '}
+                    <ChakraLink
+                      href={'https://github.com/w3hc/w3pk/blob/main/src/auth/register.ts#L17-L102'}
+                      color={brandColors.accent}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      w3pk
+                    </ChakraLink>
+                    .
+                  </Text>
+                  <Field invalid={isRegisterUsernameInvalid} label="Username">
+                    <Input
+                      id="username-input"
+                      aria-describedby={
+                        isRegisterUsernameInvalid && registerUsername.trim() ? 'username-error' : undefined
+                      }
+                      aria-invalid={isRegisterUsernameInvalid && registerUsername.trim() ? true : undefined}
+                      value={registerUsername}
+                      onChange={e => setRegisterUsername(e.target.value)}
+                      placeholder="Enter your username"
+                      pl={3}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && registerUsername.trim()) {
+                          handleRegister()
+                        }
+                      }}
+                    />
+                    {isRegisterUsernameInvalid && registerUsername.trim() && (
+                      <Field.ErrorText id="username-error">
+                        Username must be 3-50 characters long and contain only letters, numbers,
+                        underscores, and hyphens. It must start and end with a letter or number.
+                      </Field.ErrorText>
+                    )}
+                  </Field>
+                </VStack>
+              </Dialog.Body>
+
+              <Dialog.Footer gap={3} pt={6}>
+                <Dialog.ActionTrigger asChild>
+                  <Button variant="outline">Cancel</Button>
+                </Dialog.ActionTrigger>
+                <Button colorPalette="blue" onClick={handleRegister} disabled={!registerUsername.trim()}>
+                  {isRegistering && <Spinner size="16px" />}
+                  {!isRegistering && 'Create Account'}
+                </Button>
               </Dialog.Footer>
               <Dialog.CloseTrigger asChild>
                 <CloseButton size="sm" />

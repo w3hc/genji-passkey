@@ -28,6 +28,7 @@ export default function Home() {
     signature: { r: string; s: string }
     publicKey: { qx: string; qy: string }
     contractAddress: string
+    savedToDatabase?: boolean
     timestamp: Date
   } | null>(null)
 
@@ -397,6 +398,8 @@ export default function Home() {
       console.log('Contract verification result:', result)
 
       if (result) {
+        const timestamp = new Date()
+
         // Store the verification result
         setVerificationResult({
           success: true,
@@ -405,7 +408,8 @@ export default function Home() {
           signature: { r, s },
           publicKey: { qx, qy },
           contractAddress: contractAddress,
-          timestamp: new Date(),
+          timestamp,
+          savedToDatabase: false,
         })
 
         toaster.create({
@@ -414,6 +418,33 @@ export default function Home() {
           type: 'success',
           duration: 7000,
         })
+
+        // Save to database - "I was there" feature
+        try {
+          const response = await fetch('/api/eip7951', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              walletAddress: primaryAddress,
+              messageHash: h,
+              signedHash: actualH,
+              signatureR: r,
+              signatureS: s,
+              publicKeyQx: qx,
+              publicKeyQy: qy,
+              contractAddress: contractAddress,
+              txHash: null,
+              verificationTimestamp: timestamp.toISOString(),
+            }),
+          })
+
+          if (response.ok) {
+            setVerificationResult(prev => (prev ? { ...prev, savedToDatabase: true } : null))
+            console.log('EIP-7951 verification saved to database')
+          }
+        } catch (error) {
+          console.error('Failed to save verification to database:', error)
+        }
       } else {
         throw new Error('Signature verification failed on contract')
       }
@@ -518,7 +549,7 @@ export default function Home() {
                   onClick={() => handleSendVerifyP256Tx()}
                   disabled={!primaryAddress || isLoadingPrimary}
                 >
-                  Send tx (verifyP256)
+                  Verify onchain
                 </Button>
 
                 {verificationResult && (
@@ -534,6 +565,7 @@ export default function Home() {
                       <Heading as="h4" size="sm" color="green.300">
                         ✓ Verification Successful
                       </Heading>
+
                       <Text fontSize="xs" color="gray.400">
                         {verificationResult.timestamp.toLocaleString()}
                       </Text>
@@ -623,6 +655,26 @@ export default function Home() {
                           qy: {verificationResult.publicKey.qy}
                         </Text>
                       </Box>
+                      {verificationResult.savedToDatabase && (
+                        <Box
+                          p={2}
+                          borderRadius="md"
+                          bg="green.800"
+                          borderWidth="1px"
+                          borderColor="green.400"
+                        >
+                          <Text
+                            fontSize="sm"
+                            fontWeight="bold"
+                            color="green.200"
+                            textAlign="center"
+                          >
+                            🎉 To celebrate the Fusaka upgrade, you will receive a special NFT on OP
+                            Mainnet in the coming days. Thanks for your patience. Let&apos;s keep on
+                            improving Ethereum UX!
+                          </Text>
+                        </Box>
+                      )}
                     </VStack>
                   </Box>
                 )}

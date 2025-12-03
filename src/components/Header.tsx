@@ -72,7 +72,81 @@ export default function Header() {
   }
 
   const handleLogin = async () => {
-    await login()
+    // Check if credentials exist in localStorage or IndexedDB
+    const hasCredentials = await checkForExistingCredentials()
+
+    if (hasCredentials) {
+      // User has credentials - perform normal login
+      await login()
+    } else {
+      // No credentials - prompt for registration
+      onOpen()
+    }
+  }
+
+  const checkForExistingCredentials = async (): Promise<boolean> => {
+    try {
+      if (typeof window === 'undefined') {
+        return false
+      }
+
+      // First check for persistent session in IndexedDB
+      if (window.indexedDB) {
+        const dbName = 'Web3PasskeyPersistentSessions'
+        const storeName = 'sessions'
+
+        const hasPersistentSession = await new Promise<boolean>(resolve => {
+          const request = indexedDB.open(dbName)
+
+          request.onerror = () => {
+            resolve(false)
+          }
+
+          request.onsuccess = event => {
+            const db = (event.target as IDBOpenDBRequest).result
+
+            if (!db.objectStoreNames.contains(storeName)) {
+              db.close()
+              resolve(false)
+              return
+            }
+
+            try {
+              const transaction = db.transaction([storeName], 'readonly')
+              const objectStore = transaction.objectStore(storeName)
+              const countRequest = objectStore.count()
+
+              countRequest.onsuccess = () => {
+                db.close()
+                resolve(countRequest.result > 0)
+              }
+
+              countRequest.onerror = () => {
+                db.close()
+                resolve(false)
+              }
+            } catch {
+              db.close()
+              resolve(false)
+            }
+          }
+        })
+
+        if (hasPersistentSession) {
+          return true
+        }
+      }
+
+      // Then check for w3pk_credential_index in localStorage
+      const credentialIndex = localStorage.getItem('w3pk_credential_index')
+      if (credentialIndex) {
+        return true
+      }
+
+      return false
+    } catch {
+      return false
+    }
   }
 
   const handleRegister = async () => {
@@ -184,29 +258,18 @@ export default function Header() {
               suppressHydrationWarning
             >
               {!isAuthenticated ? (
-                <Flex align="center" gap={3}>
-                  <Button
-                    variant="plain"
-                    fontSize="sm"
-                    color="gray.300"
-                    _hover={{ color: 'white', textDecoration: 'underline' }}
-                    onClick={onOpen}
-                  >
-                    {t.common.register}
-                  </Button>
-                  <Button
-                    bg={brandColors.primary}
-                    color="white"
-                    _hover={{
-                      bg: brandColors.secondary,
-                    }}
-                    onClick={handleLogin}
-                    size="xs"
-                    px={4}
-                  >
-                    {t.common.login}
-                  </Button>
-                </Flex>
+                <Button
+                  bg={brandColors.primary}
+                  color="white"
+                  _hover={{
+                    bg: brandColors.secondary,
+                  }}
+                  onClick={handleLogin}
+                  size="xs"
+                  px={4}
+                >
+                  {t.common.login}
+                </Button>
               ) : (
                 <>
                   <Box>
