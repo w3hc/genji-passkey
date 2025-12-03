@@ -112,7 +112,7 @@ export default function About() {
         <VStack align="stretch" gap={2}>
           <Text>🔐 Passwordless authentication (WebAuthn/FIDO2)</Text>
           <Text>🛡️ Origin-specific key isolation with tag-based access control</Text>
-          <Text>⏱️ Session management (in-memory + optional persistent "Remember Me")</Text>
+          <Text>⏱️ Session management (in-memory + optional persistence)</Text>
           <Text>🔒 Persistent sessions (encrypted with WebAuthn keys, survives page refresh)</Text>
           <Text>🌱 HD wallet generation (BIP39/BIP44)</Text>
           <Text>🔢 Multi-address derivation</Text>
