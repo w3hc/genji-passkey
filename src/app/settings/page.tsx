@@ -1788,8 +1788,8 @@ const SettingsPage = () => {
                   }}
                   onClick={onRegisterModalOpen}
                   size="md"
-                  leftIcon={<Icon as={FiUserPlus} />}
                 >
+                  <Icon as={FiUserPlus} />
                   Register
                 </Button>
               </Box>
