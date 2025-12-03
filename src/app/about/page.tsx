@@ -112,7 +112,8 @@ export default function About() {
         <VStack align="stretch" gap={2}>
           <Text>🔐 Passwordless authentication (WebAuthn/FIDO2)</Text>
           <Text>🛡️ Origin-specific key isolation with tag-based access control</Text>
-          <Text>⏱️ Session management (configurable duration, prevents repeated prompts)</Text>
+          <Text>⏱️ Session management (in-memory + optional persistent "Remember Me")</Text>
+          <Text>🔒 Persistent sessions (encrypted with WebAuthn keys, survives page refresh)</Text>
           <Text>🌱 HD wallet generation (BIP39/BIP44)</Text>
           <Text>🔢 Multi-address derivation</Text>
           <Text>
@@ -124,11 +125,12 @@ export default function About() {
           <Text>🧮 ZK primitives (zero-knowledge proof generation and verification)</Text>
           <Text>🔗 Chainlist support (2390+ networks, auto-filtered RPC endpoints)</Text>
           <Text>⚡ EIP-7702 network detection (329+ supported networks)</Text>
+          <Text>🔑 EIP-7951 PRIMARY mode (sign with P-256 passkeys directly)</Text>
           <Text>🔍 Build verification (IPFS CIDv1 hashing for package integrity)</Text>
           <Text>🛡️ Three-layer backup & recovery system</Text>
           <VStack align="stretch" pl={6} gap={1}>
             <Text>• Passkey auto-sync (iCloud/Google/Microsoft)</Text>
-            <Text>• Encrypted backups (QR with password protection)</Text>
+            <Text>• Encrypted backups (QR codes and backup files with password protection)</Text>
             <Text>• Social recovery (Shamir Secret Sharing)</Text>
           </VStack>
         </VStack>
