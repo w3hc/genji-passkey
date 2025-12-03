@@ -26,6 +26,8 @@ import {
 } from '@chakra-ui/react'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
+import { Input } from '@/components/ui/input'
+import { Field } from '@/components/ui/field'
 import { Dialog, Portal } from '@/components/ui/dialog'
 import { toaster } from '@/components/ui/toaster'
 import { MdDelete, MdCheckCircle, MdWarning, MdInfo, MdDownload, MdLock } from 'react-icons/md'
@@ -40,6 +42,7 @@ import {
   FiHardDrive,
   FiUpload,
   FiClock,
+  FiUserPlus,
 } from 'react-icons/fi'
 import { useW3PK } from '../../../src/context/W3PK'
 import { useTranslation } from '@/hooks/useTranslation'
@@ -150,6 +153,12 @@ const SettingsPage = () => {
   const [isRecovering, setIsRecovering] = useState(false)
   const [showRecoverySection, setShowRecoverySection] = useState(false)
 
+  // Registration state
+  const { open: isRegisterModalOpen, onOpen: onRegisterModalOpen, onClose: onRegisterModalClose } = useDisclosure()
+  const [registerUsername, setRegisterUsername] = useState('')
+  const [isRegistering, setIsRegistering] = useState(false)
+  const [isRegisterUsernameInvalid, setIsRegisterUsernameInvalid] = useState(false)
+
   const {
     isAuthenticated,
     user,
@@ -158,6 +167,7 @@ const SettingsPage = () => {
     restoreFromBackup,
     login,
     logout,
+    register,
     deriveWallet,
     setupSocialRecovery,
     getSocialRecoveryConfig,
@@ -165,6 +175,88 @@ const SettingsPage = () => {
     recoverFromGuardians,
     clearSocialRecoveryConfig,
   } = useW3PK()
+
+  const validateUsername = (input: string): boolean => {
+    if (!input.trim()) {
+      return true
+    }
+
+    const trimmedInput = input.trim()
+
+    // Check overall format and length (3-50 chars)
+    // Alphanumeric, underscore, and hyphen allowed
+    // Must start and end with alphanumeric
+    const formatValid =
+      /^[a-zA-Z0-9]([a-zA-Z0-9_-]*[a-zA-Z0-9])?$/.test(trimmedInput) &&
+      trimmedInput.length >= 3 &&
+      trimmedInput.length <= 50
+
+    return formatValid
+  }
+
+  const handleRegister = async () => {
+    if (!registerUsername.trim()) {
+      toaster.create({
+        title: 'Username Required',
+        description: 'Please enter a username to register.',
+        type: 'warning',
+        duration: 3000,
+      })
+      setIsRegisterUsernameInvalid(true)
+      return
+    }
+
+    const isValid = validateUsername(registerUsername)
+    if (!isValid) {
+      setIsRegisterUsernameInvalid(true)
+      return
+    }
+
+    setIsRegisterUsernameInvalid(false)
+
+    try {
+      setIsRegistering(true)
+      console.log('[Settings] Starting registration for:', registerUsername.trim())
+
+      // Add timeout to prevent infinite loading
+      const registrationPromise = register(registerUsername.trim())
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Registration timeout after 60 seconds')), 60000)
+      )
+
+      await Promise.race([registrationPromise, timeoutPromise])
+
+      console.log('[Settings] Registration completed successfully')
+      setRegisterUsername('')
+      onRegisterModalClose()
+
+      toaster.create({
+        title: 'Registration Successful',
+        description: 'Your new account has been created.',
+        type: 'success',
+        duration: 5000,
+      })
+    } catch (error: any) {
+      console.error('[Settings] Registration failed:', error)
+
+      // Show user-friendly error message
+      toaster.create({
+        title: 'Registration Failed',
+        description: error.message || 'Unable to complete registration. Please try again.',
+        type: 'error',
+        duration: 8000,
+      })
+    } finally {
+      console.log('[Settings] Cleaning up registration state')
+      setIsRegistering(false)
+    }
+  }
+
+  const handleRegisterModalClose = () => {
+    setRegisterUsername('')
+    setIsRegisterUsernameInvalid(false)
+    onRegisterModalClose()
+  }
 
   const handleInspectLocalStorage = async () => {
     setIsInspectingLocalStorage(true)
@@ -331,6 +423,13 @@ const SettingsPage = () => {
   useEffect(() => {
     loadAccounts()
   }, [loadAccounts])
+
+  useEffect(() => {
+    const isValid = validateUsername(registerUsername)
+    if (isValid) {
+      setIsRegisterUsernameInvalid(false)
+    }
+  }, [registerUsername])
 
   useEffect(() => {
     const loadAddressesAndStatus = async () => {
@@ -1672,6 +1771,29 @@ const SettingsPage = () => {
                 </Box>
               </Box>
 
+              {/* Register a new account */}
+              <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
+                <HStack mb={4}>
+                  <Icon as={FiUserPlus} color={brandColors.primary} boxSize={6} />
+                  <Heading size="md">Register a new account</Heading>
+                </HStack>
+                <Text fontSize="sm" color="gray.400" mb={4}>
+                  Create a new Web3 passkey account. Each account is secured with your device&apos;s biometric authentication or PIN, and has its own Ethereum wallet.
+                </Text>
+                <Button
+                  bg={brandColors.primary}
+                  color="white"
+                  _hover={{
+                    bg: brandColors.secondary,
+                  }}
+                  onClick={onRegisterModalOpen}
+                  size="md"
+                  leftIcon={<Icon as={FiUserPlus} />}
+                >
+                  Register
+                </Button>
+              </Box>
+
               {/* W3PK Build Verification */}
               <BuildVerification />
             </VStack>
@@ -2984,6 +3106,77 @@ const SettingsPage = () => {
               </Dialog.Body>
               <Dialog.Footer gap={3} pt={6}>
                 <Button onClick={() => setShowIndexedDBModal(false)}>Close</Button>
+              </Dialog.Footer>
+              <Dialog.CloseTrigger asChild>
+                <CloseButton size="sm" />
+              </Dialog.CloseTrigger>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
+
+      {/* Registration Modal */}
+      <Dialog.Root
+        open={isRegisterModalOpen}
+        onOpenChange={(e: { open: boolean }) => (e.open ? null : handleRegisterModalClose())}
+      >
+        <Portal>
+          <Dialog.Backdrop />
+          <Dialog.Positioner>
+            <Dialog.Content p={6}>
+              <Dialog.Header>
+                <Dialog.Title>Register New Account</Dialog.Title>
+              </Dialog.Header>
+              <Dialog.Body pt={4}>
+                <VStack gap={4}>
+                  <Text fontSize="sm" color="gray.400">
+                    An Ethereum wallet will be created and securely stored on your device, protected
+                    by your biometric or PIN thanks to{' '}
+                    <ChakraLink
+                      href={'https://github.com/w3hc/w3pk/blob/main/src/auth/register.ts#L17-L102'}
+                      color={brandColors.accent}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      w3pk
+                    </ChakraLink>
+                    .
+                  </Text>
+                  <Field invalid={isRegisterUsernameInvalid} label="Username">
+                    <Input
+                      id="username-input"
+                      aria-describedby={
+                        isRegisterUsernameInvalid && registerUsername.trim() ? 'username-error' : undefined
+                      }
+                      aria-invalid={isRegisterUsernameInvalid && registerUsername.trim() ? true : undefined}
+                      value={registerUsername}
+                      onChange={e => setRegisterUsername(e.target.value)}
+                      placeholder="Enter your username"
+                      pl={3}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && registerUsername.trim()) {
+                          handleRegister()
+                        }
+                      }}
+                    />
+                    {isRegisterUsernameInvalid && registerUsername.trim() && (
+                      <Field.ErrorText id="username-error">
+                        Username must be 3-50 characters long and contain only letters, numbers,
+                        underscores, and hyphens. It must start and end with a letter or number.
+                      </Field.ErrorText>
+                    )}
+                  </Field>
+                </VStack>
+              </Dialog.Body>
+
+              <Dialog.Footer gap={3} pt={6}>
+                <Dialog.ActionTrigger asChild>
+                  <Button variant="outline">Cancel</Button>
+                </Dialog.ActionTrigger>
+                <Button colorPalette="blue" onClick={handleRegister} disabled={!registerUsername.trim()}>
+                  {isRegistering && <Spinner size="16px" />}
+                  {!isRegistering && 'Create Account'}
+                </Button>
               </Dialog.Footer>
               <Dialog.CloseTrigger asChild>
                 <CloseButton size="sm" />
