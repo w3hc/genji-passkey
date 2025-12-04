@@ -3187,7 +3187,7 @@ const SettingsPage = () => {
                   onClick={handleRegister}
                   disabled={!registerUsername.trim()}
                 >
-                  {isRegistering && <Spinner size="200px" />}
+                  {isRegistering && <Spinner size="42px" />}
                   {!isRegistering && 'Create Account'}
                 </Button>
               </Dialog.Footer>

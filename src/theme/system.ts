@@ -16,6 +16,9 @@ const customConfig = defineConfig({
         sectionPadding: { value: '5rem' }, // py={20} equivalent
         containerPadding: { value: '1rem' },
       },
+      sizes: {
+        spinnerSize: { value: '20px' }, // Default spinner size
+      },
     },
     semanticTokens: {
       colors: {

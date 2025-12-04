@@ -822,7 +822,7 @@ export default function Home() {
                       onClick={handleDisplayStrictAddress}
                       disabled={isLoadingStrict}
                     >
-                      {isLoadingStrict ? 'Authenticating...' : 'Authenticate to display address'}
+                      {isLoadingStrict ? 'Authenticating...' : 'Display address'}
                     </Button>
                   ) : (
                     <Text fontSize="sm" color="gray.400" wordBreak="break-all">
