@@ -65,8 +65,19 @@ export default function About() {
         </Text>
       </Heading>
 
-      <Text fontSize="lg" color="gray.400">
+      <Text fontSize="lg">
         w3pk is a passwordless Web3 authentication SDK with encrypted wallets and privacy features.
+        You can use it in any JS/TS-based web app (Next.js, Vue, Angular, Svelte, …).{' '}
+        <Link
+          href="https://github.com/w3hc/genji-passkey"
+          target="_blank"
+          rel="noopener noreferrer"
+          color={brandColors.accent}
+          _hover={{ color: '#3691e7' }}
+        >
+          Genji
+        </Link>{' '}
+        is a Next.js app template, feel free to fork it and build whatever you want!
       </Text>
 
       {/* Email Subscription Box */}
@@ -115,11 +126,13 @@ export default function About() {
           >
             <Flex
               align="center"
-              gap={2}
-              px={4}
-              py={2}
+              gap={3}
+              px={6}
+              py={3}
               borderRadius="md"
               bg="gray.800"
+              minW="140px"
+              justify="center"
               _hover={{
                 bg: 'gray.700',
                 transform: 'translateY(-2px)',
@@ -128,8 +141,8 @@ export default function About() {
               transition="all 0.2s"
               cursor="pointer"
             >
-              <Icon as={FaGithub} boxSize={5} color={brandColors.accent} />
-              <Text fontSize="sm" fontWeight="medium">
+              <Icon as={FaGithub} boxSize={6} color={brandColors.accent} />
+              <Text fontSize="md" fontWeight="medium">
                 GitHub
               </Text>
             </Flex>
@@ -143,11 +156,13 @@ export default function About() {
           >
             <Flex
               align="center"
-              gap={2}
-              px={4}
-              py={2}
+              gap={3}
+              px={6}
+              py={3}
               borderRadius="md"
               bg="gray.800"
+              minW="140px"
+              justify="center"
               _hover={{
                 bg: 'gray.700',
                 transform: 'translateY(-2px)',
@@ -156,8 +171,8 @@ export default function About() {
               transition="all 0.2s"
               cursor="pointer"
             >
-              <Icon as={FaNpm} boxSize={5} color={brandColors.primary} />
-              <Text fontSize="sm" fontWeight="medium">
+              <Icon as={FaNpm} boxSize={6} color={brandColors.primary} />
+              <Text fontSize="md" fontWeight="medium">
                 NPM
               </Text>
             </Flex>
