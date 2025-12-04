@@ -40,30 +40,50 @@ export default function Home() {
     let cancelled = false
 
     const loadAddresses = async () => {
-      if (!isAuthenticated || !user || mainAddress || openbarAddress) {
+      if (!isAuthenticated || !user) {
         return
       }
 
       try {
-        setIsLoadingMain(true)
-        const mainWallet = await deriveWallet('STANDARD', 'MAIN')
-        if (cancelled) return
-        setMainAddress(mainWallet.address)
-        setIsLoadingMain(false)
-
-        setIsLoadingOpenbar(true)
-        const openbarWallet = await deriveWallet('YOLO', 'OPENBAR')
-        if (cancelled) return
-        setOpenbarAddress(openbarWallet.address)
-        if (openbarWallet.privateKey) {
-          setOpenbarPrivateKey(openbarWallet.privateKey)
+        // Load PRIMARY address
+        if (!primaryAddress) {
+          setIsLoadingPrimary(true)
+          const primary = await getAddress('PRIMARY', 'PRIMARY')
+          if (cancelled) return
+          setPrimaryAddress(primary)
+          setIsLoadingPrimary(false)
         }
+
+        // Load MAIN address
+        if (!mainAddress) {
+          setIsLoadingMain(true)
+          const mainWallet = await deriveWallet('STANDARD', 'MAIN')
+          if (cancelled) return
+          setMainAddress(mainWallet.address)
+          setIsLoadingMain(false)
+        }
+
+        // Load OPENBAR address
+        if (!openbarAddress) {
+          setIsLoadingOpenbar(true)
+          const openbarWallet = await deriveWallet('YOLO', 'OPENBAR')
+          if (cancelled) return
+          setOpenbarAddress(openbarWallet.address)
+          if (openbarWallet.privateKey) {
+            setOpenbarPrivateKey(openbarWallet.privateKey)
+          }
+          setIsLoadingOpenbar(false)
+        }
+
+        // STRICT mode is NOT loaded automatically because it requires
+        // fresh authentication each time (no persistent sessions)
       } catch (error) {
         if (!cancelled) {
-          console.error('Failed to derive addresses:', error)
+          console.error('Failed to load addresses:', error)
         }
       } finally {
         if (!cancelled) {
+          setIsLoadingPrimary(false)
           setIsLoadingMain(false)
           setIsLoadingOpenbar(false)
         }
@@ -75,33 +95,14 @@ export default function Home() {
     return () => {
       cancelled = true
     }
-  }, [isAuthenticated, user, mainAddress, openbarAddress, deriveWallet])
-
-  const handleDisplayPrimaryAddress = async () => {
-    setIsLoadingPrimary(true)
-    try {
-      const primaryAddress = await getAddress('PRIMARY', 'PRIMARY')
-      console.log('PRIMARY address received:', primaryAddress)
-
-      setPrimaryAddress(primaryAddress)
-    } catch (error) {
-      console.error('Failed to get PRIMARY address:', error)
-      toaster.create({
-        title: 'Error',
-        description: 'Failed to get address',
-        type: 'error',
-        duration: 5000,
-      })
-    } finally {
-      setIsLoadingPrimary(false)
-    }
-  }
+  }, [isAuthenticated, user, mainAddress, openbarAddress, primaryAddress, deriveWallet, getAddress])
 
   const handleDisplayStrictAddress = async () => {
     setIsLoadingStrict(true)
     try {
-      const strictAddress = await getAddress('STRICT', 'STRICT')
-      setStrictAddress(strictAddress)
+      // STRICT mode requires fresh authentication each time
+      const strict = await getAddress('STRICT', 'STRICT')
+      setStrictAddress(strict)
     } catch (error) {
       console.error('Failed to get STRICT address:', error)
       toaster.create({
@@ -520,21 +521,9 @@ export default function Home() {
                 <Heading as="h3" size="md">
                   PRIMARY mode
                 </Heading>
-                {!primaryAddress ? (
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    colorPalette="blue"
-                    onClick={handleDisplayPrimaryAddress}
-                    disabled={isLoadingPrimary}
-                  >
-                    {isLoadingPrimary ? 'Loading...' : 'Display public address'}
-                  </Button>
-                ) : (
-                  <Text fontSize="sm" color="gray.400" wordBreak="break-all">
-                    {primaryAddress}
-                  </Text>
-                )}
+                <Text fontSize="sm" color="gray.400" wordBreak="break-all">
+                  {isLoadingPrimary ? 'Loading...' : primaryAddress || 'Not available'}
+                </Text>
                 <Text fontSize="xs" color="gray.500" fontStyle="italic">
                   This wallet is derived from your WebAuthn credential stored in your device&apos;s
                   secure element. There&apos;s simply <strong>no private key at all</strong>.
@@ -732,7 +721,7 @@ export default function Home() {
                     onClick={handleDisplayStrictAddress}
                     disabled={isLoadingStrict}
                   >
-                    {isLoadingStrict ? 'Loading...' : 'Display public address'}
+                    {isLoadingStrict ? 'Authenticating...' : 'Authenticate to display address'}
                   </Button>
                 ) : (
                   <Text fontSize="sm" color="gray.400" wordBreak="break-all">
