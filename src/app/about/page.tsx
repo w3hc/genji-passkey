@@ -104,36 +104,65 @@ export default function About() {
         </HStack>
       </Box>
 
-      {/* Features List */}
-      <Box mt={8}>
-        <Heading size="md" mb={4}>
-          Features
-        </Heading>
-        <VStack align="stretch" gap={2}>
-          <Text>🔐 Passwordless authentication (WebAuthn/FIDO2)</Text>
-          <Text>🛡️ Origin-specific key isolation with tag-based access control</Text>
-          <Text>⏱️ Session management (in-memory + optional persistence)</Text>
-          <Text>🔒 Persistent sessions (encrypted with WebAuthn keys, survives page refresh)</Text>
-          <Text>🌱 HD wallet generation (BIP39/BIP44)</Text>
-          <Text>🔢 Multi-address derivation</Text>
-          <Text>
-            🌐 Origin-specific addresses (deterministic derivation per website with tag support)
-          </Text>
-          <Text>
-            🥷 ERC-5564 stealth addresses (opt-in, privacy-preserving transactions with view tags)
-          </Text>
-          <Text>🧮 ZK primitives (zero-knowledge proof generation and verification)</Text>
-          <Text>🔗 Chainlist support (2390+ networks, auto-filtered RPC endpoints)</Text>
-          <Text>⚡ EIP-7702 network detection (329+ supported networks)</Text>
-          <Text>🔑 EIP-7951 PRIMARY mode (sign with P-256 passkeys directly)</Text>
-          <Text>🔍 Build verification (IPFS CIDv1 hashing for package integrity)</Text>
-          <Text>🛡️ Three-layer backup & recovery system</Text>
-          <VStack align="stretch" pl={6} gap={1}>
-            <Text>• Passkey auto-sync (iCloud/Google/Microsoft)</Text>
-            <Text>• Encrypted backups (QR codes and backup files with password protection)</Text>
-            <Text>• Social recovery (Shamir Secret Sharing)</Text>
-          </VStack>
-        </VStack>
+      <Box pt={6} pb={12}>
+        {/* Social Links */}
+        <HStack mt={20} gap={6} justify="center" py={4} borderColor="gray.800">
+          <Link
+            href="https://github.com/w3hc/w3pk"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="View w3pk on GitHub (opens in new tab)"
+          >
+            <Flex
+              align="center"
+              gap={2}
+              px={4}
+              py={2}
+              borderRadius="md"
+              bg="gray.800"
+              _hover={{
+                bg: 'gray.700',
+                transform: 'translateY(-2px)',
+                boxShadow: '0 4px 20px rgba(69, 162, 248, 0.3)',
+              }}
+              transition="all 0.2s"
+              cursor="pointer"
+            >
+              <Icon as={FaGithub} boxSize={5} color={brandColors.accent} />
+              <Text fontSize="sm" fontWeight="medium">
+                GitHub
+              </Text>
+            </Flex>
+          </Link>
+
+          <Link
+            href="https://www.npmjs.com/package/w3pk"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="View w3pk on NPM (opens in new tab)"
+          >
+            <Flex
+              align="center"
+              gap={2}
+              px={4}
+              py={2}
+              borderRadius="md"
+              bg="gray.800"
+              _hover={{
+                bg: 'gray.700',
+                transform: 'translateY(-2px)',
+                boxShadow: '0 4px 20px rgba(140, 28, 132, 0.3)',
+              }}
+              transition="all 0.2s"
+              cursor="pointer"
+            >
+              <Icon as={FaNpm} boxSize={5} color={brandColors.primary} />
+              <Text fontSize="sm" fontWeight="medium">
+                NPM
+              </Text>
+            </Flex>
+          </Link>
+        </HStack>
       </Box>
 
       {/* Code Showcase */}
@@ -254,65 +283,36 @@ export default function About() {
         </Box>
       </Box>
 
-      <Box pt={6} pb={12}>
-        {/* Social Links */}
-        <HStack gap={4} justify="center" py={4} borderColor="gray.800">
-          <Link
-            href="https://github.com/w3hc/w3pk"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="View w3pk on GitHub (opens in new tab)"
-          >
-            <Flex
-              align="center"
-              gap={2}
-              px={4}
-              py={2}
-              borderRadius="md"
-              bg="gray.800"
-              _hover={{
-                bg: 'gray.700',
-                transform: 'translateY(-2px)',
-                boxShadow: '0 4px 20px rgba(69, 162, 248, 0.3)',
-              }}
-              transition="all 0.2s"
-              cursor="pointer"
-            >
-              <Icon as={FaGithub} boxSize={5} color={brandColors.accent} />
-              <Text fontSize="sm" fontWeight="medium">
-                GitHub
-              </Text>
-            </Flex>
-          </Link>
-
-          <Link
-            href="https://www.npmjs.com/package/w3pk"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="View w3pk on NPM (opens in new tab)"
-          >
-            <Flex
-              align="center"
-              gap={2}
-              px={4}
-              py={2}
-              borderRadius="md"
-              bg="gray.800"
-              _hover={{
-                bg: 'gray.700',
-                transform: 'translateY(-2px)',
-                boxShadow: '0 4px 20px rgba(140, 28, 132, 0.3)',
-              }}
-              transition="all 0.2s"
-              cursor="pointer"
-            >
-              <Icon as={FaNpm} boxSize={5} color={brandColors.primary} />
-              <Text fontSize="sm" fontWeight="medium">
-                NPM
-              </Text>
-            </Flex>
-          </Link>
-        </HStack>
+      {/* Features List */}
+      <Box mt={4}>
+        <Heading size="md" mb={4}>
+          Features
+        </Heading>
+        <VStack align="stretch" gap={2}>
+          <Text>🔐 Passwordless authentication (WebAuthn/FIDO2)</Text>
+          <Text>🛡️ Origin-specific key isolation with tag-based access control</Text>
+          <Text>⏱️ Session management (in-memory + optional persistence)</Text>
+          <Text>🔒 Persistent sessions (encrypted with WebAuthn keys, survives page refresh)</Text>
+          <Text>🌱 HD wallet generation (BIP39/BIP44)</Text>
+          <Text>🔢 Multi-address derivation</Text>
+          <Text>
+            🌐 Origin-specific addresses (deterministic derivation per website with tag support)
+          </Text>
+          <Text>
+            🥷 ERC-5564 stealth addresses (opt-in, privacy-preserving transactions with view tags)
+          </Text>
+          <Text>🧮 ZK primitives (zero-knowledge proof generation and verification)</Text>
+          <Text>🔗 Chainlist support (2390+ networks, auto-filtered RPC endpoints)</Text>
+          <Text>⚡ EIP-7702 network detection (329+ supported networks)</Text>
+          <Text>🔑 EIP-7951 PRIMARY mode (sign with P-256 passkeys directly)</Text>
+          <Text>🔍 Build verification (IPFS CIDv1 hashing for package integrity)</Text>
+          <Text>🛡️ Three-layer backup & recovery system</Text>
+          <VStack align="stretch" pl={6} gap={1}>
+            <Text>• Passkey auto-sync (iCloud/Google/Microsoft)</Text>
+            <Text>• Encrypted backups (QR codes and backup files with password protection)</Text>
+            <Text>• Social recovery (Shamir Secret Sharing)</Text>
+          </VStack>
+        </VStack>
       </Box>
     </VStack>
   )
