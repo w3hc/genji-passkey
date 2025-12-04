@@ -154,7 +154,11 @@ const SettingsPage = () => {
   const [showRecoverySection, setShowRecoverySection] = useState(false)
 
   // Registration state
-  const { open: isRegisterModalOpen, onOpen: onRegisterModalOpen, onClose: onRegisterModalClose } = useDisclosure()
+  const {
+    open: isRegisterModalOpen,
+    onOpen: onRegisterModalOpen,
+    onClose: onRegisterModalClose,
+  } = useDisclosure()
   const [registerUsername, setRegisterUsername] = useState('')
   const [isRegistering, setIsRegistering] = useState(false)
   const [isRegisterUsernameInvalid, setIsRegisterUsernameInvalid] = useState(false)
@@ -855,7 +859,7 @@ const SettingsPage = () => {
               _hover={{ bg: brandColors.secondary }}
               onClick={handleRestoreBackup}
               loading={isRestoring}
-              spinner={<Spinner size="16px" />}
+              spinner={<Spinner size="200px" />}
               loadingText="Restoring..."
               disabled={isRestoring}
               width="full"
@@ -1778,7 +1782,8 @@ const SettingsPage = () => {
                   <Heading size="md">Register a new account</Heading>
                 </HStack>
                 <Text fontSize="sm" color="gray.400" mb={4}>
-                  Create a new Web3 passkey account. Each account is secured with your device&apos;s biometric authentication or PIN, and has its own Ethereum wallet.
+                  Create a new Web3 passkey account. Each account is secured with your device&apos;s
+                  biometric authentication or PIN, and has its own Ethereum wallet.
                 </Text>
                 <Button
                   bg={brandColors.primary}
@@ -1916,7 +1921,7 @@ const SettingsPage = () => {
                     _hover={{ bg: brandColors.secondary }}
                     onClick={handleGetBackupStatus}
                     loading={isCheckingStatus}
-                    spinner={<Spinner size="16px" />}
+                    spinner={<Spinner size="50px" />}
                     loadingText="Checking..."
                     disabled={isCheckingStatus || isCreatingBackup || isRestoring}
                     width="full"
@@ -1947,7 +1952,7 @@ const SettingsPage = () => {
                     _hover={{ bg: brandColors.secondary }}
                     onClick={handleCreateBackup}
                     loading={isCreatingBackup}
-                    spinner={<Spinner size="16px" />}
+                    spinner={<Spinner size="50px" />}
                     loadingText="Creating..."
                     disabled={isCheckingStatus || isCreatingBackup || isRestoring}
                     width="full"
@@ -1980,7 +1985,7 @@ const SettingsPage = () => {
                     _hover={{ bg: brandColors.secondary }}
                     onClick={handleRestoreBackup}
                     loading={isRestoring}
-                    spinner={<Spinner size="16px" />}
+                    spinner={<Spinner size="50px" />}
                     loadingText="Restoring..."
                     disabled={isCheckingStatus || isCreatingBackup || isRestoring}
                     width="full"
@@ -2363,7 +2368,7 @@ const SettingsPage = () => {
                             _hover={{ bg: 'orange.600' }}
                             disabled={recoveryShares.length < 2 || isRecovering}
                             loading={isRecovering}
-                            spinner={<Spinner size="16px" />}
+                            spinner={<Spinner size="50px" />}
                             loadingText="Recovering..."
                             width="full"
                             size="lg"
@@ -3146,9 +3151,13 @@ const SettingsPage = () => {
                     <Input
                       id="username-input"
                       aria-describedby={
-                        isRegisterUsernameInvalid && registerUsername.trim() ? 'username-error' : undefined
+                        isRegisterUsernameInvalid && registerUsername.trim()
+                          ? 'username-error'
+                          : undefined
                       }
-                      aria-invalid={isRegisterUsernameInvalid && registerUsername.trim() ? true : undefined}
+                      aria-invalid={
+                        isRegisterUsernameInvalid && registerUsername.trim() ? true : undefined
+                      }
                       value={registerUsername}
                       onChange={e => setRegisterUsername(e.target.value)}
                       placeholder="Enter your username"
@@ -3173,8 +3182,12 @@ const SettingsPage = () => {
                 <Dialog.ActionTrigger asChild>
                   <Button variant="outline">Cancel</Button>
                 </Dialog.ActionTrigger>
-                <Button colorPalette="blue" onClick={handleRegister} disabled={!registerUsername.trim()}>
-                  {isRegistering && <Spinner size="16px" />}
+                <Button
+                  colorPalette="blue"
+                  onClick={handleRegister}
+                  disabled={!registerUsername.trim()}
+                >
+                  {isRegistering && <Spinner size="42px" />}
                   {!isRegistering && 'Create Account'}
                 </Button>
               </Dialog.Footer>

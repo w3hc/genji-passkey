@@ -4,10 +4,10 @@
 
 Next.js Web3 starter with passkey auth and [WCAG 2.1 AA](https://www.levelaccess.com/understanding-wcag-emea/) compliant accessibility.
 
-Live demo: **https://genji-passkey.vercel.app**
+Live demo: **https://genji.w3hc.org/**
 
-- [Next.js](https://nextjs.org/) `v16.0.3`
-- [w3pk](https://github.com/w3hc/w3pk) `v0.7.7`
+- [Next.js](https://nextjs.org/) `v16.0.7`
+- [w3pk](https://github.com/w3hc/w3pk) `v0.8.6`
 - [Ethers](https://docs.ethers.org/) `v6.15.0`
 - [Chakra UI](https://chakra-ui.com/) `v3.30.0`
 

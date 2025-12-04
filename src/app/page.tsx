@@ -9,11 +9,39 @@ import { toaster } from '@/components/ui/toaster'
 
 const CONTRACT_ADDRESS = '0x2727e2b70ba497cdb078b1d993594b6dc46d2744'
 
+const shimmerStyles = `
+  @keyframes colorWave {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  .shimmer-text {
+    background: linear-gradient(120deg, #3182ce 0%, #ffffff 25%, #805ad5 50%, #ffffff 75%, #3182ce 100%);
+    background-size: 400% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: colorWave 10s ease-in-out infinite;
+  }
+`
+
 export default function Home() {
-  const { isAuthenticated, user, login, signMessage, deriveWallet } = useW3PK()
+  const {
+    isAuthenticated,
+    user,
+    login,
+    signMessage,
+    deriveWallet,
+    getAddress,
+    getStealthKeys,
+    generateStealthAddressFor,
+  } = useW3PK()
   const t = useTranslation()
   const [primaryAddress, setPrimaryAddress] = useState<string>('')
-  const [primaryPublicKey, setPrimaryPublicKey] = useState<string>('')
   const [mainAddress, setMainAddress] = useState<string>('')
   const [strictAddress, setStrictAddress] = useState<string>('')
   const [openbarAddress, setOpenbarAddress] = useState<string>('')
@@ -36,34 +64,60 @@ export default function Home() {
     timestamp: Date
   } | null>(null)
 
+  // Stealth address state
+  const [stealthMetaAddress, setStealthMetaAddress] = useState<string>('')
+  const [stealthAddress, setStealthAddress] = useState<string>('')
+  const [isLoadingStealth, setIsLoadingStealth] = useState(false)
+  const [isGeneratingStealth, setIsGeneratingStealth] = useState(false)
+
   useEffect(() => {
     let cancelled = false
 
     const loadAddresses = async () => {
-      if (!isAuthenticated || !user || mainAddress || openbarAddress) {
+      if (!isAuthenticated || !user) {
         return
       }
 
       try {
-        setIsLoadingMain(true)
-        const mainWallet = await deriveWallet('STANDARD', 'MAIN')
-        if (cancelled) return
-        setMainAddress(mainWallet.address)
-        setIsLoadingMain(false)
-
-        setIsLoadingOpenbar(true)
-        const openbarWallet = await deriveWallet('YOLO', 'OPENBAR')
-        if (cancelled) return
-        setOpenbarAddress(openbarWallet.address)
-        if (openbarWallet.privateKey) {
-          setOpenbarPrivateKey(openbarWallet.privateKey)
+        // Load PRIMARY address
+        if (!primaryAddress) {
+          setIsLoadingPrimary(true)
+          const primary = await getAddress('PRIMARY', 'PRIMARY')
+          if (cancelled) return
+          setPrimaryAddress(primary)
+          setIsLoadingPrimary(false)
         }
+
+        // Load MAIN address
+        if (!mainAddress) {
+          setIsLoadingMain(true)
+          const mainWallet = await deriveWallet('STANDARD', 'MAIN')
+          if (cancelled) return
+          setMainAddress(mainWallet.address)
+          setIsLoadingMain(false)
+        }
+
+        // Load OPENBAR address
+        if (!openbarAddress) {
+          setIsLoadingOpenbar(true)
+          const openbarWallet = await deriveWallet('YOLO', 'OPENBAR')
+          if (cancelled) return
+          setOpenbarAddress(openbarWallet.address)
+          if (openbarWallet.privateKey) {
+            setOpenbarPrivateKey(openbarWallet.privateKey)
+          }
+          setIsLoadingOpenbar(false)
+        }
+
+        // STRICT mode is NOT loaded automatically because it requires
+        // fresh authentication each time (no persistent sessions)
       } catch (error) {
         if (!cancelled) {
-          console.error('Failed to derive addresses:', error)
+          console.error('Failed to load addresses:', error)
         }
       } finally {
         if (!cancelled) {
+          setIsLoadingPrimary(false)
           setIsLoadingMain(false)
           setIsLoadingOpenbar(false)
         }
@@ -75,46 +129,19 @@ export default function Home() {
     return () => {
       cancelled = true
     }
-  }, [isAuthenticated, user, mainAddress, openbarAddress, deriveWallet])
-
-  const handleDisplayPrimaryAddress = async () => {
-    setIsLoadingPrimary(true)
-    try {
-      const primaryWallet = await deriveWallet('PRIMARY', 'PRIMARY')
-      console.log('PRIMARY wallet received:', primaryWallet)
-      console.log('Has publicKey?', !!primaryWallet.publicKey)
-      console.log('Full wallet object:', JSON.stringify(primaryWallet, null, 2))
-
-      setPrimaryAddress(primaryWallet.address)
-      if (primaryWallet.publicKey) {
-        setPrimaryPublicKey(primaryWallet.publicKey)
-        console.log('Public key stored in state')
-      } else {
-        console.error('No public key in PRIMARY wallet!')
-      }
-    } catch (error) {
-      console.error('Failed to derive PRIMARY address:', error)
-      toaster.create({
-        title: 'Error',
-        description: 'Failed to derive address',
-        type: 'error',
-        duration: 5000,
-      })
-    } finally {
-      setIsLoadingPrimary(false)
-    }
-  }
+  }, [isAuthenticated, user, mainAddress, openbarAddress, primaryAddress, deriveWallet, getAddress])
 
   const handleDisplayStrictAddress = async () => {
     setIsLoadingStrict(true)
     try {
-      const strictWallet = await deriveWallet('STRICT', 'STRICT')
-      setStrictAddress(strictWallet.address)
+      // STRICT mode requires fresh authentication each time
+      const strict = await getAddress('STRICT', 'STRICT')
+      setStrictAddress(strict)
     } catch (error) {
-      console.error('Failed to derive STRICT address:', error)
+      console.error('Failed to get STRICT address:', error)
       toaster.create({
         title: 'Error',
-        description: 'Failed to derive address',
+        description: 'Failed to get address',
         type: 'error',
         duration: 5000,
       })
@@ -241,19 +268,84 @@ export default function Home() {
     }
   }
 
+  const handleLoadStealthKeys = async () => {
+    setIsLoadingStealth(true)
+    try {
+      const keys = await getStealthKeys()
+      if (keys) {
+        const metaAddr = keys.stealthMetaAddress || keys.metaAddress || ''
+        setStealthMetaAddress(metaAddr)
+        toaster.create({
+          title: 'Stealth Keys Loaded',
+          description: 'Your stealth meta-address is ready',
+          type: 'success',
+          duration: 3000,
+        })
+      }
+    } catch (error) {
+      console.error('Failed to load stealth keys:', error)
+      toaster.create({
+        title: 'Error',
+        description: 'Failed to load stealth keys',
+        type: 'error',
+        duration: 5000,
+      })
+    } finally {
+      setIsLoadingStealth(false)
+    }
+  }
+
+  const handleGenerateStealthAddress = async () => {
+    if (!stealthMetaAddress) {
+      toaster.create({
+        title: 'No Meta-Address',
+        description: 'Please load your stealth keys first',
+        type: 'warning',
+        duration: 3000,
+      })
+      return
+    }
+
+    setIsGeneratingStealth(true)
+    try {
+      const result = await generateStealthAddressFor(stealthMetaAddress)
+      if (result) {
+        setStealthAddress(result.stealthAddress)
+        toaster.create({
+          title: 'Stealth Address Generated',
+          description: 'You can now sign a message with this address',
+          type: 'success',
+          duration: 3000,
+        })
+      }
+    } catch (error) {
+      console.error('Failed to generate stealth address:', error)
+      toaster.create({
+        title: 'Error',
+        description: 'Failed to generate stealth address',
+        type: 'error',
+        duration: 5000,
+      })
+    } finally {
+      setIsGeneratingStealth(false)
+    }
+  }
+
   const handleSendVerifyP256Tx = async () => {
     try {
       if (!user) {
         throw new Error('No user found')
       }
 
-      // Use the stored public key from state
-      if (!primaryPublicKey) {
+      // Derive the PRIMARY wallet to get the public key
+      const primaryWallet = await deriveWallet('PRIMARY', 'PRIMARY')
+
+      if (!primaryWallet.publicKey) {
         throw new Error('No public key found for PRIMARY wallet')
       }
 
       // Decode the public key to get x and y coordinates
-      const publicKeySpki = primaryPublicKey
+      const publicKeySpki = primaryWallet.publicKey
       const publicKeyBuffer = base64UrlToArrayBuffer(publicKeySpki)
 
       // Import the public key
@@ -364,17 +456,6 @@ export default function Home() {
       const rpcUrl = 'https://ethereum-rpc.publicnode.com'
       const provider = new ethers.JsonRpcProvider(rpcUrl)
 
-      // First, check if the contract exists
-      const code = await provider.getCode(CONTRACT_ADDRESS)
-
-      console.log('Contract code at', CONTRACT_ADDRESS, ':', code)
-
-      if (code === '0x') {
-        throw new Error(
-          `No contract found at ${CONTRACT_ADDRESS}. The EIP-7951 precompile might not be deployed on Sepolia yet, or you may need to use a different network (like Holesky or mainnet after the Fusaka upgrade).`
-        )
-      }
-
       const contractABI = [
         'function verifyP256(bytes32 h, bytes32 r, bytes32 s, bytes32 qx, bytes32 qy) external view returns (tuple(bool valid, bytes32 inputHash, address contractAddress, uint256 chainId, uint256 timestamp))',
       ]
@@ -427,7 +508,7 @@ export default function Home() {
           duration: 7000,
         })
 
-        // Save to database - "I was there" feature with on-chain response
+        // Save to offchain database
         try {
           const response = await fetch('/api/eip7951', {
             method: 'POST',
@@ -443,7 +524,6 @@ export default function Home() {
               contractAddress: CONTRACT_ADDRESS,
               txHash: null,
               verificationTimestamp: timestamp.toISOString(),
-              // On-chain response data from contract
               contractValid: valid,
               contractInputHash: inputHash,
               contractReturnedAddress: returnedContractAddress,
@@ -493,207 +573,124 @@ export default function Home() {
   }
 
   return (
-    <VStack gap={8} align="stretch" py={20}>
-      <Box p={6} borderRadius="md" textAlign="center">
-        {isAuthenticated ? (
-          <>
-            <Heading as="h1" size="xl" mb={4}>
-              {t.home.title}
-            </Heading>
-            <Text mb={6} color="gray.400">
-              {t.home.subtitle}
-            </Text>
-            <Box h="20px" />
-          </>
-        ) : (
-          <>
-            <Heading as="h1" size="xl" mb={4}>
-              {t.home.greeting}
-            </Heading>
-            <Text mb={6} color="gray.400">
-              {t.home.greetingSubtitle}
-            </Text>
-            <Text fontSize="sm" color="gray.500">
-              <Button
-                variant="plain"
-                as="span"
-                color="gray.500"
-                textDecorationStyle="dotted"
-                textUnderlineOffset="3px"
-                cursor="pointer"
-                _hover={{ color: 'gray.300' }}
-                onClick={login}
-                fontSize="sm"
-              >
-                {t.common.pleaseLogin}{' '}
-              </Button>
-            </Text>
-          </>
-        )}
-      </Box>
+    <>
+      <style dangerouslySetInnerHTML={{ __html: shimmerStyles }} />
+      <VStack gap={8} align="stretch" py={20}>
+        <Box p={6} borderRadius="md" textAlign="center">
+          {isAuthenticated ? (
+            <>
+              <Heading as="h1" size="xl" mb={4}>
+                {t.home.title}
+              </Heading>
+              <Text mb={6} color="gray.400">
+                {t.home.subtitle}
+              </Text>
+              <Box h="20px" />
+            </>
+          ) : (
+            <>
+              <Heading as="h1" size="xl" mb={4}>
+                {t.home.greeting}
+              </Heading>
+              <Text mb={6} color="gray.400">
+                {t.home.greetingSubtitle}
+              </Text>
+              <Text fontSize="sm" color="gray.500">
+                <Button
+                  variant="plain"
+                  as="span"
+                  color="gray.500"
+                  textDecorationStyle="dotted"
+                  textUnderlineOffset="3px"
+                  cursor="pointer"
+                  _hover={{ color: 'gray.300' }}
+                  onClick={login}
+                  fontSize="sm"
+                >
+                  {t.common.pleaseLogin}{' '}
+                </Button>
+              </Text>
+            </>
+          )}
+        </Box>
 
-      {isAuthenticated && user && (
-        <>
-          <SimpleGrid columns={{ base: 1, md: 1 }} gap={6}>
-            <Box p={6} borderWidth="1px" borderRadius="lg" borderColor="gray.700" bg="gray.900">
-              <VStack gap={4} align="stretch">
-                <Heading as="h3" size="md">
-                  PRIMARY mode
-                </Heading>
-                {!primaryAddress ? (
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    colorPalette="blue"
-                    onClick={handleDisplayPrimaryAddress}
-                    disabled={isLoadingPrimary}
-                  >
-                    {isLoadingPrimary ? 'Loading...' : 'Display public address'}
-                  </Button>
-                ) : (
-                  <Text fontSize="sm" color="gray.400" wordBreak="break-all">
-                    {primaryAddress}
+        {isAuthenticated && user && (
+          <>
+            <SimpleGrid columns={{ base: 1, md: 1 }} gap={6}>
+              <Box p={6} borderWidth="1px" borderRadius="lg" borderColor="gray.700" bg="gray.900">
+                <VStack gap={4} align="stretch">
+                  <Heading as="h3" size="md">
+                    PRIMARY mode (passkey)
+                  </Heading>
+                  <Box as="span" fontSize="xl" wordBreak="break-all" className="shimmer-text">
+                    {isLoadingPrimary ? 'Loading...' : primaryAddress || 'Not available'}
+                  </Box>
+                  <Text fontSize="xs" color="gray.500" fontStyle="italic">
+                    This wallet is derived from your WebAuthn credential stored in your
+                    device&apos;s secure element. There&apos;s simply{' '}
+                    <strong>no private key at all</strong>. It&apos;s compliant with EIP-7951 that
+                    was introduced in Fusaka upgrade (Dec 3, 2025), meaning you can send a
+                    transaction with passkey (fingerprint or face recognition).
                   </Text>
-                )}
-                <Text fontSize="xs" color="gray.500" fontStyle="italic">
-                  This wallet is derived from your WebAuthn credential stored in your device&apos;s
-                  secure element. There&apos;s simply <strong>no private key at all</strong>.
-                  It&apos;s compliant with EIP-7951 that was introduced in Fusaka upgrade (Dec 3,
-                  2025), meaning you can send a transaction with passkey (fingerprint or face
-                  recognition).
-                </Text>
-                <Button
-                  bg="brand.accent"
-                  color="white"
-                  _hover={{ bg: 'brand.accent', opacity: 0.9 }}
-                  onClick={() => handleSignMessage('PRIMARY', primaryAddress)}
-                  disabled={!primaryAddress || isLoadingPrimary}
-                >
-                  Sign a message
-                </Button>
-                <Button
-                  bg="blue.600"
-                  color="white"
-                  _hover={{ bg: 'blue.700' }}
-                  onClick={() => handleSendVerifyP256Tx()}
-                  disabled={!primaryAddress || isLoadingPrimary}
-                >
-                  Verify onchain
-                </Button>
-
-                {verificationResult && (
-                  <Box
-                    mt={4}
-                    p={4}
-                    borderWidth="1px"
-                    borderRadius="md"
-                    borderColor="green.500"
-                    bg="green.900"
+                  <Button
+                    bg="brand.accent"
+                    color="white"
+                    _hover={{ bg: 'brand.accent', opacity: 0.9 }}
+                    onClick={() => handleSignMessage('PRIMARY', primaryAddress)}
+                    disabled={!primaryAddress || isLoadingPrimary}
                   >
-                    <VStack gap={3} align="stretch">
-                      <Heading as="h4" size="sm" color="green.300">
-                        ✓ Verification Successful
-                      </Heading>
+                    Sign a message
+                  </Button>
+                  <Button
+                    bg="blue.600"
+                    color="white"
+                    _hover={{ bg: 'blue.700' }}
+                    onClick={() => handleSendVerifyP256Tx()}
+                    disabled={!primaryAddress || isLoadingPrimary}
+                  >
+                    Verify onchain
+                  </Button>
 
-                      <Text fontSize="xs" color="gray.400">
-                        {verificationResult.timestamp.toLocaleString()}
-                      </Text>
+                  {verificationResult && (
+                    <Box
+                      mt={4}
+                      p={4}
+                      borderWidth="1px"
+                      borderRadius="md"
+                      borderColor="green.500"
+                      bg="green.900"
+                    >
+                      <VStack gap={3} align="stretch">
+                        <Heading as="h4" size="sm" color="green.300">
+                          ✓ Verification Successful
+                        </Heading>
 
-                      <Box>
-                        <Text fontSize="xs" fontWeight="bold" color="gray.300" mb={1}>
-                          Contract Address:
+                        <Text fontSize="xs" color="gray.400">
+                          {verificationResult.timestamp.toLocaleString()}
                         </Text>
-                        <Link
-                          href={`https://etherscan.io/address/${verificationResult.contractAddress}#code`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          fontSize="xs"
-                          color="blue.400"
-                          fontFamily="mono"
-                          wordBreak="break-all"
-                          textDecoration="underline"
-                          _hover={{ color: 'blue.300' }}
-                        >
-                          {verificationResult.contractAddress}
-                        </Link>
-                      </Box>
 
-                      <Box>
-                        <Text fontSize="xs" fontWeight="bold" color="gray.300" mb={1}>
-                          Message Hash:
-                        </Text>
-                        <Text
-                          fontSize="xs"
-                          color="gray.400"
-                          fontFamily="mono"
-                          wordBreak="break-all"
-                        >
-                          {verificationResult.messageHash}
-                        </Text>
-                      </Box>
-
-                      <Box>
-                        <Text fontSize="xs" fontWeight="bold" color="gray.300" mb={1}>
-                          WebAuthn Signed Hash:
-                        </Text>
-                        <Text
-                          fontSize="xs"
-                          color="gray.400"
-                          fontFamily="mono"
-                          wordBreak="break-all"
-                        >
-                          {verificationResult.signedHash}
-                        </Text>
-                      </Box>
-
-                      <Box>
-                        <Text fontSize="xs" fontWeight="bold" color="gray.300" mb={1}>
-                          Signature (r, s):
-                        </Text>
-                        <Text
-                          fontSize="xs"
-                          color="gray.400"
-                          fontFamily="mono"
-                          wordBreak="break-all"
-                        >
-                          r: {verificationResult.signature.r}
-                        </Text>
-                        <Text
-                          fontSize="xs"
-                          color="gray.400"
-                          fontFamily="mono"
-                          wordBreak="break-all"
-                        >
-                          s: {verificationResult.signature.s}
-                        </Text>
-                      </Box>
-
-                      <Box>
-                        <Text fontSize="xs" fontWeight="bold" color="gray.300" mb={1}>
-                          Public Key (qx, qy):
-                        </Text>
-                        <Text
-                          fontSize="xs"
-                          color="gray.400"
-                          fontFamily="mono"
-                          wordBreak="break-all"
-                        >
-                          qx: {verificationResult.publicKey.qx}
-                        </Text>
-                        <Text
-                          fontSize="xs"
-                          color="gray.400"
-                          fontFamily="mono"
-                          wordBreak="break-all"
-                        >
-                          qy: {verificationResult.publicKey.qy}
-                        </Text>
-                      </Box>
-
-                      {verificationResult.inputHash && (
                         <Box>
                           <Text fontSize="xs" fontWeight="bold" color="gray.300" mb={1}>
-                            Input Hash:
+                            Contract Address:
+                          </Text>
+                          <Link
+                            href={`https://etherscan.io/address/${verificationResult.contractAddress}#code`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            fontSize="xs"
+                            color="blue.400"
+                            fontFamily="mono"
+                            wordBreak="break-all"
+                            textDecoration="underline"
+                            _hover={{ color: 'blue.300' }}
+                          >
+                            {verificationResult.contractAddress}
+                          </Link>
+                        </Box>
+
+                        <Box>
+                          <Text fontSize="xs" fontWeight="bold" color="gray.300" mb={1}>
+                            Message Hash:
                           </Text>
                           <Text
                             fontSize="xs"
@@ -701,167 +698,243 @@ export default function Home() {
                             fontFamily="mono"
                             wordBreak="break-all"
                           >
-                            {verificationResult.inputHash}
+                            {verificationResult.messageHash}
                           </Text>
                         </Box>
-                      )}
 
-                      {verificationResult.chainId && (
                         <Box>
                           <Text fontSize="xs" fontWeight="bold" color="gray.300" mb={1}>
-                            Chain ID:
+                            WebAuthn Signed Hash:
                           </Text>
-                          <Text fontSize="xs" color="gray.400">
-                            {verificationResult.chainId}
-                          </Text>
-                        </Box>
-                      )}
-
-                      {verificationResult.savedToDatabase && (
-                        <Box
-                          p={2}
-                          borderRadius="md"
-                          bg="green.800"
-                          borderWidth="1px"
-                          borderColor="green.400"
-                        >
                           <Text
-                            fontSize="sm"
-                            fontWeight="bold"
-                            color="green.200"
-                            textAlign="center"
+                            fontSize="xs"
+                            color="gray.400"
+                            fontFamily="mono"
+                            wordBreak="break-all"
                           >
-                            🎉 To celebrate the Fusaka upgrade, you will receive a special NFT on OP
-                            Mainnet in the coming days. Thanks for your patience. Let&apos;s keep on
-                            improving Ethereum UX!
+                            {verificationResult.signedHash}
                           </Text>
                         </Box>
-                      )}
-                    </VStack>
-                  </Box>
-                )}
-              </VStack>
-            </Box>
 
-            <Box p={6} borderWidth="1px" borderRadius="lg" borderColor="gray.700" bg="gray.900">
-              <VStack gap={4} align="stretch">
-                <Heading as="h3" size="md">
-                  STRICT mode
-                </Heading>
-                {!strictAddress ? (
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    colorPalette="blue"
-                    onClick={handleDisplayStrictAddress}
-                    disabled={isLoadingStrict}
-                  >
-                    {isLoadingStrict ? 'Loading...' : 'Display public address'}
-                  </Button>
-                ) : (
-                  <Text fontSize="sm" color="gray.400" wordBreak="break-all">
-                    {strictAddress}
+                        <Box>
+                          <Text fontSize="xs" fontWeight="bold" color="gray.300" mb={1}>
+                            Signature (r, s):
+                          </Text>
+                          <Text
+                            fontSize="xs"
+                            color="gray.400"
+                            fontFamily="mono"
+                            wordBreak="break-all"
+                          >
+                            r: {verificationResult.signature.r}
+                          </Text>
+                          <Text
+                            fontSize="xs"
+                            color="gray.400"
+                            fontFamily="mono"
+                            wordBreak="break-all"
+                          >
+                            s: {verificationResult.signature.s}
+                          </Text>
+                        </Box>
+
+                        <Box>
+                          <Text fontSize="xs" fontWeight="bold" color="gray.300" mb={1}>
+                            Public Key (qx, qy):
+                          </Text>
+                          <Text
+                            fontSize="xs"
+                            color="gray.400"
+                            fontFamily="mono"
+                            wordBreak="break-all"
+                          >
+                            qx: {verificationResult.publicKey.qx}
+                          </Text>
+                          <Text
+                            fontSize="xs"
+                            color="gray.400"
+                            fontFamily="mono"
+                            wordBreak="break-all"
+                          >
+                            qy: {verificationResult.publicKey.qy}
+                          </Text>
+                        </Box>
+
+                        {verificationResult.inputHash && (
+                          <Box>
+                            <Text fontSize="xs" fontWeight="bold" color="gray.300" mb={1}>
+                              Input Hash:
+                            </Text>
+                            <Text
+                              fontSize="xs"
+                              color="gray.400"
+                              fontFamily="mono"
+                              wordBreak="break-all"
+                            >
+                              {verificationResult.inputHash}
+                            </Text>
+                          </Box>
+                        )}
+
+                        {verificationResult.chainId && (
+                          <Box>
+                            <Text fontSize="xs" fontWeight="bold" color="gray.300" mb={1}>
+                              Chain ID:
+                            </Text>
+                            <Text fontSize="xs" color="gray.400">
+                              {verificationResult.chainId}
+                            </Text>
+                          </Box>
+                        )}
+
+                        {verificationResult.savedToDatabase && (
+                          <Box
+                            p={2}
+                            borderRadius="md"
+                            bg="green.800"
+                            borderWidth="1px"
+                            borderColor="green.400"
+                          >
+                            <Text fontSize="sm" fontWeight="bold" color="green.200">
+                              This proves EIP-7951 precompiles are in place on Ethereum Mainnet. We
+                              live in a Fusaka world now. You will receive a special NFT in the
+                              coming days. Thanks for your patience. Let&apos;s keep improving
+                              Ethereum UX! Props to everyone involved in this upgrade!! 🎉🎉🎉
+                            </Text>
+                          </Box>
+                        )}
+                      </VStack>
+                    </Box>
+                  )}
+                </VStack>
+              </Box>
+
+              <Box p={6} borderWidth="1px" borderRadius="lg" borderColor="gray.700" bg="gray.900">
+                <VStack gap={4} align="stretch">
+                  <Heading as="h3" size="md">
+                    STRICT mode
+                  </Heading>
+                  {!strictAddress ? (
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      colorPalette="blue"
+                      onClick={handleDisplayStrictAddress}
+                      disabled={isLoadingStrict}
+                    >
+                      {isLoadingStrict ? 'Authenticating...' : 'Display address'}
+                    </Button>
+                  ) : (
+                    <Text fontSize="sm" color="gray.400" wordBreak="break-all">
+                      {strictAddress}
+                    </Text>
+                  )}
+                  <Text fontSize="xs" color="gray.500" fontStyle="italic">
+                    The app <strong>can&apos;t</strong> access the private key and persistent
+                    sessions are <strong>not</strong> allowed. These wallets are orgin-specific and
+                    derived from the mnemonic encrypted with user&apos;s WebAuthn credentials and
+                    stored in device indexed DB. You can make use of tags and derive as many wallets
+                    as you want.
                   </Text>
-                )}
-                <Text fontSize="xs" color="gray.500" fontStyle="italic">
-                  The app <strong>can&apos;t</strong> access the private key and persistent sessions
-                  are <strong>not</strong> allowed. These wallets are orgin-specific and derived
-                  from the mnemonic encrypted with user&apos;s WebAuthn credentials and stored in
-                  device indexed DB. You can make use of tags and derive as many wallets as you
-                  want.
-                </Text>
-                <Button
-                  bg="brand.accent"
-                  color="white"
-                  _hover={{ bg: 'brand.accent', opacity: 0.9 }}
-                  onClick={() => handleSignMessage('STRICT', strictAddress)}
-                  disabled={!strictAddress || isLoadingStrict}
-                >
-                  Sign a message
-                </Button>
-              </VStack>
-            </Box>
-
-            <Box p={6} borderWidth="1px" borderRadius="lg" borderColor="gray.700" bg="gray.900">
-              <VStack gap={4} align="stretch">
-                <Heading as="h3" size="md">
-                  STANDARD mode
-                </Heading>
-                <Text fontSize="sm" color="gray.400" wordBreak="break-all">
-                  {isLoadingMain ? 'Loading...' : mainAddress || 'Not available'}
-                </Text>
-                <Text fontSize="xs" color="gray.500" fontStyle="italic">
-                  The app <strong>can&apos;t</strong> access the private key. Persistent sessions{' '}
-                  <strong>are</strong> allowed. These wallets are orgin-specific and derived from
-                  the mnemonic encrypted with user&apos;s WebAuthn credentials and stored in device
-                  indexed DB. You can make use of tags and derive as many wallets as you want.
-                </Text>
-                <Button
-                  bg="brand.accent"
-                  color="white"
-                  _hover={{ bg: 'brand.accent', opacity: 0.9 }}
-                  onClick={() => handleSignMessage('default', mainAddress)}
-                  disabled={!mainAddress || isLoadingMain}
-                >
-                  Sign a message
-                </Button>
-              </VStack>
-            </Box>
-
-            <Box p={6} borderWidth="1px" borderRadius="lg" borderColor="gray.700" bg="gray.900">
-              <VStack gap={4} align="stretch">
-                <Heading as="h3" size="md">
-                  YOLO mode
-                </Heading>
-                <Text fontSize="sm" color="gray.400" wordBreak="break-all">
-                  {isLoadingOpenbar ? 'Loading...' : openbarAddress || 'Not available'}
-                </Text>
-                <Text fontSize="xs" color="gray.500" fontStyle="italic">
-                  The app <strong>can</strong> access the private key. Persistent sessions{' '}
-                  <strong>are</strong> allowed. These wallets are orgin-specific and derived from
-                  the mnemonic encrypted with user&apos;s WebAuthn credentials and stored in device
-                  indexed DB. You can make use of tags and derive as many wallets as you want.
-                </Text>
-                {!showPrivateKey ? (
                   <Button
-                    size="xs"
-                    variant="outline"
-                    colorPalette="orange"
-                    onClick={() => setShowPrivateKey(true)}
-                    disabled={!openbarPrivateKey || isLoadingOpenbar}
+                    bg="brand.accent"
+                    color="white"
+                    _hover={{ bg: 'brand.accent', opacity: 0.9 }}
+                    onClick={() => handleSignMessage('STRICT', strictAddress)}
+                    disabled={!strictAddress || isLoadingStrict}
                   >
-                    Display private key
+                    Sign a message
                   </Button>
-                ) : (
-                  <Box
-                    p={3}
-                    bg="orange.900"
-                    borderRadius="md"
-                    borderWidth="1px"
-                    borderColor="orange.700"
-                  >
-                    <Text fontSize="xs" color="orange.200" fontWeight="bold" mb={1}>
-                      Private Key:
-                    </Text>
-                    <Text fontSize="xs" color="orange.100" wordBreak="break-all" fontFamily="mono">
-                      {openbarPrivateKey}
-                    </Text>
-                  </Box>
-                )}
-                <Button
-                  bg="brand.accent"
-                  color="white"
-                  _hover={{ bg: 'brand.accent', opacity: 0.9 }}
-                  onClick={() => handleSignMessage('OPENBAR', openbarAddress)}
-                  disabled={!openbarAddress || isLoadingOpenbar}
-                >
-                  Sign a message
-                </Button>
-              </VStack>
-            </Box>
-          </SimpleGrid>
+                </VStack>
+              </Box>
 
-          {/* <Box p={6} borderWidth="1px" borderRadius="lg" borderColor="blue.900" bg="blue.950">
+              <Box p={6} borderWidth="1px" borderRadius="lg" borderColor="gray.700" bg="gray.900">
+                <VStack gap={4} align="stretch">
+                  <Heading as="h3" size="md">
+                    STANDARD mode
+                  </Heading>
+                  <Text fontSize="sm" color="gray.400" wordBreak="break-all">
+                    {isLoadingMain ? 'Loading...' : mainAddress || 'Not available'}
+                  </Text>
+                  <Text fontSize="xs" color="gray.500" fontStyle="italic">
+                    The app <strong>can&apos;t</strong> access the private key. Persistent sessions{' '}
+                    <strong>are</strong> allowed. These wallets are orgin-specific and derived from
+                    the mnemonic encrypted with user&apos;s WebAuthn credentials and stored in
+                    device indexed DB. You can make use of tags and derive as many wallets as you
+                    want.
+                  </Text>
+                  <Button
+                    bg="brand.accent"
+                    color="white"
+                    _hover={{ bg: 'brand.accent', opacity: 0.9 }}
+                    onClick={() => handleSignMessage('default', mainAddress)}
+                    disabled={!mainAddress || isLoadingMain}
+                  >
+                    Sign a message
+                  </Button>
+                </VStack>
+              </Box>
+
+              <Box p={6} borderWidth="1px" borderRadius="lg" borderColor="gray.700" bg="gray.900">
+                <VStack gap={4} align="stretch">
+                  <Heading as="h3" size="md">
+                    YOLO mode
+                  </Heading>
+                  <Text fontSize="sm" color="gray.400" wordBreak="break-all">
+                    {isLoadingOpenbar ? 'Loading...' : openbarAddress || 'Not available'}
+                  </Text>
+                  <Text fontSize="xs" color="gray.500" fontStyle="italic">
+                    The app <strong>can</strong> access the private key. Persistent sessions{' '}
+                    <strong>are</strong> allowed. These wallets are orgin-specific and derived from
+                    the mnemonic encrypted with user&apos;s WebAuthn credentials and stored in
+                    device indexed DB. You can make use of tags and derive as many wallets as you
+                    want.
+                  </Text>
+                  {!showPrivateKey ? (
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      colorPalette="orange"
+                      onClick={() => setShowPrivateKey(true)}
+                      disabled={!openbarPrivateKey || isLoadingOpenbar}
+                    >
+                      Display private key
+                    </Button>
+                  ) : (
+                    <Box
+                      p={3}
+                      bg="orange.900"
+                      borderRadius="md"
+                      borderWidth="1px"
+                      borderColor="orange.700"
+                    >
+                      <Text fontSize="xs" color="orange.200" fontWeight="bold" mb={1}>
+                        Private Key:
+                      </Text>
+                      <Text
+                        fontSize="xs"
+                        color="orange.100"
+                        wordBreak="break-all"
+                        fontFamily="mono"
+                      >
+                        {openbarPrivateKey}
+                      </Text>
+                    </Box>
+                  )}
+                  <Button
+                    bg="brand.accent"
+                    color="white"
+                    _hover={{ bg: 'brand.accent', opacity: 0.9 }}
+                    onClick={() => handleSignMessage('OPENBAR', openbarAddress)}
+                    disabled={!openbarAddress || isLoadingOpenbar}
+                  >
+                    Sign a message
+                  </Button>
+                </VStack>
+              </Box>
+            </SimpleGrid>
+
+            {/* <Box p={6} borderWidth="1px" borderRadius="lg" borderColor="blue.900" bg="blue.950">
             <VStack gap={3} align="stretch">
               <Heading as="h4" size="sm" color="blue.300">
                 What&apos;s the difference?
@@ -891,8 +964,113 @@ export default function Home() {
               </VStack>
             </VStack>
           </Box> */}
-        </>
-      )}
-    </VStack>
+
+            {/* Stealth Addresses Section */}
+            <Box p={6} borderWidth="1px" borderRadius="lg" borderColor="purple.700" bg="purple.950">
+              <VStack gap={4} align="stretch">
+                <Heading as="h3" size="md">
+                  Stealth Addresses
+                </Heading>
+                <Text fontSize="sm" color="gray.300">
+                  Privacy-preserving transactions with ERC-5564 stealth addresses. Each transaction
+                  uses a unique, unlinkable address that only the recipient can identify and spend
+                  from.
+                </Text>
+
+                {!stealthMetaAddress ? (
+                  <Button
+                    bg="brand.accent"
+                    color="white"
+                    _hover={{ bg: 'brand.accent', opacity: 0.9 }}
+                    onClick={handleLoadStealthKeys}
+                    disabled={isLoadingStealth}
+                  >
+                    {isLoadingStealth ? 'Loading...' : 'Load Stealth Keys'}
+                  </Button>
+                ) : (
+                  <VStack gap={3} align="stretch">
+                    <Box
+                      p={3}
+                      bg="gray.900"
+                      borderRadius="md"
+                      borderWidth="1px"
+                      borderColor="gray.700"
+                    >
+                      <Text fontSize="xs" fontWeight="bold" color="purple.300" mb={1}>
+                        Your Stealth Meta-Address:
+                      </Text>
+                      <Text fontSize="xs" color="gray.400" wordBreak="break-all" fontFamily="mono">
+                        {stealthMetaAddress}
+                      </Text>
+                    </Box>
+
+                    <Button
+                      bg="brand.accent"
+                      color="white"
+                      _hover={{ bg: 'brand.accent', opacity: 0.9 }}
+                      onClick={handleGenerateStealthAddress}
+                      disabled={isGeneratingStealth}
+                      size="sm"
+                    >
+                      {isGeneratingStealth ? 'Generating...' : 'Generate Stealth Address'}
+                    </Button>
+
+                    {stealthAddress && (
+                      <Box
+                        p={3}
+                        bg="gray.900"
+                        borderRadius="md"
+                        borderWidth="1px"
+                        borderColor="purple.700"
+                      >
+                        <Text fontSize="xs" fontWeight="bold" color="purple.300" mb={1}>
+                          Generated Stealth Address:
+                        </Text>
+                        <Text
+                          fontSize="xs"
+                          color="gray.300"
+                          wordBreak="break-all"
+                          fontFamily="mono"
+                          mb={2}
+                        >
+                          {stealthAddress}
+                        </Text>
+                        <Button
+                          bg="brand.accent"
+                          color="white"
+                          _hover={{ bg: 'brand.accent', opacity: 0.9 }}
+                          onClick={() => handleSignMessage('STEALTH', stealthAddress)}
+                          size="xs"
+                          width="full"
+                        >
+                          Sign a message with this address
+                        </Button>
+                      </Box>
+                    )}
+                  </VStack>
+                )}
+
+                <VStack gap={2} align="stretch" fontSize="sm" color="gray.400">
+                  <Text>
+                    • <strong>Privacy</strong>: Each transaction uses a unique address
+                  </Text>
+                  <Text>
+                    • <strong>Non-interactive</strong>: No communication needed between sender and
+                    recipient
+                  </Text>
+                  <Text>
+                    • <strong>View tag optimization</strong>: Recipients can efficiently scan
+                    transactions
+                  </Text>
+                  <Text>
+                    • <strong>ERC-5564 compliant</strong>: Standard implementation using SECP256k1
+                  </Text>
+                </VStack>
+              </VStack>
+            </Box>
+          </>
+        )}
+      </VStack>
+    </>
   )
 }
