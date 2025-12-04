@@ -12,10 +12,10 @@ export default function Spinner({ size = '20px' }: SpinnerProps) {
 
     // Handle named sizes
     const namedSizes: Record<string, number> = {
-      'sm': 16,
-      'md': 24,
-      'lg': 32,
-      'xl': 40,
+      sm: 16,
+      md: 24,
+      lg: 32,
+      xl: 40,
     }
 
     if (namedSizes[s]) return namedSizes[s]

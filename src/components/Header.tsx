@@ -380,7 +380,7 @@ export default function Header() {
                   <Button variant="outline">Cancel</Button>
                 </Dialog.ActionTrigger>
                 <Button colorPalette="blue" onClick={handleRegister} disabled={!username.trim()}>
-                  {isRegistering && <Spinner size="16px" />}
+                  {isRegistering && <Spinner size="50px" />}
                   {!isRegistering && 'Create Account'}
                 </Button>
               </Dialog.Footer>
