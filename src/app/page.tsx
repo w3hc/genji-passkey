@@ -7,7 +7,7 @@ import { useTranslation } from '@/hooks/useTranslation'
 import { useState, useEffect } from 'react'
 import { toaster } from '@/components/ui/toaster'
 
-const CONTRACT_ADDRESS = '0x5586d2Ab0e2Cbf4e44F36cD7d1A5B544ecb13510'
+const CONTRACT_ADDRESS = '0x2727e2b70ba497cdb078b1d993594b6dc46d2744'
 
 export default function Home() {
   const { isAuthenticated, user, login, signMessage, deriveWallet } = useW3PK()
@@ -359,9 +359,10 @@ export default function Home() {
       // Import ethers for contract interaction
       const { ethers } = await import('ethers')
 
-      // Use Sepolia RPC URL for the contract call (read-only)
-      const sepoliaRpcUrl = 'https://1rpc.io/sepolia'
-      const provider = new ethers.JsonRpcProvider(sepoliaRpcUrl)
+      // Use RPC URL for the contract call (read-only)
+
+      const rpcUrl = 'https://ethereum-rpc.publicnode.com'
+      const provider = new ethers.JsonRpcProvider(rpcUrl)
 
       // First, check if the contract exists
       const code = await provider.getCode(CONTRACT_ADDRESS)
@@ -603,7 +604,7 @@ export default function Home() {
                           Contract Address:
                         </Text>
                         <Link
-                          href={`https://sepolia.etherscan.io/address/${verificationResult.contractAddress}#code`}
+                          href={`https://etherscan.io/address/${verificationResult.contractAddress}#code`}
                           target="_blank"
                           rel="noopener noreferrer"
                           fontSize="xs"
