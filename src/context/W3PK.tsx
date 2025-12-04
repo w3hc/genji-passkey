@@ -107,6 +107,8 @@ interface W3pkType {
     shareData: string[]
   ) => Promise<{ mnemonic: string; ethereumAddress: string }>
   clearSocialRecoveryConfig: () => void
+  getStealthKeys: () => Promise<any>
+  generateStealthAddressFor: (recipientMetaAddress: string) => Promise<StealthAddressResult>
 }
 
 const W3PK = createContext<W3pkType>({
@@ -139,6 +141,12 @@ const W3PK = createContext<W3pkType>({
     throw new Error('recoverFromGuardians not initialized')
   },
   clearSocialRecoveryConfig: () => {},
+  getStealthKeys: async () => {
+    throw new Error('getStealthKeys not initialized')
+  },
+  generateStealthAddressFor: async () => {
+    throw new Error('generateStealthAddressFor not initialized')
+  },
 })
 
 export const useW3PK = () => useContext(W3PK)
@@ -960,6 +968,72 @@ Thank you for being a trusted guardian!
     }
   }
 
+  const getStealthKeys = async (): Promise<any> => {
+    if (!isAuthenticated || !user) {
+      throw new Error('User not authenticated. Cannot get stealth keys.')
+    }
+
+    try {
+      await ensureAuthentication()
+
+      // Check if stealth module is available
+      if (!w3pk.stealth || typeof w3pk.stealth.getKeys !== 'function') {
+        throw new Error('Stealth address functionality not available in current w3pk version')
+      }
+
+      const keys = await w3pk.stealth.getKeys()
+      w3pk.extendSession()
+      return keys
+    } catch (error) {
+      if (!isUserCancelledError(error)) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to get stealth keys'
+        toaster.create({
+          title: 'Failed to Get Stealth Keys',
+          description: errorMessage,
+          type: 'error',
+          duration: 5000,
+        })
+      }
+      throw error
+    }
+  }
+
+  const generateStealthAddressFor = async (
+    recipientMetaAddress: string
+  ): Promise<StealthAddressResult> => {
+    if (!isAuthenticated || !user) {
+      throw new Error('User not authenticated. Cannot generate stealth address.')
+    }
+
+    try {
+      await ensureAuthentication()
+
+      // Check if stealth module is available
+      if (!w3pk.stealth || typeof w3pk.stealth.generateStealthAddress !== 'function') {
+        throw new Error('Stealth address functionality not available in current w3pk version')
+      }
+
+      // Use the stealth module's generateStealthAddress method
+      // Note: This generates a stealth address for the user (sender's perspective)
+      const result = await w3pk.stealth.generateStealthAddress()
+      w3pk.extendSession()
+
+      return result
+    } catch (error) {
+      if (!isUserCancelledError(error)) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Failed to generate stealth address'
+        toaster.create({
+          title: 'Failed to Generate Stealth Address',
+          description: errorMessage,
+          type: 'error',
+          duration: 5000,
+        })
+      }
+      throw error
+    }
+  }
+
   return (
     <W3PK.Provider
       value={{
@@ -980,6 +1054,8 @@ Thank you for being a trusted guardian!
         generateGuardianInvite,
         recoverFromGuardians,
         clearSocialRecoveryConfig,
+        getStealthKeys,
+        generateStealthAddressFor,
       }}
     >
       {children}

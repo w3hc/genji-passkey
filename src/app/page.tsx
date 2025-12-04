@@ -9,8 +9,37 @@ import { toaster } from '@/components/ui/toaster'
 
 const CONTRACT_ADDRESS = '0x2727e2b70ba497cdb078b1d993594b6dc46d2744'
 
+const shimmerStyles = `
+  @keyframes colorWave {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  .shimmer-text {
+    background: linear-gradient(120deg, #3182ce 0%, #ffffff 25%, #805ad5 50%, #ffffff 75%, #3182ce 100%);
+    background-size: 400% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: colorWave 10s ease-in-out infinite;
+  }
+`
+
 export default function Home() {
-  const { isAuthenticated, user, login, signMessage, deriveWallet, getAddress } = useW3PK()
+  const {
+    isAuthenticated,
+    user,
+    login,
+    signMessage,
+    deriveWallet,
+    getAddress,
+    getStealthKeys,
+    generateStealthAddressFor,
+  } = useW3PK()
   const t = useTranslation()
   const [primaryAddress, setPrimaryAddress] = useState<string>('')
   const [primaryPublicKey, setPrimaryPublicKey] = useState<string>('')
@@ -35,6 +64,12 @@ export default function Home() {
     savedToDatabase?: boolean
     timestamp: Date
   } | null>(null)
+
+  // Stealth address state
+  const [stealthMetaAddress, setStealthMetaAddress] = useState<string>('')
+  const [stealthAddress, setStealthAddress] = useState<string>('')
+  const [isLoadingStealth, setIsLoadingStealth] = useState(false)
+  const [isGeneratingStealth, setIsGeneratingStealth] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -231,6 +266,69 @@ export default function Home() {
         type: 'error',
         duration: 5000,
       })
+    }
+  }
+
+  const handleLoadStealthKeys = async () => {
+    setIsLoadingStealth(true)
+    try {
+      const keys = await getStealthKeys()
+      if (keys) {
+        const metaAddr = keys.stealthMetaAddress || keys.metaAddress || ''
+        setStealthMetaAddress(metaAddr)
+        toaster.create({
+          title: 'Stealth Keys Loaded',
+          description: 'Your stealth meta-address is ready',
+          type: 'success',
+          duration: 3000,
+        })
+      }
+    } catch (error) {
+      console.error('Failed to load stealth keys:', error)
+      toaster.create({
+        title: 'Error',
+        description: 'Failed to load stealth keys',
+        type: 'error',
+        duration: 5000,
+      })
+    } finally {
+      setIsLoadingStealth(false)
+    }
+  }
+
+  const handleGenerateStealthAddress = async () => {
+    if (!stealthMetaAddress) {
+      toaster.create({
+        title: 'No Meta-Address',
+        description: 'Please load your stealth keys first',
+        type: 'warning',
+        duration: 3000,
+      })
+      return
+    }
+
+    setIsGeneratingStealth(true)
+    try {
+      const result = await generateStealthAddressFor(stealthMetaAddress)
+      if (result) {
+        setStealthAddress(result.stealthAddress)
+        toaster.create({
+          title: 'Stealth Address Generated',
+          description: 'You can now sign a message with this address',
+          type: 'success',
+          duration: 3000,
+        })
+      }
+    } catch (error) {
+      console.error('Failed to generate stealth address:', error)
+      toaster.create({
+        title: 'Error',
+        description: 'Failed to generate stealth address',
+        type: 'error',
+        duration: 5000,
+      })
+    } finally {
+      setIsGeneratingStealth(false)
     }
   }
 
@@ -474,8 +572,10 @@ export default function Home() {
   }
 
   return (
-    <VStack gap={8} align="stretch" py={20}>
-      <Box p={6} borderRadius="md" textAlign="center">
+    <>
+      <style dangerouslySetInnerHTML={{ __html: shimmerStyles }} />
+      <VStack gap={8} align="stretch" py={20}>
+        <Box p={6} borderRadius="md" textAlign="center">
         {isAuthenticated ? (
           <>
             <Heading as="h1" size="xl" mb={4}>
@@ -521,9 +621,9 @@ export default function Home() {
                 <Heading as="h3" size="md">
                   PRIMARY mode
                 </Heading>
-                <Text fontSize="sm" color="gray.400" wordBreak="break-all">
+                <Box as="span" fontSize="xl" wordBreak="break-all" className="shimmer-text">
                   {isLoadingPrimary ? 'Loading...' : primaryAddress || 'Not available'}
-                </Text>
+                </Box>
                 <Text fontSize="xs" color="gray.500" fontStyle="italic">
                   This wallet is derived from your WebAuthn credential stored in your device&apos;s
                   secure element. There&apos;s simply <strong>no private key at all</strong>.
@@ -856,8 +956,113 @@ export default function Home() {
               </VStack>
             </VStack>
           </Box> */}
+
+          {/* Stealth Addresses Section */}
+          <Box p={6} borderWidth="1px" borderRadius="lg" borderColor="purple.700" bg="purple.950">
+            <VStack gap={4} align="stretch">
+              <Heading as="h3" size="md">
+                Stealth Addresses
+              </Heading>
+              <Text fontSize="sm" color="gray.300">
+                Privacy-preserving transactions with ERC-5564 stealth addresses. Each transaction
+                uses a unique, unlinkable address that only the recipient can identify and spend
+                from.
+              </Text>
+
+              {!stealthMetaAddress ? (
+                <Button
+                  bg="brand.accent"
+                  color="white"
+                  _hover={{ bg: 'brand.accent', opacity: 0.9 }}
+                  onClick={handleLoadStealthKeys}
+                  disabled={isLoadingStealth}
+                >
+                  {isLoadingStealth ? 'Loading...' : 'Load Stealth Keys'}
+                </Button>
+              ) : (
+                <VStack gap={3} align="stretch">
+                  <Box
+                    p={3}
+                    bg="gray.900"
+                    borderRadius="md"
+                    borderWidth="1px"
+                    borderColor="gray.700"
+                  >
+                    <Text fontSize="xs" fontWeight="bold" color="purple.300" mb={1}>
+                      Your Stealth Meta-Address:
+                    </Text>
+                    <Text fontSize="xs" color="gray.400" wordBreak="break-all" fontFamily="mono">
+                      {stealthMetaAddress}
+                    </Text>
+                  </Box>
+
+                  <Button
+                    bg="brand.accent"
+                    color="white"
+                    _hover={{ bg: 'brand.accent', opacity: 0.9 }}
+                    onClick={handleGenerateStealthAddress}
+                    disabled={isGeneratingStealth}
+                    size="sm"
+                  >
+                    {isGeneratingStealth ? 'Generating...' : 'Generate Stealth Address'}
+                  </Button>
+
+                  {stealthAddress && (
+                    <Box
+                      p={3}
+                      bg="gray.900"
+                      borderRadius="md"
+                      borderWidth="1px"
+                      borderColor="purple.700"
+                    >
+                      <Text fontSize="xs" fontWeight="bold" color="purple.300" mb={1}>
+                        Generated Stealth Address:
+                      </Text>
+                      <Text
+                        fontSize="xs"
+                        color="gray.300"
+                        wordBreak="break-all"
+                        fontFamily="mono"
+                        mb={2}
+                      >
+                        {stealthAddress}
+                      </Text>
+                      <Button
+                        bg="brand.accent"
+                        color="white"
+                        _hover={{ bg: 'brand.accent', opacity: 0.9 }}
+                        onClick={() => handleSignMessage('STEALTH', stealthAddress)}
+                        size="xs"
+                        width="full"
+                      >
+                        Sign a message with this address
+                      </Button>
+                    </Box>
+                  )}
+                </VStack>
+              )}
+
+              <VStack gap={2} align="stretch" fontSize="sm" color="gray.400">
+                <Text>
+                  • <strong>Privacy</strong>: Each transaction uses a unique address
+                </Text>
+                <Text>
+                  • <strong>Non-interactive</strong>: No communication needed between sender and
+                  recipient
+                </Text>
+                <Text>
+                  • <strong>View tag optimization</strong>: Recipients can efficiently scan
+                  transactions
+                </Text>
+                <Text>
+                  • <strong>ERC-5564 compliant</strong>: Standard implementation using SECP256k1
+                </Text>
+              </VStack>
+            </VStack>
+          </Box>
         </>
       )}
-    </VStack>
+      </VStack>
+    </>
   )
 }
