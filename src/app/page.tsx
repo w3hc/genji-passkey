@@ -10,7 +10,7 @@ import { toaster } from '@/components/ui/toaster'
 const CONTRACT_ADDRESS = '0x2727e2b70ba497cdb078b1d993594b6dc46d2744'
 
 export default function Home() {
-  const { isAuthenticated, user, login, signMessage, deriveWallet } = useW3PK()
+  const { isAuthenticated, user, login, signMessage, deriveWallet, getAddress } = useW3PK()
   const t = useTranslation()
   const [primaryAddress, setPrimaryAddress] = useState<string>('')
   const [primaryPublicKey, setPrimaryPublicKey] = useState<string>('')
@@ -80,23 +80,15 @@ export default function Home() {
   const handleDisplayPrimaryAddress = async () => {
     setIsLoadingPrimary(true)
     try {
-      const primaryWallet = await deriveWallet('PRIMARY', 'PRIMARY')
-      console.log('PRIMARY wallet received:', primaryWallet)
-      console.log('Has publicKey?', !!primaryWallet.publicKey)
-      console.log('Full wallet object:', JSON.stringify(primaryWallet, null, 2))
+      const primaryAddress = await getAddress('PRIMARY', 'PRIMARY')
+      console.log('PRIMARY address received:', primaryAddress)
 
-      setPrimaryAddress(primaryWallet.address)
-      if (primaryWallet.publicKey) {
-        setPrimaryPublicKey(primaryWallet.publicKey)
-        console.log('Public key stored in state')
-      } else {
-        console.error('No public key in PRIMARY wallet!')
-      }
+      setPrimaryAddress(primaryAddress)
     } catch (error) {
-      console.error('Failed to derive PRIMARY address:', error)
+      console.error('Failed to get PRIMARY address:', error)
       toaster.create({
         title: 'Error',
-        description: 'Failed to derive address',
+        description: 'Failed to get address',
         type: 'error',
         duration: 5000,
       })
@@ -108,13 +100,13 @@ export default function Home() {
   const handleDisplayStrictAddress = async () => {
     setIsLoadingStrict(true)
     try {
-      const strictWallet = await deriveWallet('STRICT', 'STRICT')
-      setStrictAddress(strictWallet.address)
+      const strictAddress = await getAddress('STRICT', 'STRICT')
+      setStrictAddress(strictAddress)
     } catch (error) {
-      console.error('Failed to derive STRICT address:', error)
+      console.error('Failed to get STRICT address:', error)
       toaster.create({
         title: 'Error',
-        description: 'Failed to derive address',
+        description: 'Failed to get address',
         type: 'error',
         duration: 5000,
       })
@@ -364,17 +356,6 @@ export default function Home() {
       const rpcUrl = 'https://ethereum-rpc.publicnode.com'
       const provider = new ethers.JsonRpcProvider(rpcUrl)
 
-      // First, check if the contract exists
-      const code = await provider.getCode(CONTRACT_ADDRESS)
-
-      console.log('Contract code at', CONTRACT_ADDRESS, ':', code)
-
-      if (code === '0x') {
-        throw new Error(
-          `No contract found at ${CONTRACT_ADDRESS}. The EIP-7951 precompile might not be deployed on Sepolia yet, or you may need to use a different network (like Holesky or mainnet after the Fusaka upgrade).`
-        )
-      }
-
       const contractABI = [
         'function verifyP256(bytes32 h, bytes32 r, bytes32 s, bytes32 qx, bytes32 qy) external view returns (tuple(bool valid, bytes32 inputHash, address contractAddress, uint256 chainId, uint256 timestamp))',
       ]
@@ -427,7 +408,7 @@ export default function Home() {
           duration: 7000,
         })
 
-        // Save to database - "I was there" feature with on-chain response
+        // Save to offchain database
         try {
           const response = await fetch('/api/eip7951', {
             method: 'POST',
@@ -443,7 +424,6 @@ export default function Home() {
               contractAddress: CONTRACT_ADDRESS,
               txHash: null,
               verificationTimestamp: timestamp.toISOString(),
-              // On-chain response data from contract
               contractValid: valid,
               contractInputHash: inputHash,
               contractReturnedAddress: returnedContractAddress,
@@ -725,15 +705,11 @@ export default function Home() {
                           borderWidth="1px"
                           borderColor="green.400"
                         >
-                          <Text
-                            fontSize="sm"
-                            fontWeight="bold"
-                            color="green.200"
-                            textAlign="center"
-                          >
-                            🎉 To celebrate the Fusaka upgrade, you will receive a special NFT on OP
-                            Mainnet in the coming days. Thanks for your patience. Let&apos;s keep on
-                            improving Ethereum UX!
+                          <Text fontSize="sm" fontWeight="bold" color="green.200">
+                            This proves EIP-7951 precompiles are in place on Ethereum Mainnet. We
+                            live in a Fusaka world now. You will receive a special NFT in the coming
+                            days. Thanks for your patience. Let&apos;s keep improving Ethereum UX!
+                            Props to everyone involved in this upgrade!! 🎉🎉🎉
                           </Text>
                         </Box>
                       )}

@@ -89,6 +89,7 @@ interface W3pkType {
   logout: () => void
   signMessage: (message: string) => Promise<string | null>
   deriveWallet: (mode?: string, tag?: string) => Promise<DerivedWallet>
+  getAddress: (mode?: string, tag?: string) => Promise<string>
   getBackupStatus: () => Promise<BackupStatus>
   createBackup: (password: string) => Promise<Blob>
   restoreFromBackup: (
@@ -117,6 +118,7 @@ const W3PK = createContext<W3pkType>({
   logout: () => {},
   signMessage: async () => null,
   deriveWallet: async () => ({ address: '', privateKey: '' }),
+  getAddress: async () => '',
   getBackupStatus: async () => {
     throw new Error('getBackupStatus not initialized')
   },
@@ -495,6 +497,67 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
 
           toaster.create({
             title: 'Derivation Failed',
+            description: errorMessage,
+            type: 'error',
+            duration: 5000,
+          })
+        }
+        throw error
+      }
+    },
+    [user, w3pk, isUserCancelledError, ensureAuthentication]
+  )
+
+  const getAddress = useCallback(
+    async (mode?: string, tag?: string): Promise<string> => {
+      if (!user) {
+        throw new Error('Not authenticated. Please log in first.')
+      }
+
+      try {
+        await ensureAuthentication()
+        const address = await w3pk.getAddress(mode as any, tag as any)
+
+        // Extend session after successful operation
+        w3pk.extendSession()
+
+        return address
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          (error.message.includes('Not authenticated') ||
+            error.message.includes('login') ||
+            error.message.includes('Failed to get address'))
+        ) {
+          try {
+            await w3pk.login()
+            const address = await w3pk.getAddress(mode as any, tag as any)
+
+            // Extend session after successful retry
+            w3pk.extendSession()
+
+            return address
+          } catch (retryError) {
+            if (!isUserCancelledError(retryError)) {
+              toaster.create({
+                title: 'Authentication Required',
+                description: 'Please authenticate to get address',
+                type: 'error',
+                duration: 5000,
+              })
+            }
+            throw retryError
+          }
+        }
+
+        if (!isUserCancelledError(error)) {
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : `Failed to get address (${mode || 'STANDARD'}, ${tag || 'MAIN'})`
+
+          toaster.create({
+            title: 'Failed to Get Address',
             description: errorMessage,
             type: 'error',
             duration: 5000,
@@ -908,6 +971,7 @@ Thank you for being a trusted guardian!
         logout,
         signMessage,
         deriveWallet,
+        getAddress,
         getBackupStatus,
         createBackup,
         restoreFromBackup,
