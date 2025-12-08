@@ -29,7 +29,11 @@ export default function RootLayout({
           <LanguageProvider>
             <Header />
             <Box as="main" id="main-content" pt="72px">
-              <Container maxW={{ base: '100%', md: '60%' }} px={{ base: 4, md: 6 }} mx="auto">
+              <Container
+                maxW={{ base: '100%', sm: '640px', md: '768px', lg: '960px', xl: '1024px' }}
+                px={{ base: 4, md: 6, lg: 8 }}
+                mx="auto"
+              >
                 {children}
               </Container>
             </Box>

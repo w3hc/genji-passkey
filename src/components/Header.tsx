@@ -272,11 +272,11 @@ export default function Header() {
                 </Button>
               ) : (
                 <>
-                  <Box>
+                  {/* <Box>
                     <Text fontSize="sm" color="gray.300">
                       {user?.displayName || user?.username}
                     </Text>
-                  </Box>
+                  </Box> */}
                   <Button
                     bg={brandColors.primary}
                     color="white"
