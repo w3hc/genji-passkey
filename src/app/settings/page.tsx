@@ -371,41 +371,8 @@ const SettingsPage = () => {
     try {
       const storedAccounts: StoredAccount[] = []
 
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const keys = Object.keys(localStorage)
-
-        keys.forEach(key => {
-          try {
-            const value = localStorage.getItem(key)
-            if (value) {
-              try {
-                const parsed = JSON.parse(value)
-                if (parsed.username && parsed.ethereumAddress) {
-                  storedAccounts.push({
-                    username: parsed.username,
-                    ethereumAddress: parsed.ethereumAddress,
-                    id: parsed.id || parsed.username,
-                    displayName: parsed.displayName,
-                  })
-                } else if (parsed.user && parsed.user.username && parsed.user.ethereumAddress) {
-                  storedAccounts.push({
-                    username: parsed.user.username,
-                    ethereumAddress: parsed.user.ethereumAddress,
-                    id: parsed.user.id || parsed.user.username,
-                    displayName: parsed.user.displayName,
-                  })
-                }
-              } catch (e) {
-                // Not JSON
-              }
-            }
-          } catch (e) {
-            // Skip invalid keys
-          }
-        })
-      }
-
-      if (user && !storedAccounts.find(acc => acc.ethereumAddress === user.ethereumAddress)) {
+      // Only show the current logged-in user
+      if (user) {
         storedAccounts.push({
           username: user.username,
           ethereumAddress: user.ethereumAddress,
@@ -414,11 +381,7 @@ const SettingsPage = () => {
         })
       }
 
-      const uniqueAccounts = Array.from(
-        new Map(storedAccounts.map(acc => [acc.ethereumAddress, acc])).values()
-      )
-
-      setAccounts(uniqueAccounts)
+      setAccounts(storedAccounts)
     } catch (error) {
       console.error('Error loading accounts:', error)
     }
@@ -1651,11 +1614,10 @@ const SettingsPage = () => {
             <VStack gap={6} align="stretch">
               <Box>
                 <Heading as="h2" size="lg" mb={4}>
-                  Accounts on this Device
+                  Current account
                 </Heading>
                 <Text fontSize="md" color="gray.400" mb={6}>
-                  These are all the accounts stored on this device. You can remove any account to
-                  free up space.
+                  This is your currently logged-in account.
                 </Text>
               </Box>
 
@@ -1689,7 +1651,7 @@ const SettingsPage = () => {
                     }
                   >
                     <HStack justify="space-between" align="start">
-                      <Box flex={1}>
+                      <Box flex={1} minW={0}>
                         <HStack mb={3}>
                           <Text fontSize="lg" fontWeight="bold" color="white">
                             {account.displayName || account.username}
@@ -1701,7 +1663,16 @@ const SettingsPage = () => {
                         <Text fontSize="sm" color="gray.400" mb={2}>
                           Username: {account.username}
                         </Text>
-                        <Code fontSize="xs" bg="gray.800" color="gray.300" p={2} borderRadius="md">
+                        <Code
+                          fontSize="xs"
+                          bg="gray.800"
+                          color="gray.300"
+                          p={2}
+                          borderRadius="md"
+                          display="block"
+                          wordBreak="break-all"
+                          overflowWrap="break-word"
+                        >
                           {account.ethereumAddress}
                         </Code>
                       </Box>
@@ -1711,6 +1682,7 @@ const SettingsPage = () => {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDeleteAccount(account)}
+                        flexShrink={0}
                       >
                         <MdDelete />
                       </IconButton>
@@ -2621,6 +2593,7 @@ const SettingsPage = () => {
                     bg="gray.950"
                     borderColor="gray.700"
                     _focus={{ borderColor: brandColors.primary }}
+                    p={3}
                   />
 
                   {parsedQRData && (
