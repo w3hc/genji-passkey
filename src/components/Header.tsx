@@ -243,9 +243,12 @@ export default function Header() {
             >
               <Flex align="center" gap={3}>
                 <Link href="/">
-                  <Heading as="h3" size="md" textAlign="center">
-                    Genji
-                  </Heading>
+                  <Flex align="center" gap={5}>
+                    <Heading as="h3" size="md" textAlign="center">
+                      Genji
+                    </Heading>
+                    <GitHubIcon size={20} />
+                  </Flex>
                 </Link>
               </Flex>
             </Box>
