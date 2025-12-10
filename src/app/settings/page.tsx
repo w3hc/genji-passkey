@@ -1,4 +1,3 @@
-// app/settings/page.tsx
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
@@ -638,10 +637,10 @@ const SettingsPage = () => {
       <>
         <VStack gap={8} align="stretch" py={20}>
           <Box textAlign="center">
-            <Heading as="h1" size="xl" mb={4}>
+            <Heading as="h1" size="2xl" mb={4}>
               {t.settings.title}
             </Heading>
-            <Text fontSize="lg" color="gray.400">
+            <Text fontSize="xl" color="gray.400" maxW="2xl" mx="auto">
               {t.settings.loginRequired}
             </Text>
           </Box>
@@ -829,6 +828,30 @@ const SettingsPage = () => {
             >
               <Icon as={FiUpload} mr={2} />
               Restore from Backup File
+            </Button>
+          </Box>
+
+          {/* Register a new account */}
+          <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
+            <HStack mb={4}>
+              <Icon as={FiUserPlus} color={brandColors.primary} boxSize={6} />
+              <Heading size="md">Register a new account</Heading>
+            </HStack>
+            <Text fontSize="sm" color="gray.400" mb={4}>
+              Create a new Web3 passkey account. Each account is secured with your device&apos;s
+              biometric authentication or PIN, and has its own Ethereum wallet.
+            </Text>
+            <Button
+              bg={brandColors.primary}
+              color="white"
+              _hover={{
+                bg: brandColors.secondary,
+              }}
+              onClick={onRegisterModalOpen}
+              width="full"
+            >
+              <Icon as={FiUserPlus} />
+              Register
             </Button>
           </Box>
 
@@ -1021,6 +1044,87 @@ const SettingsPage = () => {
           title={`Enter Password to Restore Backup`}
           description={`Please enter the password you used when creating this backup file.`}
         />
+
+        {/* Registration Modal - Available without authentication */}
+        <Dialog.Root
+          open={isRegisterModalOpen}
+          onOpenChange={(e: { open: boolean }) => (e.open ? null : handleRegisterModalClose())}
+        >
+          <Portal>
+            <Dialog.Backdrop />
+            <Dialog.Positioner>
+              <Dialog.Content p={6}>
+                <Dialog.Header>
+                  <Dialog.Title>Register New Account</Dialog.Title>
+                </Dialog.Header>
+                <Dialog.Body pt={4}>
+                  <VStack gap={4}>
+                    <Text fontSize="sm" color="gray.400">
+                      An Ethereum wallet will be created and securely stored on your device,
+                      protected by your biometric or PIN thanks to{' '}
+                      <ChakraLink
+                        href={
+                          'https://github.com/w3hc/w3pk/blob/main/src/auth/register.ts#L17-L102'
+                        }
+                        color={brandColors.accent}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        w3pk
+                      </ChakraLink>
+                      .
+                    </Text>
+                    <Field invalid={isRegisterUsernameInvalid} label="Username">
+                      <Input
+                        id="username-input"
+                        aria-describedby={
+                          isRegisterUsernameInvalid && registerUsername.trim()
+                            ? 'username-error'
+                            : undefined
+                        }
+                        aria-invalid={
+                          isRegisterUsernameInvalid && registerUsername.trim() ? true : undefined
+                        }
+                        value={registerUsername}
+                        onChange={e => setRegisterUsername(e.target.value)}
+                        placeholder="Enter your username"
+                        pl={3}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && registerUsername.trim()) {
+                            handleRegister()
+                          }
+                        }}
+                      />
+                      {isRegisterUsernameInvalid && registerUsername.trim() && (
+                        <Field.ErrorText id="username-error">
+                          Username must be 3-50 characters long and contain only letters, numbers,
+                          underscores, and hyphens. It must start and end with a letter or number.
+                        </Field.ErrorText>
+                      )}
+                    </Field>
+                  </VStack>
+                </Dialog.Body>
+
+                <Dialog.Footer gap={3} pt={6}>
+                  <Dialog.ActionTrigger asChild>
+                    <Button variant="outline">Cancel</Button>
+                  </Dialog.ActionTrigger>
+                  <Button
+                    colorPalette="blue"
+                    onClick={handleRegister}
+                    disabled={!registerUsername.trim()}
+                  >
+                    {isRegistering && <Spinner size="42px" />}
+                    {!isRegistering && 'Create Account'}
+                  </Button>
+                </Dialog.Footer>
+                <Dialog.CloseTrigger asChild>
+                  <CloseButton size="sm" />
+                </Dialog.CloseTrigger>
+              </Dialog.Content>
+            </Dialog.Positioner>
+          </Portal>
+        </Dialog.Root>
       </>
     )
   }
@@ -1473,10 +1577,10 @@ const SettingsPage = () => {
     <>
       <VStack gap={8} align="stretch" py={20}>
         <Box textAlign="center">
-          <Heading as="h1" size="xl" mb={4}>
+          <Heading as="h1" size="2xl" mb={4}>
             {t.settings.title}
           </Heading>
-          <Text fontSize="lg" color="gray.400">
+          <Text fontSize="xl" color="gray.400" maxW="2xl" mx="auto">
             Manage your accounts, backups, and recovery options
           </Text>
         </Box>
@@ -1764,7 +1868,7 @@ const SettingsPage = () => {
                     bg: brandColors.secondary,
                   }}
                   onClick={onRegisterModalOpen}
-                  size="md"
+                  width="full"
                 >
                   <Icon as={FiUserPlus} />
                   Register
@@ -3084,85 +3188,6 @@ const SettingsPage = () => {
               </Dialog.Body>
               <Dialog.Footer gap={3} pt={6}>
                 <Button onClick={() => setShowIndexedDBModal(false)}>Close</Button>
-              </Dialog.Footer>
-              <Dialog.CloseTrigger asChild>
-                <CloseButton size="sm" />
-              </Dialog.CloseTrigger>
-            </Dialog.Content>
-          </Dialog.Positioner>
-        </Portal>
-      </Dialog.Root>
-
-      {/* Registration Modal */}
-      <Dialog.Root
-        open={isRegisterModalOpen}
-        onOpenChange={(e: { open: boolean }) => (e.open ? null : handleRegisterModalClose())}
-      >
-        <Portal>
-          <Dialog.Backdrop />
-          <Dialog.Positioner>
-            <Dialog.Content p={6}>
-              <Dialog.Header>
-                <Dialog.Title>Register New Account</Dialog.Title>
-              </Dialog.Header>
-              <Dialog.Body pt={4}>
-                <VStack gap={4}>
-                  <Text fontSize="sm" color="gray.400">
-                    An Ethereum wallet will be created and securely stored on your device, protected
-                    by your biometric or PIN thanks to{' '}
-                    <ChakraLink
-                      href={'https://github.com/w3hc/w3pk/blob/main/src/auth/register.ts#L17-L102'}
-                      color={brandColors.accent}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      w3pk
-                    </ChakraLink>
-                    .
-                  </Text>
-                  <Field invalid={isRegisterUsernameInvalid} label="Username">
-                    <Input
-                      id="username-input"
-                      aria-describedby={
-                        isRegisterUsernameInvalid && registerUsername.trim()
-                          ? 'username-error'
-                          : undefined
-                      }
-                      aria-invalid={
-                        isRegisterUsernameInvalid && registerUsername.trim() ? true : undefined
-                      }
-                      value={registerUsername}
-                      onChange={e => setRegisterUsername(e.target.value)}
-                      placeholder="Enter your username"
-                      pl={3}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' && registerUsername.trim()) {
-                          handleRegister()
-                        }
-                      }}
-                    />
-                    {isRegisterUsernameInvalid && registerUsername.trim() && (
-                      <Field.ErrorText id="username-error">
-                        Username must be 3-50 characters long and contain only letters, numbers,
-                        underscores, and hyphens. It must start and end with a letter or number.
-                      </Field.ErrorText>
-                    )}
-                  </Field>
-                </VStack>
-              </Dialog.Body>
-
-              <Dialog.Footer gap={3} pt={6}>
-                <Dialog.ActionTrigger asChild>
-                  <Button variant="outline">Cancel</Button>
-                </Dialog.ActionTrigger>
-                <Button
-                  colorPalette="blue"
-                  onClick={handleRegister}
-                  disabled={!registerUsername.trim()}
-                >
-                  {isRegistering && <Spinner size="42px" />}
-                  {!isRegistering && 'Create Account'}
-                </Button>
               </Dialog.Footer>
               <Dialog.CloseTrigger asChild>
                 <CloseButton size="sm" />

@@ -76,7 +76,13 @@ export async function inspectLocalStorage(): Promise<LocalStorageItem[]> {
   // Sort by type, then by key
   items.sort((a, b) => {
     if (a.type !== b.type) {
-      const typeOrder = ['w3pk_credential_index', 'w3pk_auth_state', 'w3pk_credential', 'other_w3pk', 'other']
+      const typeOrder = [
+        'w3pk_credential_index',
+        'w3pk_auth_state',
+        'w3pk_credential',
+        'other_w3pk',
+        'other',
+      ]
       return typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type)
     }
     return a.key.localeCompare(b.key)
@@ -103,10 +109,11 @@ export async function inspectIndexedDB(): Promise<IndexedDBInfo[]> {
       if (!dbInfo.name) continue
 
       // Only inspect w3pk-related databases or all if debugging
-      if (dbInfo.name.toLowerCase().includes('web3') ||
-          dbInfo.name.toLowerCase().includes('passkey') ||
-          dbInfo.name.toLowerCase().includes('w3pk')) {
-
+      if (
+        dbInfo.name.toLowerCase().includes('web3') ||
+        dbInfo.name.toLowerCase().includes('passkey') ||
+        dbInfo.name.toLowerCase().includes('w3pk')
+      ) {
         try {
           const db = await openDatabase(dbInfo.name, dbInfo.version)
           const stores = Array.from(db.objectStoreNames)
@@ -116,11 +123,13 @@ export async function inspectIndexedDB(): Promise<IndexedDBInfo[]> {
           for (const storeName of stores) {
             try {
               const storeRecords = await getAllRecordsFromStore(db, storeName)
-              records.push(...storeRecords.map(record => ({
-                key: record.key,
-                value: record.value,
-                store: storeName,
-              })))
+              records.push(
+                ...storeRecords.map(record => ({
+                  key: record.key,
+                  value: record.value,
+                  store: storeName,
+                }))
+              )
             } catch (error) {
               console.error(`Error reading store ${storeName}:`, error)
             }
@@ -164,7 +173,10 @@ function openDatabase(name: string, version?: number): Promise<IDBDatabase> {
 /**
  * Gets all records from an IndexedDB object store
  */
-function getAllRecordsFromStore(db: IDBDatabase, storeName: string): Promise<Array<{ key: string; value: any }>> {
+function getAllRecordsFromStore(
+  db: IDBDatabase,
+  storeName: string
+): Promise<Array<{ key: string; value: any }>> {
   return new Promise((resolve, reject) => {
     try {
       const transaction = db.transaction(storeName, 'readonly')
@@ -220,7 +232,15 @@ export function formatValue(value: any): string {
  * Masks sensitive data in a value
  */
 export function maskSensitiveData(key: string, value: any): any {
-  const sensitiveKeys = ['privateKey', 'mnemonic', 'seed', 'secret', 'password', 'encryptedMnemonic', 'signature']
+  const sensitiveKeys = [
+    'privateKey',
+    'mnemonic',
+    'seed',
+    'secret',
+    'password',
+    'encryptedMnemonic',
+    'signature',
+  ]
 
   if (typeof value === 'object' && value !== null) {
     const masked: any = Array.isArray(value) ? [] : {}
@@ -295,7 +315,7 @@ export async function clearIndexedDBRecord(
 /**
  * Clears all w3pk-related data from localStorage
  */
-export function clearAllW3pkLocalStorage(): { cleared: string[], failed: string[] } {
+export function clearAllW3pkLocalStorage(): { cleared: string[]; failed: string[] } {
   const cleared: string[] = []
   const failed: string[] = []
 
@@ -304,9 +324,7 @@ export function clearAllW3pkLocalStorage(): { cleared: string[], failed: string[
   }
 
   const keys = Object.keys(localStorage)
-  const w3pkKeys = keys.filter(key =>
-    key.includes('w3pk') || key.includes('passkey')
-  )
+  const w3pkKeys = keys.filter(key => key.includes('w3pk') || key.includes('passkey'))
 
   for (const key of w3pkKeys) {
     try {
@@ -324,7 +342,7 @@ export function clearAllW3pkLocalStorage(): { cleared: string[], failed: string[
 /**
  * Clears all w3pk-related IndexedDB databases
  */
-export async function clearAllW3pkIndexedDB(): Promise<{ cleared: string[], failed: string[] }> {
+export async function clearAllW3pkIndexedDB(): Promise<{ cleared: string[]; failed: string[] }> {
   const cleared: string[] = []
   const failed: string[] = []
 
@@ -339,10 +357,11 @@ export async function clearAllW3pkIndexedDB(): Promise<{ cleared: string[], fail
       if (!dbInfo.name) continue
 
       // Only clear w3pk-related databases
-      if (dbInfo.name.toLowerCase().includes('web3') ||
-          dbInfo.name.toLowerCase().includes('passkey') ||
-          dbInfo.name.toLowerCase().includes('w3pk')) {
-
+      if (
+        dbInfo.name.toLowerCase().includes('web3') ||
+        dbInfo.name.toLowerCase().includes('passkey') ||
+        dbInfo.name.toLowerCase().includes('w3pk')
+      ) {
         try {
           await new Promise<void>((resolve, reject) => {
             const request = indexedDB.deleteDatabase(dbInfo.name!)

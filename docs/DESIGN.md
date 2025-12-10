@@ -86,12 +86,7 @@ import {
   DialogFooter,
   DialogCloseTrigger,
 } from '@/components/ui/dialog'
-import {
-  MenuRoot,
-  MenuTrigger,
-  MenuContent,
-  MenuItem,
-} from '@/components/ui/menu'
+import { MenuRoot, MenuTrigger, MenuContent, MenuItem } from '@/components/ui/menu'
 import { toaster } from '@/components/ui/toaster'
 ```
 
@@ -334,33 +329,34 @@ interface CardProps {
   children: React.ReactNode
 }
 
-export const Card = forwardRef<HTMLDivElement, CardProps>(
-  function Card({ title, description, children, ...props }, ref) {
-    return (
-      <Box
-        ref={ref}
-        p={6}
-        bg="gray.800"
-        borderRadius="lg"
-        borderWidth="1px"
-        borderColor="gray.700"
-        _hover={{ borderColor: 'brand.500', transform: 'translateY(-2px)' }}
-        transition="all 0.2s"
-        {...props}
-      >
-        <Heading size="md" mb={2}>
-          {title}
-        </Heading>
-        {description && (
-          <Text fontSize="sm" color="gray.400" mb={4}>
-            {description}
-          </Text>
-        )}
-        {children}
-      </Box>
-    )
-  }
-)
+export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
+  { title, description, children, ...props },
+  ref
+) {
+  return (
+    <Box
+      ref={ref}
+      p={6}
+      bg="gray.800"
+      borderRadius="lg"
+      borderWidth="1px"
+      borderColor="gray.700"
+      _hover={{ borderColor: 'brand.500', transform: 'translateY(-2px)' }}
+      transition="all 0.2s"
+      {...props}
+    >
+      <Heading size="md" mb={2}>
+        {title}
+      </Heading>
+      {description && (
+        <Text fontSize="sm" color="gray.400" mb={4}>
+          {description}
+        </Text>
+      )}
+      {children}
+    </Box>
+  )
+})
 ```
 
 ---
@@ -391,8 +387,8 @@ Use semantic tokens that adapt to color mode:
 
 ```tsx
 <Box
-  bg="gray.800"  // Static - always gray.800
-  color="fg"     // Semantic - adapts to light/dark
+  bg="gray.800" // Static - always gray.800
+  color="fg" // Semantic - adapts to light/dark
 >
   Content
 </Box>
@@ -478,10 +474,7 @@ import { Input } from '@/components/ui/input'
 
 ```tsx
 // ✅ Responsive design with Chakra
-<Box
-  p={{ base: 4, md: 6, lg: 8 }}
-  fontSize={{ base: 'sm', md: 'md' }}
->
+<Box p={{ base: 4, md: 6, lg: 8 }} fontSize={{ base: 'sm', md: 'md' }}>
   Responsive content
 </Box>
 ```
@@ -521,12 +514,9 @@ toaster.create({
 ```tsx
 import { Field } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-
-<Field label="Email" required invalid={hasError}>
+;<Field label="Email" required invalid={hasError}>
   <Input type="email" placeholder="Enter your email" />
-  {hasError && (
-    <Field.ErrorText>Email is required</Field.ErrorText>
-  )}
+  {hasError && <Field.ErrorText>Email is required</Field.ErrorText>}
 </Field>
 ```
 
@@ -549,7 +539,7 @@ import { Button } from '@/components/ui/button'
 
 function MyModal({ isOpen, onClose }) {
   return (
-    <DialogRoot open={isOpen} onOpenChange={(e) => e.open ? null : onClose()}>
+    <DialogRoot open={isOpen} onOpenChange={e => (e.open ? null : onClose())}>
       <DialogContent>
         <DialogHeader>Modal Title</DialogHeader>
         <DialogCloseTrigger />
@@ -569,14 +559,8 @@ function MyModal({ isOpen, onClose }) {
 ### Tabs
 
 ```tsx
-import {
-  TabsRoot,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from '@/components/ui/tabs'
-
-<TabsRoot defaultValue="tab1">
+import { TabsRoot, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+;<TabsRoot defaultValue="tab1">
   <TabsList>
     <TabsTrigger value="tab1">Tab 1</TabsTrigger>
     <TabsTrigger value="tab2">Tab 2</TabsTrigger>
@@ -589,15 +573,9 @@ import {
 ### Menu
 
 ```tsx
-import {
-  MenuRoot,
-  MenuTrigger,
-  MenuContent,
-  MenuItem,
-} from '@/components/ui/menu'
+import { MenuRoot, MenuTrigger, MenuContent, MenuItem } from '@/components/ui/menu'
 import { Button } from '@/components/ui/button'
-
-<MenuRoot>
+;<MenuRoot>
   <MenuTrigger asChild>
     <Button>Options</Button>
   </MenuTrigger>

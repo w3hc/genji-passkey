@@ -112,71 +112,69 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
               <Dialog.Title>{title}</Dialog.Title>
             </Dialog.Header>
             <Dialog.Body pt={4}>
-          <Text mb={4}>{description}</Text>
-          <Field required invalid={passwordTouched && !isPasswordStrong}>
-            <Field.Label htmlFor="password">Password</Field.Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={handlePasswordChange}
-              aria-describedby="password-requirements password-status"
-              aria-invalid={passwordTouched && !isPasswordStrong ? true : undefined}
-              autoFocus
-              pl={3}
-            />
-            {passwordTouched && !isPasswordStrong && (
-              <Field.ErrorText id="password-status">
-                Password does not meet all requirements
-              </Field.ErrorText>
-            )}
-            {passwordTouched && isPasswordStrong && (
-              <Field.HelperText id="password-status" color="green.400">
-                Strong password!
-              </Field.HelperText>
-            )}
-          </Field>
+              <Text mb={4}>{description}</Text>
+              <Field required invalid={passwordTouched && !isPasswordStrong}>
+                <Field.Label htmlFor="password">Password</Field.Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={handlePasswordChange}
+                  aria-describedby="password-requirements password-status"
+                  aria-invalid={passwordTouched && !isPasswordStrong ? true : undefined}
+                  autoFocus
+                  pl={3}
+                />
+                {passwordTouched && !isPasswordStrong && (
+                  <Field.ErrorText id="password-status">
+                    Password does not meet all requirements
+                  </Field.ErrorText>
+                )}
+                {passwordTouched && isPasswordStrong && (
+                  <Field.HelperText id="password-status" color="green.400">
+                    Strong password!
+                  </Field.HelperText>
+                )}
+              </Field>
 
-          {/* Password Requirements */}
-          <Box mt={4} id="password-requirements" aria-live="polite" aria-atomic="false">
-            <Text fontSize="sm" fontWeight="bold" mb={2} color="white">
-              Password must include:
-            </Text>
-            <Flex align="center" gap={2}>
-              {hasMinLength ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
-              At least 12 characters
-              <span className="sr-only">{hasMinLength ? ' (satisfied)' : ' (required)'}</span>
-            </Flex>
+              {/* Password Requirements */}
+              <Box mt={4} id="password-requirements" aria-live="polite" aria-atomic="false">
+                <Text fontSize="sm" fontWeight="bold" mb={2} color="white">
+                  Password must include:
+                </Text>
+                <Flex align="center" gap={2}>
+                  {hasMinLength ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
+                  At least 12 characters
+                  <span className="sr-only">{hasMinLength ? ' (satisfied)' : ' (required)'}</span>
+                </Flex>
 
-            <Flex align="center" gap={2}>
-              {hasUpperCase ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
-              One uppercase letter
-            </Flex>
-            <span className="sr-only">{hasUpperCase ? ' (satisfied)' : ' (required)'}</span>
-            <Flex align="center" gap={2}>
-              {hasLowerCase ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
-              One lowercase letter
-            </Flex>
-            <span className="sr-only">{hasLowerCase ? ' (satisfied)' : ' (required)'}</span>
-            <Flex align="center" gap={2}>
-              {hasNumber ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
-              One number
-            </Flex>
-            <span className="sr-only">{hasNumber ? ' (satisfied)' : ' (required)'}</span>
-            <Flex align="center" gap={2}>
-              {hasSpecialChar ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
-              One special character
-            </Flex>
-            <span className="sr-only">{hasSpecialChar ? ' (satisfied)' : ' (required)'}</span>
-          </Box>
+                <Flex align="center" gap={2}>
+                  {hasUpperCase ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
+                  One uppercase letter
+                </Flex>
+                <span className="sr-only">{hasUpperCase ? ' (satisfied)' : ' (required)'}</span>
+                <Flex align="center" gap={2}>
+                  {hasLowerCase ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
+                  One lowercase letter
+                </Flex>
+                <span className="sr-only">{hasLowerCase ? ' (satisfied)' : ' (required)'}</span>
+                <Flex align="center" gap={2}>
+                  {hasNumber ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
+                  One number
+                </Flex>
+                <span className="sr-only">{hasNumber ? ' (satisfied)' : ' (required)'}</span>
+                <Flex align="center" gap={2}>
+                  {hasSpecialChar ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
+                  One special character
+                </Flex>
+                <span className="sr-only">{hasSpecialChar ? ' (satisfied)' : ' (required)'}</span>
+              </Box>
             </Dialog.Body>
 
             <Dialog.Footer gap={3} pt={6}>
               <Dialog.ActionTrigger asChild>
-                <Button variant="outline">
-                  Cancel
-                </Button>
+                <Button variant="outline">Cancel</Button>
               </Dialog.ActionTrigger>
               <Button
                 colorPalette="blue"

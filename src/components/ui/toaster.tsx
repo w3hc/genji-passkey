@@ -1,7 +1,13 @@
 'use client'
 
 import { createToaster } from '@chakra-ui/react'
-import { Toaster as ChakraToaster, ToastRoot, ToastTitle, ToastDescription, ToastCloseTrigger } from '@chakra-ui/react/toast'
+import {
+  Toaster as ChakraToaster,
+  ToastRoot,
+  ToastTitle,
+  ToastDescription,
+  ToastCloseTrigger,
+} from '@chakra-ui/react/toast'
 import { Stack } from '@chakra-ui/react'
 
 export const toaster = createToaster({
@@ -27,7 +33,11 @@ export const Toaster = () => {
           boxShadow="lg"
         >
           <Stack gap="1" flex="1">
-            {toast.title && <ToastTitle fontWeight="medium" fontSize="sm">{toast.title}</ToastTitle>}
+            {toast.title && (
+              <ToastTitle fontWeight="medium" fontSize="sm">
+                {toast.title}
+              </ToastTitle>
+            )}
             {toast.description && (
               <ToastDescription fontSize="sm" opacity="0.9">
                 {toast.description}

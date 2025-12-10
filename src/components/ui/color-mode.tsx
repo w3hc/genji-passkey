@@ -8,7 +8,13 @@ import type { ThemeProviderProps } from 'next-themes'
 import * as React from 'react'
 import { LuMoon, LuSun } from 'react-icons/lu'
 
-const ClientOnly = ({ children, fallback }: { children: React.ReactNode; fallback?: React.ReactNode }) => {
+const ClientOnly = ({
+  children,
+  fallback,
+}: {
+  children: React.ReactNode
+  fallback?: React.ReactNode
+}) => {
   const [mounted, setMounted] = React.useState(false)
   React.useEffect(() => setMounted(true), [])
   return mounted ? children : fallback || null
@@ -52,29 +58,28 @@ export function ColorModeIcon() {
 
 interface ColorModeButtonProps extends Omit<IconButtonProps, 'aria-label'> {}
 
-export const ColorModeButton = React.forwardRef<
-  HTMLButtonElement,
-  ColorModeButtonProps
->(function ColorModeButton(props, ref) {
-  const { toggleColorMode } = useColorMode()
-  return (
-    <ClientOnly fallback={<Skeleton boxSize="8" />}>
-      <IconButton
-        onClick={toggleColorMode}
-        variant="ghost"
-        aria-label="Toggle color mode"
-        size="sm"
-        ref={ref}
-        {...props}
-        css={{
-          _icon: {
-            width: '5',
-            height: '5',
-          },
-        }}
-      >
-        <ColorModeIcon />
-      </IconButton>
-    </ClientOnly>
-  )
-})
+export const ColorModeButton = React.forwardRef<HTMLButtonElement, ColorModeButtonProps>(
+  function ColorModeButton(props, ref) {
+    const { toggleColorMode } = useColorMode()
+    return (
+      <ClientOnly fallback={<Skeleton boxSize="8" />}>
+        <IconButton
+          onClick={toggleColorMode}
+          variant="ghost"
+          aria-label="Toggle color mode"
+          size="sm"
+          ref={ref}
+          {...props}
+          css={{
+            _icon: {
+              width: '5',
+              height: '5',
+            },
+          }}
+        >
+          <ColorModeIcon />
+        </IconButton>
+      </ClientOnly>
+    )
+  }
+)
