@@ -44,6 +44,22 @@ export default function Header() {
 
   const GitHubIcon = FaGithub
 
+  const spinStyles = `
+    @keyframes spin {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .spin-icon {
+      animation: spin 8s linear infinite;
+      display: inline-flex;
+    }
+  `
+
   useEffect(() => {
     const handleScroll = () => {
       setScrollPosition(window.scrollY)
@@ -227,6 +243,7 @@ export default function Header() {
 
   return (
     <>
+      <style dangerouslySetInnerHTML={{ __html: spinStyles }} />
       <Box as="header" py={4} position="fixed" w="100%" top={0} zIndex={10} overflow="visible">
         <Container maxW="100%" px={{ base: 4, md: 6 }} overflow="visible">
           <Flex
@@ -242,12 +259,14 @@ export default function Header() {
               suppressHydrationWarning
             >
               <Flex align="center" gap={3}>
-                <Link href="/">
+                <Link href="https://github.com/w3hc/genji-passkey" target={'_blank'}>
                   <Flex align="center" gap={5}>
                     <Heading as="h3" size="md" textAlign="center">
                       Genji
                     </Heading>
-                    <GitHubIcon size={20} />
+                    <Box className="spin-icon">
+                      <GitHubIcon size={20} />
+                    </Box>
                   </Flex>
                 </Link>
               </Flex>
