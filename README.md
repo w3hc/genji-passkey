@@ -11,6 +11,29 @@ Live demo: **https://genji.w3hc.org/**
 - [Ethers](https://docs.ethers.org/) `v6.15.0`
 - [Chakra UI](https://chakra-ui.com/) `v3.30.0`
 
+## Customize
+
+Before you start, you can run the customization script to:
+
+- Remove example pages (/about)
+- Remove API routes
+- Change the project name
+- Remove deploy.yml workflow
+- Update translations
+- Replace homepage content
+- Remove the customization script itself
+
+```bash
+pnpm customize
+```
+
+The script will prompt you for:
+
+- Your project name
+- Project description (optional)
+
+After customization, the script will self-destruct.
+
 ## Install
 
 ```bash

@@ -11,7 +11,8 @@
     "lint:a11y": "eslint . --no-ignore",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:a11y": "echo '⚠️  Run Lighthouse in Chrome DevTools or install pa11y: npx pa11y http://localhost:3000'"
+    "test:a11y": "echo '⚠️  Run Lighthouse in Chrome DevTools or install pa11y: npx pa11y http://localhost:3000'",
+    "customize": "node customize.js"
   },
   "dependencies": {
     "@chakra-ui/react": "^3.30.0",
