@@ -11,9 +11,15 @@ Live demo: **https://genji.w3hc.org/**
 - [Ethers](https://docs.ethers.org/) `v6.15.0`
 - [Chakra UI](https://chakra-ui.com/) `v3.30.0`
 
-## Customize
+## Fork
 
-Before you start, you can run the customization script to:
+You can [use this template](https://github.com/w3hc/genji-passkey/generate) directly, then run the customization script:
+
+```bash
+pnpm customize
+```
+
+This will:
 
 - Remove example pages (/about)
 - Remove API routes
@@ -22,15 +28,6 @@ Before you start, you can run the customization script to:
 - Update translations
 - Replace homepage content
 - Remove the customization script itself
-
-```bash
-pnpm customize
-```
-
-The script will prompt you for:
-
-- Your project name
-- Project description (optional)
 
 After customization, the script will self-destruct.
 
@@ -54,7 +51,7 @@ pnpm build
 
 ## Docs
 
-See the [/docs](docs/) to learn more about the context, design guidelines, and w3pk build verification.
+See the [/docs](docs/) to learn more about the context (for assistants), design guidelines, and w3pk build verification.
 
 ## License
 
