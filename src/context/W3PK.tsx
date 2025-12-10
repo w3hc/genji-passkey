@@ -1,5 +1,12 @@
 'use client'
 
+/**
+ * W3PK Context Provider
+ *
+ * For integration guidelines and detailed documentation,
+ * please visit: https://w3pk.w3hc.org/docs#integration-guidelines
+ */
+
 import React, {
   createContext,
   useContext,
