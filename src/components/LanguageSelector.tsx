@@ -31,11 +31,7 @@ const LanguageSelector: React.FC = () => {
   return (
     <MenuRoot>
       <MenuTrigger asChild>
-        <IconButton
-          aria-label="Select language"
-          variant="ghost"
-          size="sm"
-        >
+        <IconButton aria-label="Select language" variant="ghost" size="sm">
           <MdLanguage size="1.2em" />
         </IconButton>
       </MenuTrigger>

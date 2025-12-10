@@ -17,7 +17,7 @@ const NumberInputField = forwardRef<HTMLInputElement, any>((props, ref) => {
       _focus={{
         borderColor: '#45a2f8',
         boxShadow: '0 0 0 1px #45a2f8',
-        bg: 'gray.800'
+        bg: 'gray.800',
       }}
       _placeholder={{ color: 'gray.500' }}
       {...props}

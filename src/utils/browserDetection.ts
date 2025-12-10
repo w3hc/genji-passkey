@@ -70,7 +70,10 @@ export function detectBrowser(): BrowserInfo {
     }
   }
   // Check for Firefox Mobile
-  else if (userAgent.includes('Firefox') && (userAgent.includes('Android') || userAgent.includes('Mobile'))) {
+  else if (
+    userAgent.includes('Firefox') &&
+    (userAgent.includes('Android') || userAgent.includes('Mobile'))
+  ) {
     browserName = 'Firefox Mobile'
     const match = userAgent.match(/Firefox\/([\d.]+)/)
     if (match) {
@@ -140,7 +143,8 @@ export function detectBrowser(): BrowserInfo {
       warningLevel = 'none'
     } else {
       isSupported = false
-      recommendation = 'Please update Safari to version 14 or higher (requires macOS Big Sur 11.0+ or iOS 14.5+).'
+      recommendation =
+        'Please update Safari to version 14 or higher (requires macOS Big Sur 11.0+ or iOS 14.5+).'
       warningLevel = 'error'
     }
   }

@@ -37,11 +37,13 @@ When the settings page loads, the `BuildVerification` component:
 ### 3. Visual Indicators
 
 **Success (Green Checkmark ✅):**
+
 - Build hash matches the trusted hash
 - User sees "Verified W3PK Version" message
 - Both hashes are displayed for transparency
 
 **Failure (Red Cross ❌):**
+
 - Build hash does NOT match the trusted hash
 - User sees "Unverified W3PK Version" warning
 - Could indicate compromised package, development version, or tampering
@@ -135,14 +137,18 @@ The official W3PK build hash can be found:
 The verification component is integrated in two places in the settings page:
 
 **Non-authenticated section** ([src/app/settings/page.tsx:574](../src/app/settings/page.tsx#L574)):
+
 ```tsx
 <BuildVerification />
 ```
 
 **Authenticated section - Backup tab** ([src/app/settings/page.tsx:1267](../src/app/settings/page.tsx#L1267)):
+
 ```tsx
-{/* W3PK Build Verification */}
-<BuildVerification />
+{
+  /* W3PK Build Verification */
+}
+;<BuildVerification />
 ```
 
 ## Security Considerations
@@ -217,6 +223,7 @@ If `window.w3pk` is undefined:
 **Q: Can users trust the verification if the app itself might be compromised?**
 
 A: Users can independently verify by:
+
 - Checking the open-source code on GitHub
 - Running verification using the unpkg CDN (see console instructions)
 - Comparing hashes from multiple independent sources
@@ -233,6 +240,7 @@ A: Update the trusted hash whenever you upgrade the W3PK package version in your
 **Q: What should users do if verification fails?**
 
 A: Users should:
+
 1. Not enter any sensitive information
 2. Check if they're using an official app deployment
 3. Contact the app maintainers
