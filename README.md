@@ -7,29 +7,19 @@ Next.js Web3 starter with passkey auth and [WCAG 2.1 AA](https://www.levelaccess
 Live demo: **https://genji.w3hc.org**
 
 - **[w3pk](https://w3pk.w3hc.org/)** `v0.8.7`
-- [Next.js](https://nextjs.org/) `v16.0.7`
-- [Ethers](https://docs.ethers.org/) `v6.15.0`
+- [Next.js](https://nextjs.org/) `v16.0.10`
+- [Ethers](https://docs.ethers.org/) `v6.16.0`
 - [Chakra UI](https://chakra-ui.com/) `v3.30.0`
 
 ## Fork
 
-You can [use this template directly](https://github.com/w3hc/genji-passkey/generate), then run the customization script:
+You can [use this template directly](https://github.com/w3hc/genji-passkey/generate), then run the customization script so you start with a fresh app:
 
 ```bash
 pnpm customize
 ```
 
-This will:
-
-- Remove example pages (/about)
-- Remove API routes
-- Change the project name
-- Remove deploy.yml workflow
-- Update translations
-- Replace homepage content
-- Remove the customization script itself
-
-After customization, the script will self-destruct.
+The script itself will also self-destruct.
 
 ## Install
 
