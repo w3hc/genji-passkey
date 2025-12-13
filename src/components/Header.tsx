@@ -259,16 +259,19 @@ export default function Header() {
               suppressHydrationWarning
             >
               <Flex align="center" gap={3}>
-                <Link href="https://github.com/w3hc/genji-passkey" target={'_blank'}>
-                  <Flex align="center" gap={5}>
+                <Flex align="center" gap={5}>
+                  <Link href="/">
                     <Heading as="h3" size="md" textAlign="center">
                       Genji
                     </Heading>
-                    <Box className="spin-icon">
+                  </Link>
+
+                  <Box className="spin-icon">
+                    <Link href="https://github.com/w3hc/genji-passkey" target={'_blank'}>
                       <GitHubIcon size={20} />
-                    </Box>
-                  </Flex>
-                </Link>
+                    </Link>
+                  </Box>
+                </Flex>
               </Flex>
             </Box>
 
