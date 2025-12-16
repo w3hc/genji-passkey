@@ -103,6 +103,11 @@ interface W3pkType {
     backupData: string,
     password: string
   ) => Promise<{ mnemonic: string; ethereumAddress: string }>
+  registerWithBackupFile: (
+    backupData: string,
+    password: string,
+    username: string
+  ) => Promise<{ address: string; username: string }>
   setupSocialRecovery: (
     guardians: { name: string; email?: string; phone?: string }[],
     threshold: number,
@@ -136,6 +141,9 @@ const W3PK = createContext<W3pkType>({
   },
   restoreFromBackup: async () => {
     throw new Error('restoreFromBackup not initialized')
+  },
+  registerWithBackupFile: async () => {
+    throw new Error('registerWithBackupFile not initialized')
   },
   setupSocialRecovery: async () => {
     throw new Error('setupSocialRecovery not initialized')
@@ -709,6 +717,49 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
     }
   }
 
+  const registerWithBackupFile = async (
+    backupData: string,
+    password: string,
+    username: string
+  ): Promise<{ address: string; username: string }> => {
+    if (!w3pk || typeof w3pk.registerWithBackupFile !== 'function') {
+      throw new Error('w3pk SDK does not support registerWithBackupFile.')
+    }
+
+    try {
+      setIsLoading(true)
+      console.log('[W3PK] Registration with backup file initiated for username:', username)
+
+      const result = await w3pk.registerWithBackupFile(backupData, password, username)
+
+      console.log('[W3PK] Registration with backup successful')
+
+      toaster.create({
+        title: 'Wallet Restored & Registered! 🎉',
+        description: `Your wallet has been restored and secured with a new passkey: ${result.address.slice(0, 6)}...${result.address.slice(-4)}`,
+        type: 'success',
+        duration: 5000,
+      })
+
+      return result
+    } catch (error) {
+      console.error('[W3PK] Registration with backup failed:', error)
+
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to register with backup file'
+
+      toaster.create({
+        title: 'Registration Failed',
+        description: errorMessage,
+        type: 'error',
+        duration: 5000,
+      })
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   // Simplified inline social recovery using Shamir Secret Sharing
   const splitSecret = useCallback((mnemonic: string, threshold: number, shares: number) => {
     // Use secrets.js for Shamir Secret Sharing
@@ -1056,6 +1107,7 @@ Thank you for being a trusted guardian!
         getBackupStatus,
         createBackup,
         restoreFromBackup,
+        registerWithBackupFile,
         setupSocialRecovery,
         getSocialRecoveryConfig,
         generateGuardianInvite,
