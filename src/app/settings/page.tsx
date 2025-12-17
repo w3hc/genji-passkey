@@ -897,7 +897,7 @@ const SettingsPage = () => {
           </Box>
 
           {/* Register a new account */}
-          <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
+          {/* <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
             <HStack mb={4}>
               <Icon as={FiUserPlus} color={brandColors.primary} boxSize={6} />
               <Heading size="md">Register a new account</Heading>
@@ -918,7 +918,7 @@ const SettingsPage = () => {
               <Icon as={FiUserPlus} />
               Register
             </Button>
-          </Box>
+          </Box> */}
 
           <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
             <Heading size="sm" mb={3} color={brandColors.primary}>
@@ -2018,7 +2018,7 @@ const SettingsPage = () => {
               </Box>
 
               {/* Register a new account */}
-              <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
+              {/* <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
                 <HStack mb={4}>
                   <Icon as={FiUserPlus} color={brandColors.primary} boxSize={6} />
                   <Heading size="md">Register a new account</Heading>
@@ -2039,7 +2039,7 @@ const SettingsPage = () => {
                   <Icon as={FiUserPlus} />
                   Register
                 </Button>
-              </Box>
+              </Box> */}
 
               {/* W3PK Build Verification */}
               <BuildVerification />
