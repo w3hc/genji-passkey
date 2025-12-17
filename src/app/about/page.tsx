@@ -313,43 +313,95 @@ export default function About() {
             },
           }}
         >
-          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+          <List.Item
+            cursor="pointer"
+            transition="color 0.2s"
+            _hover={{ color: brandColors.accent }}
+          >
             Passwordless authentication (WebAuthn/FIDO2)
           </List.Item>
-          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+          <List.Item
+            cursor="pointer"
+            transition="color 0.2s"
+            _hover={{ color: brandColors.accent }}
+          >
             Origin-specific key isolation with tag-based access control
           </List.Item>
-          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+          <List.Item
+            cursor="pointer"
+            transition="color 0.2s"
+            _hover={{ color: brandColors.accent }}
+          >
             Session management (in-memory + optional persistent)
           </List.Item>
-          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+          <List.Item
+            cursor="pointer"
+            transition="color 0.2s"
+            _hover={{ color: brandColors.accent }}
+          >
             HD wallet generation (BIP39/BIP44)
           </List.Item>
-          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+          <List.Item
+            cursor="pointer"
+            transition="color 0.2s"
+            _hover={{ color: brandColors.accent }}
+          >
             Multi-address derivation with security modes (STANDARD/STRICT/YOLO)
           </List.Item>
-          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+          <List.Item
+            cursor="pointer"
+            transition="color 0.2s"
+            _hover={{ color: brandColors.accent }}
+          >
             Multiple signing methods (EIP-191, SIWE/EIP-4361, EIP-712, rawHash)
           </List.Item>
-          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+          <List.Item
+            cursor="pointer"
+            transition="color 0.2s"
+            _hover={{ color: brandColors.accent }}
+          >
             ERC-5564 stealth addresses (opt-in)
           </List.Item>
-          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+          <List.Item
+            cursor="pointer"
+            transition="color 0.2s"
+            _hover={{ color: brandColors.accent }}
+          >
             ZK primitives (zero-knowledge proof generation and verification)
           </List.Item>
-          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+          <List.Item
+            cursor="pointer"
+            transition="color 0.2s"
+            _hover={{ color: brandColors.accent }}
+          >
             Chainlist support (2390+ networks)
           </List.Item>
-          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+          <List.Item
+            cursor="pointer"
+            transition="color 0.2s"
+            _hover={{ color: brandColors.accent }}
+          >
             EIP-7702 network detection (329+ networks)
           </List.Item>
-          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+          <List.Item
+            cursor="pointer"
+            transition="color 0.2s"
+            _hover={{ color: brandColors.accent }}
+          >
             EIP-7951 PRIMARY mode (P-256 passkey signing)
           </List.Item>
-          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+          <List.Item
+            cursor="pointer"
+            transition="color 0.2s"
+            _hover={{ color: brandColors.accent }}
+          >
             Build verification (IPFS CIDv1 hashing)
           </List.Item>
-          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+          <List.Item
+            cursor="pointer"
+            transition="color 0.2s"
+            _hover={{ color: brandColors.accent }}
+          >
             Three-layer backup & recovery (passkey sync, encrypted backups, social recovery)
           </List.Item>
         </List.Root>
