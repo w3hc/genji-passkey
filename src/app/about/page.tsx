@@ -1,6 +1,6 @@
 'use client'
 
-import { Heading, Text, Box, VStack, HStack, Flex, Link, Icon } from '@chakra-ui/react'
+import { Heading, Text, Box, VStack, HStack, Flex, Link, Icon, List } from '@chakra-ui/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { brandColors } from '@/theme'
@@ -303,79 +303,56 @@ export default function About() {
         <Heading size="xl" mb={6}>
           Features
         </Heading>
-        <VStack align="stretch" gap={2}>
-          <Text cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
-            🔐 Passwordless authentication (WebAuthn/FIDO2)
-          </Text>
-          <Text cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
-            🛡️ Origin-specific key isolation with tag-based access control
-          </Text>
-          <Text cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
-            ⏱️ Session management (in-memory + optional persistence)
-          </Text>
-          <Text cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
-            🔒 Persistent sessions (encrypted with WebAuthn keys, survives page refresh)
-          </Text>
-          <Text cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
-            🌱 HD wallet generation (BIP39/BIP44)
-          </Text>
-          <Text cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
-            🔢 Multi-address derivation
-          </Text>
-          <Text cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
-            🌐 Origin-specific addresses (deterministic derivation per website with tag support)
-          </Text>
-          <Text cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
-            ✍️ Multiple signing methods (EIP-191, SIWE/EIP-4361, EIP-712, rawHash)
-          </Text>
-          <VStack align="stretch" pl={6} gap={1}>
-            <Text cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
-              • EIP-191: Standard Ethereum signed messages
-            </Text>
-            <Text cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
-              • SIWE: Sign-In with Ethereum (Web3 authentication)
-            </Text>
-            <Text cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
-              • EIP-712: Structured typed data (permits, voting, etc.)
-            </Text>
-            <Text cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
-              • rawHash: Pre-computed hashes (Safe multisig, custom schemes)
-            </Text>
-          </VStack>
-
-          <Text cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
-            🥷 ERC-5564 stealth addresses (opt-in, privacy-preserving transactions with view tags)
-          </Text>
-          <Text cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
-            🧮 ZK primitives (zero-knowledge proof generation and verification)
-          </Text>
-          <Text cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
-            🔗 Chainlist support (2390+ networks, auto-filtered RPC endpoints)
-          </Text>
-          <Text cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
-            ⚡ EIP-7702 network detection (329+ supported networks)
-          </Text>
-          <Text cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
-            🔑 EIP-7951 PRIMARY mode (sign with P-256 passkeys directly)
-          </Text>
-          <Text cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
-            🔍 Build verification (IPFS CIDv1 hashing for package integrity)
-          </Text>
-          <Text cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
-            🛡️ Three-layer backup & recovery system
-          </Text>
-          <VStack align="stretch" pl={6} gap={1}>
-            <Text cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
-              • Passkey auto-sync (iCloud/Google/Microsoft)
-            </Text>
-            <Text cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
-              • Encrypted backups (QR codes and backup files with password protection)
-            </Text>
-            <Text cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
-              • Social recovery (Shamir Secret Sharing)
-            </Text>
-          </VStack>
-        </VStack>
+        <List.Root
+          gap={2}
+          fontSize="lg"
+          pl={6}
+          css={{
+            '& li::marker': {
+              color: brandColors.primary,
+            },
+          }}
+        >
+          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+            Passwordless authentication (WebAuthn/FIDO2)
+          </List.Item>
+          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+            Origin-specific key isolation with tag-based access control
+          </List.Item>
+          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+            Session management (in-memory + optional persistent)
+          </List.Item>
+          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+            HD wallet generation (BIP39/BIP44)
+          </List.Item>
+          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+            Multi-address derivation with security modes (STANDARD/STRICT/YOLO)
+          </List.Item>
+          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+            Multiple signing methods (EIP-191, SIWE/EIP-4361, EIP-712, rawHash)
+          </List.Item>
+          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+            ERC-5564 stealth addresses (opt-in)
+          </List.Item>
+          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+            ZK primitives (zero-knowledge proof generation and verification)
+          </List.Item>
+          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+            Chainlist support (2390+ networks)
+          </List.Item>
+          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+            EIP-7702 network detection (329+ networks)
+          </List.Item>
+          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+            EIP-7951 PRIMARY mode (P-256 passkey signing)
+          </List.Item>
+          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+            Build verification (IPFS CIDv1 hashing)
+          </List.Item>
+          <List.Item cursor="pointer" transition="color 0.2s" _hover={{ color: brandColors.accent }}>
+            Three-layer backup & recovery (passkey sync, encrypted backups, social recovery)
+          </List.Item>
+        </List.Root>
       </Box>
     </VStack>
   )

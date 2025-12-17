@@ -1,11 +1,13 @@
 'use client'
 
-import { Text, VStack, Box, Heading } from '@chakra-ui/react'
+import { Text, VStack, Box, Heading, Link, Image } from '@chakra-ui/react'
 import { Button } from '@/components/ui/button'
 import { useW3PK } from '@/context/W3PK'
 import { useTranslation } from '@/hooks/useTranslation'
+import { useMint } from '@/hooks/useMint'
 import { useState, useEffect } from 'react'
 import { toaster } from '@/components/ui/toaster'
+import { brandColors } from '@/theme'
 
 const shimmerStyles = `
   @keyframes colorWave {
@@ -29,11 +31,13 @@ const shimmerStyles = `
 
 export default function Home() {
   const { isAuthenticated, user, login, signMessage, deriveWallet, getAddress } = useW3PK()
+  const { mint, isMinting } = useMint()
   const t = useTranslation()
   const [primaryAddress, setPrimaryAddress] = useState<string>('')
   const [mainAddress, setMainAddress] = useState<string>('')
   const [openbarAddress, setOpenbarAddress] = useState<string>('')
   const [isLoadingMain, setIsLoadingMain] = useState(false)
+  const [mintTxHash, setMintTxHash] = useState<string>('')
 
   useEffect(() => {
     let cancelled = false
@@ -85,6 +89,17 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Failed to sign message:', error)
+    }
+  }
+
+  const handleMintNFT = async () => {
+    try {
+      const result = await mint()
+      if (result?.txHash) {
+        setMintTxHash(result.txHash)
+      }
+    } catch (error) {
+      console.error('Failed to mint NFT:', error)
     }
   }
 
@@ -143,14 +158,71 @@ export default function Home() {
                 {isLoadingMain ? 'Loading...' : mainAddress || 'Not available'}
               </Box>
               <Box textAlign="center" mt={10}>
-                <Button
-                  colorPalette="blue"
-                  onClick={() => handleSignMessage('Hello world!', mainAddress)}
-                  disabled={!mainAddress}
-                  size="sm"
-                >
-                  Sign a message
-                </Button>
+                <VStack gap={3}>
+                  <Button
+                    colorPalette="blue"
+                    onClick={() => handleSignMessage('Hello world!', mainAddress)}
+                    disabled={!mainAddress}
+                    size="sm"
+                  >
+                    Sign a message
+                  </Button>
+                  <Button
+                    colorPalette="purple"
+                    onClick={handleMintNFT}
+                    disabled={!mainAddress || isMinting}
+                    loading={isMinting}
+                    size="sm"
+                  >
+                    Send a transaction
+                  </Button>
+                </VStack>
+                {mintTxHash && (
+                  <Box
+                    mt={8}
+                    p={6}
+                    borderRadius="lg"
+                    borderWidth="1px"
+                    borderColor="blue.700"
+                    bg="blue.950"
+                    maxW="500px"
+                    mx="auto"
+                  >
+                    <VStack gap={4}>
+                      <Image
+                        src="https://bafybeif54pvansk6tlywsxajimb3qwtp5mm7efsp6loiaoioocpgebirwu.ipfs.dweb.link/pa30.png"
+                        alt="Alpha Tester NFT"
+                        borderRadius="lg"
+                        width="100%"
+                        maxW="300px"
+                      />
+                      <Link
+                        href={`https://optimistic.etherscan.io/tx/${mintTxHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        fontSize="0.875rem"
+                        color={brandColors.accent}
+                        textDecoration="underline"
+                        wordBreak="break-all"
+                        width="100%"
+                      >
+                        {mintTxHash}
+                      </Link>
+                      <Text
+                        fontSize="sm"
+                        color="gray.300"
+                        textAlign="left"
+                        lineHeight="1.6"
+                        width="100%"
+                      >
+                        Thank you for testing W3PK! You now own the Alpha Tester NFT on OP Mainnet,
+                        it&apos;s in your wallet. Don&apos;t forget to backup your account so you
+                        don&apos;t lose the NFT: we&apos;ll soon deploy a DAO and you&apos;re
+                        already a member of it! Thanks again!
+                      </Text>
+                    </VStack>
+                  </Box>
+                )}
               </Box>
             </VStack>
           </>
