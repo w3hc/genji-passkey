@@ -4,7 +4,6 @@ import { Text, VStack, Box, Heading, Link, Image } from '@chakra-ui/react'
 import { Button } from '@/components/ui/button'
 import { useW3PK } from '@/context/W3PK'
 import { useTranslation } from '@/hooks/useTranslation'
-import { useMint } from '@/hooks/useMint'
 import { useState, useEffect } from 'react'
 import { toaster } from '@/components/ui/toaster'
 import { brandColors } from '@/theme'
@@ -31,7 +30,6 @@ const shimmerStyles = `
 
 export default function Home() {
   const { isAuthenticated, user, login, signMessage, deriveWallet, getAddress } = useW3PK()
-  const { mint, isMinting } = useMint()
   const t = useTranslation()
   const [primaryAddress, setPrimaryAddress] = useState<string>('')
   const [mainAddress, setMainAddress] = useState<string>('')
@@ -89,17 +87,6 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Failed to sign message:', error)
-    }
-  }
-
-  const handleMintNFT = async () => {
-    try {
-      const result = await mint()
-      if (result?.txHash) {
-        setMintTxHash(result.txHash)
-      }
-    } catch (error) {
-      console.error('Failed to mint NFT:', error)
     }
   }
 
@@ -166,15 +153,6 @@ export default function Home() {
                     size="sm"
                   >
                     Sign a message
-                  </Button>
-                  <Button
-                    colorPalette="purple"
-                    onClick={handleMintNFT}
-                    disabled={!mainAddress || isMinting}
-                    loading={isMinting}
-                    size="sm"
-                  >
-                    Send a transaction
                   </Button>
                 </VStack>
                 {mintTxHash && (
