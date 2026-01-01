@@ -89,32 +89,14 @@ export default function Header() {
 
   const handleLogin = async () => {
     // Check if credentials exist in localStorage or IndexedDB
-    const hasLocalCredentials = await checkForExistingCredentials()
+    const hasCredentials = await checkForExistingCredentials()
 
-    if (hasLocalCredentials) {
-      // User has local credentials - perform normal login
+    if (hasCredentials) {
+      // User has credentials - perform normal login
       await login()
-      return
-    }
-
-    // No local credentials found - check for cloud-synced passkeys (e.g., Google Password Manager)
-    try {
-      await login()
-      // If login succeeds, user had cloud-synced passkey
-    } catch (error) {
-      // Login failed - check if it's because no passkeys exist at all
-      const errorMessage = error instanceof Error ? error.message : ''
-      const noPasskeysAvailable =
-        errorMessage.includes('not available on this device') ||
-        errorMessage.includes('not available') ||
-        errorMessage.includes('restore your wallet from a backup') ||
-        errorMessage.includes('No credentials available')
-
-      if (noPasskeysAvailable) {
-        // No passkeys anywhere (local or cloud) - prompt for registration
-        onOpen()
-      }
-      // If it's a different error (user cancelled, etc.), don't show registration modal
+    } else {
+      // No credentials - prompt for registration
+      onOpen()
     }
   }
 
