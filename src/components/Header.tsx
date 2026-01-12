@@ -88,15 +88,54 @@ export default function Header() {
   }
 
   const handleLogin = async () => {
-    // Check if credentials exist in localStorage or IndexedDB
-    const hasCredentials = await checkForExistingCredentials()
+    /**
+     * Comprehensive Login Workflow:
+     * 1. Check for existing persistent session (already handled by W3PK context on mount)
+     * 2. Check for existing account in local storage + IndexedDB
+     * 3. Check for existing account in passkey password manager (cloud-synced)
+     * 4. If none found, prompt for registration
+     */
 
-    if (hasCredentials) {
-      // User has credentials - perform normal login
+    try {
+      // Step 2: Check if credentials exist in localStorage or IndexedDB
+      const hasLocalCredentials = await checkForExistingCredentials()
+
+      if (hasLocalCredentials) {
+        // User has local credentials - perform normal login
+        console.log('[Login] Local credentials found, attempting login')
+        await login()
+        return
+      }
+
+      // Step 3: No local credentials found - check for cloud-synced passkeys
+      // This will prompt the passkey manager (e.g., Google Password Manager, iCloud Keychain)
+      console.log('[Login] No local credentials, checking for cloud-synced passkeys')
       await login()
-    } else {
-      // No credentials - prompt for registration
-      onOpen()
+      console.log('[Login] Login successful with cloud-synced passkey')
+    } catch (error) {
+      // Login failed - determine why
+      const errorMessage = error instanceof Error ? error.message : ''
+      console.log('[Login] Login failed:', errorMessage)
+
+      const noPasskeysAvailable =
+        errorMessage.includes('not available on this device') ||
+        errorMessage.includes('not available') ||
+        errorMessage.includes('restore your wallet from a backup') ||
+        errorMessage.includes('No credentials available')
+
+      if (noPasskeysAvailable) {
+        // Step 4: No passkeys anywhere (local or cloud) - prompt for registration
+        console.log('[Login] No passkeys found anywhere, opening registration modal')
+        toaster.create({
+          title: 'No Account Found',
+          description: 'No passkey found. Please register to create a new account.',
+          type: 'info',
+          duration: 4000,
+        })
+        onOpen()
+      }
+      // If it's a different error (user cancelled, timeout, etc.), don't show registration modal
+      // The error toast is already shown by the login() function in W3PK context
     }
   }
 
@@ -231,8 +270,8 @@ export default function Header() {
     }
   }, [username])
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    await logout()
   }
 
   const handleModalClose = () => {

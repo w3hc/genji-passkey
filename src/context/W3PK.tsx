@@ -93,7 +93,7 @@ interface W3pkType {
   isLoading: boolean
   login: () => Promise<void>
   register: (username: string) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
   signMessage: (message: string) => Promise<string | null>
   deriveWallet: (mode?: string, tag?: string) => Promise<DerivedWallet>
   getAddress: (mode?: string, tag?: string) => Promise<string>
@@ -129,7 +129,7 @@ const W3PK = createContext<W3pkType>({
   isLoading: false,
   login: async () => {},
   register: async () => {},
-  logout: () => {},
+  logout: async () => {},
   signMessage: async () => null,
   deriveWallet: async () => ({ address: '', privateKey: '' }),
   getAddress: async () => '',
@@ -291,6 +291,11 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
   )
 
   useEffect(() => {
+    /**
+     * Login Workflow - Step 1: Check for existing persistent session
+     * This runs automatically on mount to restore the user's session if it exists.
+     * This is the first step in the comprehensive login workflow.
+     */
     const checkExistingAuth = async (): Promise<void> => {
       if (!isMounted || !w3pk) return
 
@@ -592,9 +597,32 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
     [user, w3pk, isUserCancelledError, ensureAuthentication]
   )
 
-  const logout = (): void => {
+  const logout = async (): Promise<void> => {
     // The SDK's logout() method clears both in-memory and ALL persistent sessions from IndexedDB
     w3pk.logout()
+
+    // Extra cleanup for mobile: explicitly clear persistent session from IndexedDB
+    // This ensures the session is cleared even if the SDK's logout has issues on mobile
+    try {
+      if (typeof window !== 'undefined' && window.indexedDB) {
+        const dbName = 'Web3PasskeyPersistentSessions'
+        const storeName = 'sessions'
+
+        // Open and clear the database
+        const request = indexedDB.open(dbName)
+        request.onsuccess = event => {
+          const db = (event.target as IDBOpenDBRequest).result
+          if (db.objectStoreNames.contains(storeName)) {
+            const transaction = db.transaction([storeName], 'readwrite')
+            const objectStore = transaction.objectStore(storeName)
+            objectStore.clear() // Clear all sessions
+          }
+          db.close()
+        }
+      }
+    } catch (error) {
+      console.error('[W3PK] Error clearing persistent session:', error)
+    }
   }
 
   const getBackupStatus = async (): Promise<BackupStatus> => {
