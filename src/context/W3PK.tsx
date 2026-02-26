@@ -16,7 +16,7 @@ import React, {
   useCallback,
   useEffect,
 } from 'react'
-import { createWeb3Passkey } from 'w3pk'
+import { createWeb3Passkey, getCurrentBuildHash, verifyBuildHash, inspect, inspectNow } from 'w3pk'
 import { toaster } from '@/components/ui/toaster'
 
 interface SecurityScore {
@@ -289,6 +289,19 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
       }),
     [handleAuthStateChanged]
   )
+
+  // Expose w3pk instance to window for console inspection
+  useEffect(() => {
+    if (typeof window !== 'undefined' && w3pk) {
+      ;(window as any).w3pk = {
+        ...w3pk,
+        getCurrentBuildHash,
+        verifyBuildHash,
+        inspect,
+        inspectNow,
+      }
+    }
+  }, [w3pk])
 
   useEffect(() => {
     /**
