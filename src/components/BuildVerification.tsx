@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Box,
   Heading,
@@ -15,18 +15,38 @@ import { MdCheckCircle, MdError, MdInfo } from 'react-icons/md'
 import { FiShield, FiExternalLink } from 'react-icons/fi'
 import { brandColors } from '@/theme'
 import Spinner from '@/components/Spinner'
-import { verifyBuildHash, getCurrentBuildHash } from 'w3pk'
+import { getCurrentBuildHash } from 'w3pk'
+import { ethers } from 'ethers'
+import packageJson from '../../package.json'
 
-const TRUSTED_BUILD_HASH = 'bafybeign6sslekbo3hidzahgn5esb6b4ngdog57mxgqlr6ykdjl5o5wdve' // w3pk v0.9.0
+// W3PK Version Registry on OP Mainnet
+const REGISTRY_ADDRESS = '0xAF48C2DB335eD5da14A2C36a59Bc34407C63e01a'
+const REGISTRY_ABI = [
+  'function getLatestRelease() view returns (string version, string cid, uint256 timestamp)',
+  'function getCidByVersion(string version) view returns (string)',
+]
+const OPTIMISM_RPC = 'https://mainnet.optimism.io'
+
+// Get installed w3pk version from package.json
+const getInstalledW3pkVersion = (): string => {
+  const w3pkVersion = packageJson.dependencies['w3pk'] as string
+  return w3pkVersion.replace(/^[~^]/, '') // Remove ^ or ~ prefix
+}
 
 export const BuildVerification = () => {
   const [isVerifying, setIsVerifying] = useState(true)
   const [isVerified, setIsVerified] = useState<boolean | null>(null)
   const [currentHash, setCurrentHash] = useState<string>('')
+  const [trustedHash, setTrustedHash] = useState<string>('')
+  const [installedVersion, setInstalledVersion] = useState<string>('')
   const [error, setError] = useState<string>('')
+  const hasVerified = useRef(false)
 
   useEffect(() => {
+    if (hasVerified.current) return
+
     const verifyBuild = async () => {
+      hasVerified.current = true
       setIsVerifying(true)
       setError('')
 
@@ -35,21 +55,34 @@ export const BuildVerification = () => {
         const hash = await getCurrentBuildHash()
         setCurrentHash(hash)
 
-        // Verify against trusted hash
-        const verified = await verifyBuildHash(TRUSTED_BUILD_HASH)
+        // Get installed w3pk version from package.json
+        const version = getInstalledW3pkVersion()
+        setInstalledVersion(version)
+
+        // Fetch trusted hash from onchain registry for the installed version
+        const provider = new ethers.JsonRpcProvider(OPTIMISM_RPC)
+        const registry = new ethers.Contract(REGISTRY_ADDRESS, REGISTRY_ABI, provider)
+        const onchainCid = await registry.getCidByVersion(`v${version}`)
+        setTrustedHash(onchainCid)
+
+        // Verify against onchain hash
+        const verified = hash === onchainCid
         setIsVerified(verified)
 
         // Log results to console for manual verification
         console.log('🔐 W3PK Build Verification')
         console.log('═'.repeat(50))
+        console.log('Installed version:', version)
         console.log('Current build hash:', hash)
-        console.log('Trusted hash:     ', TRUSTED_BUILD_HASH)
+        console.log('Expected hash:    ', onchainCid)
         console.log('Verification:     ', verified ? '✅ VERIFIED' : '❌ FAILED')
+        console.log('═'.repeat(50))
+        console.log('Registry contract:', REGISTRY_ADDRESS)
+        console.log('Network:          OP Mainnet')
         console.log('═'.repeat(50))
         console.log('Verify manually in console:')
         console.log('')
         console.log('  await window.w3pk.getCurrentBuildHash()')
-        console.log('  await window.w3pk.verifyBuildHash("' + TRUSTED_BUILD_HASH + '")')
         console.log('')
         console.log('Security inspection:')
         console.log('')
@@ -122,9 +155,25 @@ export const BuildVerification = () => {
                 </Text>
               </HStack>
               <Text fontSize="xs" color="green.200">
-                This app is running a verified and trusted version of W3PK. The cryptographic build
-                hash matches the official release.
+                This app is running a verified and trusted version of W3PK (v{installedVersion}).
+                The cryptographic build hash matches the DAO-maintained onchain registry.
               </Text>
+            </Box>
+            <Box>
+              <Text fontSize="xs" color="gray.500" mb={1}>
+                Installed version:
+              </Text>
+              <Code
+                fontSize="xs"
+                bg="gray.800"
+                color="gray.300"
+                px={2}
+                py={1}
+                display="block"
+                wordBreak="break-all"
+              >
+                {installedVersion}
+              </Code>
             </Box>
             <Box>
               <Text fontSize="xs" color="gray.500" mb={1}>
@@ -144,7 +193,7 @@ export const BuildVerification = () => {
             </Box>
             <Box>
               <Text fontSize="xs" color="gray.500" mb={1}>
-                Trusted hash:
+                Trusted hash (onchain):
               </Text>
               <Code
                 fontSize="xs"
@@ -155,7 +204,7 @@ export const BuildVerification = () => {
                 display="block"
                 wordBreak="break-all"
               >
-                {TRUSTED_BUILD_HASH}
+                {trustedHash}
               </Code>
             </Box>
           </>
@@ -169,10 +218,26 @@ export const BuildVerification = () => {
                 </Text>
               </HStack>
               <Text fontSize="xs" color="red.200">
-                Warning: This app is running an unverified version of W3PK. The build hash does not
-                match the trusted release. This could indicate a compromised package, development
-                version, or tampering.
+                Warning: This app is running an unverified version of W3PK (v{installedVersion}).
+                The build hash does not match the trusted release. This could indicate a compromised
+                package, development version, or tampering.
               </Text>
+            </Box>
+            <Box>
+              <Text fontSize="xs" color="gray.500" mb={1}>
+                Installed version:
+              </Text>
+              <Code
+                fontSize="xs"
+                bg="gray.800"
+                color="gray.300"
+                px={2}
+                py={1}
+                display="block"
+                wordBreak="break-all"
+              >
+                {installedVersion}
+              </Code>
             </Box>
             <Box>
               <Text fontSize="xs" color="gray.500" mb={1}>
@@ -192,7 +257,7 @@ export const BuildVerification = () => {
             </Box>
             <Box>
               <Text fontSize="xs" color="gray.500" mb={1}>
-                Expected hash:
+                Expected hash (onchain):
               </Text>
               <Code
                 fontSize="xs"
@@ -203,7 +268,7 @@ export const BuildVerification = () => {
                 display="block"
                 wordBreak="break-all"
               >
-                {TRUSTED_BUILD_HASH}
+                {trustedHash}
               </Code>
             </Box>
           </>
@@ -218,8 +283,9 @@ export const BuildVerification = () => {
           </HStack>
           <Text fontSize="xs" color="gray.400" mb={2}>
             This verification ensures you&apos;re running an authentic, unmodified version of W3PK
-            by comparing its cryptographic hash against the official trusted release. This protects
-            you from supply chain attacks, compromised packages, and unauthorized modifications.
+            by comparing its cryptographic hash against the DAO-maintained onchain registry on OP
+            Mainnet. This protects you from supply chain attacks, compromised packages, and
+            unauthorized modifications.
           </Text>
           <VStack align="stretch" gap={1} mb={0}>
             <ChakraLink
