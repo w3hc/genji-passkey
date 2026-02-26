@@ -707,7 +707,7 @@ const SettingsPage = () => {
 
     try {
       const result = await inspect({
-        focusMode: 'transactions'
+        focusMode: 'transactions',
       })
 
       console.log('✅ Security report generated')
@@ -740,7 +740,8 @@ const SettingsPage = () => {
       console.error('❌ Inspection failed:', error)
       toaster.create({
         title: 'Inspection Failed',
-        description: "Host app inspection did not work. It's probably due to Anthropic request rate limit reached.",
+        description:
+          "Host app inspection did not work. It's probably due to Anthropic request rate limit reached.",
         type: 'error',
         duration: 8000,
       })
@@ -752,7 +753,7 @@ const SettingsPage = () => {
   // Expose inspect to window for console access
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      (window as any).w3pk = {
+      ;(window as any).w3pk = {
         ...(window as any).w3pk,
         inspect: async () => {
           console.log('🔍 W3PK Security Inspection Starting...')
@@ -765,7 +766,7 @@ const SettingsPage = () => {
           console.log(`✅ Analyzed ${result.analyzedFiles.length} files`)
           console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
           return result
-        }
+        },
       }
     }
   }, [])
@@ -1035,13 +1036,7 @@ const SettingsPage = () => {
           </Box>
 
           {/* Security Inspect Section */}
-          <Box
-            bg="gray.900"
-            p={6}
-            borderRadius="lg"
-            border="2px solid"
-            borderColor="purple.500"
-          >
+          <Box bg="gray.900" p={6} borderRadius="lg" border="2px solid" borderColor="purple.500">
             {!securityReport ? (
               <>
                 <Text fontSize="sm" color="gray.400" mb={4}>
@@ -1069,7 +1064,10 @@ const SettingsPage = () => {
                   )}
                 </Button>
                 <Text fontSize="xs" color="gray.500" mt={3}>
-                  Console command: <Code colorPalette="purple" fontSize="xs">await w3pk.inspect()</Code>
+                  Console command:{' '}
+                  <Code colorPalette="purple" fontSize="xs">
+                    await w3pk.inspect()
+                  </Code>
                 </Text>
               </>
             ) : (
@@ -3375,8 +3373,8 @@ const SettingsPage = () => {
             )}
           </Button>
           <Text fontSize="sm" color="gray.500" mt={4}>
-            You can also run <Code colorPalette="purple">await w3pk.inspectNow()</Code> in the browser
-            console
+            You can also run <Code colorPalette="purple">await w3pk.inspectNow()</Code> in the
+            browser console
           </Text>
         </Box>
       </VStack>
