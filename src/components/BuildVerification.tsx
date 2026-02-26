@@ -17,7 +17,7 @@ import { brandColors } from '@/theme'
 import Spinner from '@/components/Spinner'
 import { verifyBuildHash, getCurrentBuildHash } from 'w3pk'
 
-const TRUSTED_BUILD_HASH = 'bafybeig2xoiu2hfcjexz6cwtjcjf4u4vwxzcm66zhnqivhh6jvi7nx2qa4' // w3pk v0.8.8
+const TRUSTED_BUILD_HASH = 'bafybeign6sslekbo3hidzahgn5esb6b4ngdog57mxgqlr6ykdjl5o5wdve' // w3pk v0.9.0
 
 export const BuildVerification = () => {
   const [isVerifying, setIsVerifying] = useState(true)
@@ -31,15 +31,6 @@ export const BuildVerification = () => {
       setError('')
 
       try {
-        // Expose W3PK functions globally for console access
-        if (typeof window !== 'undefined') {
-          ;(window as any).w3pk = {
-            getCurrentBuildHash,
-            verifyBuildHash,
-            TRUSTED_BUILD_HASH,
-          }
-        }
-
         // Get current build hash
         const hash = await getCurrentBuildHash()
         setCurrentHash(hash)
@@ -58,8 +49,14 @@ export const BuildVerification = () => {
         console.log('Verify manually in console:')
         console.log('')
         console.log('  await window.w3pk.getCurrentBuildHash()')
-        console.log('  await window.w3pk.verifyBuildHash(window.w3pk.TRUSTED_BUILD_HASH)')
+        console.log('  await window.w3pk.verifyBuildHash("' + TRUSTED_BUILD_HASH + '")')
         console.log('')
+        console.log('Security inspection:')
+        console.log('')
+        console.log('  await window.w3pk.inspectNow()')
+        console.log('  await window.w3pk.inspect()')
+        console.log('')
+        console.log('Full SDK available at window.w3pk')
         console.log('═'.repeat(50))
       } catch (err) {
         console.error('Build verification error:', err)
@@ -74,7 +71,7 @@ export const BuildVerification = () => {
   }, [])
 
   return (
-    <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
+    <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor={brandColors.primary}>
       <HStack mb={4} justify="space-between">
         <HStack>
           <Icon as={FiShield} color={brandColors.primary} boxSize={6} />
@@ -214,7 +211,7 @@ export const BuildVerification = () => {
 
         <Box bg="gray.800/50" p={3} borderRadius="md" mt={2}>
           <HStack mb={2}>
-            <Icon as={MdInfo} color="blue.400" boxSize={4} />
+            <Icon as={MdInfo} color={brandColors.primary} boxSize={4} />
             <Text fontSize="xs" fontWeight="bold" color="gray.300">
               Why This Matters
             </Text>
@@ -230,8 +227,8 @@ export const BuildVerification = () => {
               target="_blank"
               rel="noopener noreferrer"
               fontSize="xs"
-              color="blue.400"
-              _hover={{ color: 'blue.300', textDecoration: 'underline' }}
+              color={brandColors.primary}
+              _hover={{ color: brandColors.secondary, textDecoration: 'underline' }}
               display="inline-flex"
               alignItems="center"
               gap={1}
