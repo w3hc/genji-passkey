@@ -1819,13 +1819,51 @@ const SettingsPage = () => {
 
     setIsRecovering(true)
     try {
-      const result = await recoverFromGuardians(recoveryShares)
+      // Step 1: Recover the encrypted backup file from guardian shares
+      const { backupFileJson, ethereumAddress } = await recoverFromGuardians(recoveryShares)
+
+      // Step 2: Prompt for password to decrypt the backup file
+      const password = window.prompt(
+        'Enter the password you set when configuring social recovery.\n\n' +
+          'This password was NOT shared with guardians - you set it during setup.'
+      )
+
+      if (!password) {
+        toaster.create({
+          title: 'Password Required',
+          description: 'You need to enter your password to decrypt the backup file',
+          type: 'error',
+          duration: 3000,
+        })
+        setIsRecovering(false)
+        return
+      }
+
+      // Step 3: Prompt for username for the new passkey registration
+      const username = window.prompt(
+        'Choose a username for your new passkey registration.\n\n' +
+          `Recovering wallet: ${ethereumAddress.slice(0, 6)}...${ethereumAddress.slice(-4)}`
+      )
+
+      if (!username) {
+        toaster.create({
+          title: 'Username Required',
+          description: 'You need to provide a username to register your recovered wallet',
+          type: 'error',
+          duration: 3000,
+        })
+        setIsRecovering(false)
+        return
+      }
+
+      // Step 4: Register with the recovered backup file
+      const result = await registerWithBackupFile(backupFileJson, password, username)
 
       toaster.create({
         title: 'Wallet Recovered Successfully!',
-        description: `Your wallet has been recovered: ${result.ethereumAddress.slice(0, 6)}...${result.ethereumAddress.slice(-4)}`,
+        description: `Your wallet has been recovered and registered with a new passkey: ${result.address.slice(0, 6)}...${result.address.slice(-4)}`,
         type: 'success',
-        duration: 5000,
+        duration: 8000,
       })
 
       // Clear recovery state
@@ -1834,7 +1872,7 @@ const SettingsPage = () => {
       setShowRecoverySection(false)
     } catch (error) {
       console.error('Recovery error:', error)
-      // Error toast already shown in recoverFromGuardians
+      // Error toast already shown in recoverFromGuardians or registerWithBackupFile
     } finally {
       setIsRecovering(false)
     }
