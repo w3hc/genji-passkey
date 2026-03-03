@@ -245,6 +245,7 @@ A: Users can independently verify by:
 **Q: What if I'm developing and the verification fails?**
 
 A: During development with unreleased W3PK versions, verification will fail if the version is not yet in the onchain registry. This is expected. You can:
+
 - Use a released version of W3PK for development
 - Skip verification in development mode
 - Wait for the new version to be added to the registry
