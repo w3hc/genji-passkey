@@ -29,6 +29,7 @@ async function main() {
   console.log('  • Updating translations')
   console.log('  • Replacing homepage content')
   console.log('  • Replacing header component')
+  console.log('  • Updating README.md')
   console.log('  • Removing this script\n')
 
   const confirm = await question('Do you want to continue? (y/n): ')
@@ -518,7 +519,45 @@ export default function Header() {
     console.log('   ✓ Replaced header component in src/components/Header.tsx')
   }
 
-  // 7. Replace homepage content
+  // 7. Update README.md
+  console.log('📝 Updating README.md...')
+  const readmePath = path.join(__dirname, 'README.md')
+  if (fs.existsSync(readmePath)) {
+    const newReadmeContent = `[![WCAG 2.1 AA](https://img.shields.io/badge/WCAG-2.1%20AA-green.svg)](https://www.w3.org/WAI/WCAG21/quickref/?versions=2.1&levels=aa)
+
+# ${projectName}
+
+${description || '<DESCRIPTION>'}
+
+## Fork
+
+## Install
+
+\`\`\`bash
+pnpm i
+\`\`\`
+
+## Run
+
+\`\`\`bash
+pnpm dev
+\`\`\`
+
+## Build
+
+\`\`\`bash
+pnpm build
+\`\`\`
+
+## License
+
+GPL-3.0
+`
+    fs.writeFileSync(readmePath, newReadmeContent)
+    console.log('   ✓ Updated README.md')
+  }
+
+  // 8. Replace homepage content
   console.log('🏠 Replacing homepage content...')
   const homepagePath = path.join(__dirname, 'src/app/page.tsx')
   if (fs.existsSync(homepagePath)) {
@@ -688,7 +727,7 @@ export default function Home() {
     console.log('   ✓ Replaced homepage content in src/app/page.tsx')
   }
 
-  // 8. Self-destruct - Remove this script and related files
+  // 9. Self-destruct - Remove this script and related files
   console.log('🗑️  Removing customization scripts...')
   const scriptPath = path.join(__dirname, 'customize.js')
   const tsScriptPath = path.join(__dirname, 'customize.ts')
