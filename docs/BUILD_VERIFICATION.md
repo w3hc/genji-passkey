@@ -6,58 +6,61 @@ This app implements W3PK build verification to provide users with guarantees tha
 
 The build verification system:
 
-1. **Automatically verifies** the W3PK package on page load
+1. **Automatically verifies** the W3PK package on page load against the onchain registry
 2. **Displays verification status** in the UI with visual indicators (green checkmark or red cross)
 3. **Logs results to console** for transparency
 4. **Exposes verification functions** globally for manual user verification
+5. **Queries DAO-maintained onchain registry** on OP Mainnet for trusted hashes
 
 ## How It Works
 
-### 1. Trusted Build Hash
+### 1. Onchain Registry
 
-The app hardcodes a trusted W3PK build hash in [src/components/BuildVerification.tsx](../src/components/BuildVerification.tsx):
+The app queries a DAO-maintained onchain registry for trusted W3PK build hashes:
 
-```typescript
-const TRUSTED_BUILD_HASH = 'bafkreibgdbouxvkqgh4d4omcbtq3mqs2nm4r2do367jetfdpfn43fbrmri'
-```
+- **Contract Address:** [`0xAF48C2DB335eD5da14A2C36a59Bc34407C63e01a`](https://optimistic.etherscan.io/address/0xAF48C2DB335eD5da14A2C36a59Bc34407C63e01a)
+- **Network:** OP Mainnet (Chain ID: 10)
+- **Purpose:** Decentralized source of truth for verified W3PK builds
+- **Governance:** DAO-controlled via contract ownership
 
-This hash represents the verified W3PK release that has been audited and deemed safe.
-
-**Future Enhancement:** In an upcoming version, the `TRUSTED_BUILD_HASH` will be DAO-maintained, allowing the community to govern which W3PK versions are trusted through decentralized consensus rather than hardcoded values. This will provide stronger security guarantees and reduce single points of trust.
+The registry is queried for the specific W3PK version installed in `package.json`, ensuring verification against the exact version the app depends on.
 
 ### 2. Automatic Verification
 
 When the settings page loads, the `BuildVerification` component:
 
-- Imports W3PK functions: `getCurrentBuildHash()` and `verifyBuildHash()`
+- Imports W3PK functions: `getCurrentBuildHash()`
+- Gets the installed W3PK version from `package.json`
+- Queries the onchain registry on OP Mainnet for the expected hash for that version
 - Fetches the current build hash from the installed W3PK package
-- Compares it against the trusted hash
+- Compares the local hash against the onchain registry hash
 - Displays the result in the UI
 
 ### 3. Visual Indicators
 
 **Success (Green Checkmark ✅):**
 
-- Build hash matches the trusted hash
+- Build hash matches the onchain registry hash for the installed version
 - User sees "Verified W3PK Version" message
-- Both hashes are displayed for transparency
+- Version, local hash, and onchain hash are displayed for transparency
 
 **Failure (Red Cross ❌):**
 
-- Build hash does NOT match the trusted hash
+- Build hash does NOT match the onchain registry hash
 - User sees "Unverified W3PK Version" warning
 - Could indicate compromised package, development version, or tampering
 
 ### 4. Console Access
 
-The component exposes W3PK functions globally at `window.w3pk`, allowing users to independently verify the build:
+The component exposes W3PK functions and registry information globally at `window.w3pk`, allowing users to independently verify the build:
 
 ```typescript
 if (typeof window !== 'undefined') {
   window.w3pk = {
     getCurrentBuildHash,
-    verifyBuildHash,
-    TRUSTED_BUILD_HASH,
+    onchainCid,
+    installedVersion,
+    registryAddress: REGISTRY_ADDRESS,
   }
 }
 ```
@@ -70,7 +73,8 @@ if (typeof window !== 'undefined') {
 
 ```javascript
 await window.w3pk.getCurrentBuildHash()
-await window.w3pk.verifyBuildHash(window.w3pk.TRUSTED_BUILD_HASH)
+window.w3pk.onchainCid
+window.w3pk.installedVersion
 ```
 
 ### Expected Behavior
@@ -82,14 +86,18 @@ await window.w3pk.verifyBuildHash(window.w3pk.TRUSTED_BUILD_HASH)
 ```
 🔐 W3PK Build Verification
 ══════════════════════════════════════════════════
-Current build hash: bafkreibgdbouxvkqgh4d4omcbtq3mqs2nm4r2do367jetfdpfn43fbrmri
-Trusted hash:      bafkreibgdbouxvkqgh4d4omcbtq3mqs2nm4r2do367jetfdpfn43fbrmri
-Verification:      ✅ VERIFIED
+Installed version: 0.9.0
+Current build hash: bafybeiafdhdxz3c3nhxtrhe7zpxfco5dlywpvzzscl277hojn7zosmrob4
+Expected hash:      bafybeiafdhdxz3c3nhxtrhe7zpxfco5dlywpvzzscl277hojn7zosmrob4
+Verification:       ✅ VERIFIED
+Registry contract:  0xAF48C2DB335eD5da14A2C36a59Bc34407C63e01a
+Network:            OP Mainnet
 ══════════════════════════════════════════════════
 Verify manually in console:
 
   await window.w3pk.getCurrentBuildHash()
-  await window.w3pk.verifyBuildHash(window.w3pk.TRUSTED_BUILD_HASH)
+  window.w3pk.onchainCid
+  window.w3pk.installedVersion
 
 ══════════════════════════════════════════════════
 ```
@@ -99,35 +107,36 @@ Verify manually in console:
 ```javascript
 // Get current build hash
 await window.w3pk.getCurrentBuildHash()
-// Returns: 'bafkreibgdbouxvkqgh4d4omcbtq3mqs2nm4r2do367jetfdpfn43fbrmri'
+// Returns: 'bafybeiafdhdxz3c3nhxtrhe7zpxfco5dlywpvzzscl277hojn7zosmrob4'
 
-// Verify against trusted hash
-await window.w3pk.verifyBuildHash(window.w3pk.TRUSTED_BUILD_HASH)
-// Returns: true (if verified) or false (if not verified)
+// Check the onchain registry hash
+window.w3pk.onchainCid
+// Returns: 'bafybeiafdhdxz3c3nhxtrhe7zpxfco5dlywpvzzscl277hojn7zosmrob4'
 
-// Check the trusted hash
-window.w3pk.TRUSTED_BUILD_HASH
-// Returns: 'bafkreibgdbouxvkqgh4d4omcbtq3mqs2nm4r2do367jetfdpfn43fbrmri'
+// Check the installed version
+window.w3pk.installedVersion
+// Returns: '0.9.0'
+
+// Check the registry contract address
+window.w3pk.registryAddress
+// Returns: '0xAF48C2DB335eD5da14A2C36a59Bc34407C63e01a'
 ```
 
 ## Implementation for Developers
 
-### 1. Update the Trusted Hash
+### 1. Automatic Verification
 
-When a new verified W3PK version is released:
+The verification process is now fully automatic and requires no manual hash updates. When you update the W3PK version in `package.json`:
 
-1. Verify the new W3PK release through official channels
-2. Get the build hash for the new version
-3. Update `TRUSTED_BUILD_HASH` in [src/components/BuildVerification.tsx](../src/components/BuildVerification.tsx)
+1. The app automatically queries the onchain registry for the new version's hash
+2. No code changes needed - the registry lookup is dynamic
+3. The DAO-maintained registry ensures the hash is always up-to-date
 
-```typescript
-const TRUSTED_BUILD_HASH = 'YOUR_NEW_TRUSTED_HASH_HERE'
-```
+### 2. Where to Find Official Hashes
 
-### 2. Where to Find the Official Hash
+Official W3PK build hashes are stored in the onchain registry and can also be found:
 
-The official W3PK build hash can be found:
-
+- **Onchain Registry**: [`0xAF48C2DB335eD5da14A2C36a59Bc34407C63e01a`](https://optimistic.etherscan.io/address/0xAF48C2DB335eD5da14A2C36a59Bc34407C63e01a) on OP Mainnet
 - In the [W3PK GitHub releases](https://github.com/w3hc/w3pk/releases)
 - In the [W3PK documentation](https://github.com/w3hc/w3pk/blob/main/docs/BUILD_VERIFICATION.md)
 - By running `pnpm build:hash` in the W3PK repository
@@ -166,9 +175,10 @@ Build verification protects users from:
 
 The security of this system relies on:
 
-1. **Trusted Hash Source**: The hash hardcoded in the app must be verified through official channels
+1. **Onchain Registry**: The DAO-maintained registry on OP Mainnet is the source of truth
 2. **Code Integrity**: The verification code itself must not be tampered with
-3. **W3PK Functions**: The `getCurrentBuildHash()` and `verifyBuildHash()` functions from W3PK are trusted
+3. **W3PK Functions**: The `getCurrentBuildHash()` function from W3PK is trusted
+4. **RPC Provider**: The Ethereum RPC provider (mainnet.optimism.io) is trusted
 
 ### Red Flags
 
@@ -178,7 +188,9 @@ Users should be suspicious if:
 2. Verification functions return unexpected results
 3. The UI shows "Unverified W3PK Version" on a production app
 4. Console logs are missing or incomplete
-5. Build hashes don't match the official release
+5. Build hashes don't match the onchain registry
+6. The registry contract address is different from the official address
+7. Network is not OP Mainnet
 
 ## How W3PK Build Verification Works
 
@@ -225,17 +237,22 @@ If `window.w3pk` is undefined:
 A: Users can independently verify by:
 
 - Checking the open-source code on GitHub
+- Querying the onchain registry directly via Etherscan
 - Running verification using the unpkg CDN (see console instructions)
-- Comparing hashes from multiple independent sources
+- Comparing hashes from the onchain registry with their local build
 - Verifying the app's code through the deployed source
 
 **Q: What if I'm developing and the verification fails?**
 
-A: During development with unreleased W3PK versions, verification will fail. This is expected. Update the trusted hash to match your development version, or disable verification during development.
+A: During development with unreleased W3PK versions, verification will fail if the version is not yet in the onchain registry. This is expected. You can:
 
-**Q: How often should the trusted hash be updated?**
+- Use a released version of W3PK for development
+- Skip verification in development mode
+- Wait for the new version to be added to the registry
 
-A: Update the trusted hash whenever you upgrade the W3PK package version in your app. Always verify the new hash through official channels before updating.
+**Q: How often do I need to update the verification code?**
+
+A: Never! The verification code automatically queries the onchain registry for the installed version. When you update W3PK in `package.json`, the app will automatically verify against the new version's hash from the registry.
 
 **Q: What should users do if verification fails?**
 
@@ -243,6 +260,7 @@ A: Users should:
 
 1. Not enter any sensitive information
 2. Check if they're using an official app deployment
-3. Contact the app maintainers
-4. Verify the app's source code
-5. Consider it a security incident until resolved
+3. Verify the registry contract address matches the official address
+4. Contact the app maintainers
+5. Verify the app's source code
+6. Consider it a security incident until resolved
