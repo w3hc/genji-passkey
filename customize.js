@@ -368,7 +368,7 @@ export default function Header() {
                 <Link href="/">
                   <Flex align="center" gap={5}>
                     <Heading as="h3" size="md" textAlign="center">
-                      My app
+                      {projectName}
                     </Heading>
                   </Flex>
                 </Link>
