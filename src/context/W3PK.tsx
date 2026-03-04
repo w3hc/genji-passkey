@@ -19,6 +19,8 @@ import React, {
 import { createWeb3Passkey, getCurrentBuildHash, verifyBuildHash, inspect, inspectNow } from 'w3pk'
 import { toaster } from '@/components/ui/toaster'
 
+type SecurityMode = 'PRIMARY' | 'STRICT' | 'STANDARD' | 'YOLO'
+
 interface SecurityScore {
   total: number
   level: string
@@ -87,6 +89,34 @@ interface StealthAddressResult {
   viewTag: string
 }
 
+type Transaction = {
+  to: string
+  value?: bigint
+  data?: string
+  chainId: number
+  gasLimit?: bigint
+  maxFeePerGas?: bigint
+  maxPriorityFeePerGas?: bigint
+  nonce?: number
+}
+
+type TxOptions = {
+  mode?: SecurityMode
+  tag?: string
+  requireAuth?: boolean
+  origin?: string
+  rpcUrl?: string
+}
+
+type TxResponse = {
+  hash: string
+  from: string
+  chainId: number
+  mode: string
+  tag: string
+  origin: string
+}
+
 interface W3pkType {
   isAuthenticated: boolean
   user: W3pkUser | null
@@ -95,7 +125,12 @@ interface W3pkType {
   register: (username: string) => Promise<void>
   logout: () => Promise<void>
   signMessage: (message: string) => Promise<string | null>
-  deriveWallet: (mode?: string, tag?: string) => Promise<DerivedWallet>
+  sendTransaction: (tx: Transaction, options?: TxOptions) => Promise<TxResponse>
+  deriveWallet: (
+    mode?: string,
+    tag?: string,
+    options?: { requireAuth?: boolean; origin?: string }
+  ) => Promise<DerivedWallet>
   getAddress: (mode?: string, tag?: string) => Promise<string>
   getBackupStatus: () => Promise<BackupStatus>
   createBackup: (password: string) => Promise<Blob>
@@ -131,6 +166,9 @@ const W3PK = createContext<W3pkType>({
   register: async () => {},
   logout: async () => {},
   signMessage: async () => null,
+  sendTransaction: async () => {
+    throw new Error('sendTransaction not initialized')
+  },
   deriveWallet: async () => ({ address: '', privateKey: '' }),
   getAddress: async () => '',
   getBackupStatus: async () => {
@@ -488,15 +526,54 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
     }
   }
 
+  const sendTransaction = async (tx: Transaction, options?: TxOptions): Promise<TxResponse> => {
+    if (!user) {
+      throw new Error('Not authenticated. Please log in first.')
+    }
+
+    try {
+      await ensureAuthentication()
+      const result = await w3pk.sendTransaction(tx, options)
+
+      // Extend session after successful operation
+      w3pk.extendSession()
+
+      toaster.create({
+        title: 'Transaction Sent',
+        description: `Transaction hash: ${result.hash.substring(0, 10)}...`,
+        type: 'success',
+        duration: 5000,
+      })
+
+      return result
+    } catch (error) {
+      if (!isUserCancelledError(error)) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to send transaction'
+
+        toaster.create({
+          title: 'Transaction Failed',
+          description: errorMessage,
+          type: 'error',
+          duration: 5000,
+        })
+      }
+      throw error
+    }
+  }
+
   const deriveWallet = useCallback(
-    async (mode?: string, tag?: string): Promise<DerivedWallet> => {
+    async (
+      mode?: string,
+      tag?: string,
+      options?: { requireAuth?: boolean; origin?: string }
+    ): Promise<DerivedWallet> => {
       if (!user) {
         throw new Error('Not authenticated. Please log in first.')
       }
 
       try {
         await ensureAuthentication()
-        const derivedWallet = await w3pk.deriveWallet(mode as any, tag as any)
+        const derivedWallet = await w3pk.deriveWallet(mode as any, tag as any, options)
 
         // Extend session after successful operation
         w3pk.extendSession()
@@ -511,7 +588,7 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
         ) {
           try {
             await w3pk.login()
-            const derivedWallet = await w3pk.deriveWallet(mode as any, tag as any)
+            const derivedWallet = await w3pk.deriveWallet(mode as any, tag as any, options)
 
             // Extend session after successful retry
             w3pk.extendSession()
@@ -1057,6 +1134,7 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
         register,
         logout,
         signMessage,
+        sendTransaction,
         deriveWallet,
         getAddress,
         getBackupStatus,
