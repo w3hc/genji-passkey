@@ -100,6 +100,17 @@ type Transaction = {
   nonce?: number
 }
 
+type SignMessageOptions = {
+  mode?: SecurityMode
+  tag?: string
+  requireAuth?: boolean
+  origin?: string
+  signingMethod?: 'EIP191' | 'SIWE' | 'EIP712' | 'rawHash'
+  eip712Domain?: object
+  eip712Types?: object
+  eip712PrimaryType?: string
+}
+
 type TxOptions = {
   mode?: SecurityMode
   tag?: string
@@ -124,7 +135,7 @@ interface W3pkType {
   login: () => Promise<void>
   register: (username: string) => Promise<void>
   logout: () => Promise<void>
-  signMessage: (message: string) => Promise<string | null>
+  signMessage: (message: string, options?: SignMessageOptions) => Promise<string | null>
   sendTransaction: (tx: Transaction, options?: TxOptions) => Promise<TxResponse>
   deriveWallet: (
     mode?: string,
@@ -491,7 +502,10 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
     await w3pk.login()
   }, [w3pk])
 
-  const signMessage = async (message: string): Promise<string | null> => {
+  const signMessage = async (
+    message: string,
+    options?: SignMessageOptions
+  ): Promise<string | null> => {
     if (!user) {
       toaster.create({
         title: 'Not Authenticated',
@@ -504,7 +518,7 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
 
     try {
       await ensureAuthentication()
-      const result = await w3pk.signMessage(message)
+      const result = await w3pk.signMessage(message, options as any)
 
       // Extend session after successful operation for better UX
       w3pk.extendSession()
