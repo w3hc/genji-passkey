@@ -3379,41 +3379,137 @@ const SettingsPage = () => {
           borderRadius="lg"
           border="2px solid"
           borderColor="purple.500"
-          textAlign="center"
         >
-          <HStack justify="center" mb={4}>
-            <Icon as={FiShield} color="purple.400" boxSize={8} />
-            <Heading size="lg">Security Inspection</Heading>
-          </HStack>
-          <Text color="gray.400" mb={6} maxW="2xl" mx="auto">
-            Generate a comprehensive security report of this app. The report will analyze all
-            transaction and signing methods.
-          </Text>
-          <Button
-            bg="purple.500"
-            color="white"
-            _hover={{ bg: 'purple.600' }}
-            onClick={handleInspect}
-            disabled={isInspecting}
-            size="lg"
-            px={8}
-          >
-            {isInspecting ? (
-              <HStack>
-                <Spinner size="sm" />
-                <Text>Inspecting...</Text>
+          {!securityReport ? (
+            <Box textAlign="center">
+              <HStack justify="center" mb={4}>
+                <Icon as={FiShield} color="purple.400" boxSize={8} />
+                <Heading size="lg">Security Inspection</Heading>
               </HStack>
-            ) : (
-              <HStack>
-                <Icon as={FiShield} />
-                <Text>Inspect now</Text>
+              <Text color="gray.400" mb={6} maxW="2xl" mx="auto">
+                Generate a comprehensive security report of this app. The report will analyze all
+                transaction and signing methods.
+              </Text>
+              <Button
+                bg="purple.500"
+                color="white"
+                _hover={{ bg: 'purple.600' }}
+                onClick={handleInspect}
+                disabled={isInspecting}
+                size="lg"
+                px={8}
+              >
+                {isInspecting ? (
+                  <HStack>
+                    <Spinner size="sm" />
+                    <Text>Inspecting...</Text>
+                  </HStack>
+                ) : (
+                  <HStack>
+                    <Icon as={FiShield} />
+                    <Text>Inspect now</Text>
+                  </HStack>
+                )}
+              </Button>
+              <Text fontSize="sm" color="gray.500" mt={4}>
+                You can also run <Code colorPalette="purple">await w3pk.inspectNow()</Code> in the
+                browser console
+              </Text>
+            </Box>
+          ) : (
+            <VStack align="stretch" gap={4}>
+              <HStack justify="space-between">
+                <HStack>
+                  <Icon as={FiShield} color="purple.400" boxSize={6} />
+                  <Heading size="lg">Security Report</Heading>
+                </HStack>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  colorPalette="purple"
+                  onClick={() => setSecurityReport(null)}
+                >
+                  Clear Report
+                </Button>
               </HStack>
-            )}
-          </Button>
-          <Text fontSize="sm" color="gray.500" mt={4}>
-            You can also run <Code colorPalette="purple">await w3pk.inspectNow()</Code> in the
-            browser console
-          </Text>
+
+              <Text fontSize="sm" color="gray.400">
+                <strong>Files Analyzed:</strong> {securityReport.analyzedFiles.length} |{' '}
+                <strong>App URL:</strong> {securityReport.appUrl}
+              </Text>
+
+              <Box
+                bg="gray.950"
+                p={6}
+                borderRadius="md"
+                border="1px solid"
+                borderColor="gray.700"
+                maxH="600px"
+                overflowY="auto"
+              >
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    h1: ({ children }: any) => (
+                      <Text fontSize="2xl" fontWeight="bold" mb={3} color="white">
+                        {children}
+                      </Text>
+                    ),
+                    h2: ({ children }: any) => (
+                      <Text fontSize="xl" fontWeight="bold" mt={4} mb={2} color="blue.300">
+                        {children}
+                      </Text>
+                    ),
+                    h3: ({ children }: any) => (
+                      <Text fontSize="lg" fontWeight="semibold" mt={3} mb={2} color="purple.300">
+                        {children}
+                      </Text>
+                    ),
+                    h4: ({ children }: any) => (
+                      <Text fontSize="md" fontWeight="semibold" mt={2} mb={1} color="purple.200">
+                        {children}
+                      </Text>
+                    ),
+                    p: ({ children }: any) => (
+                      <Text fontSize="sm" mb={2} color="gray.300">
+                        {children}
+                      </Text>
+                    ),
+                    ul: ({ children }: any) => (
+                      <Box as="ul" pl={4} mb={2}>
+                        {children}
+                      </Box>
+                    ),
+                    li: ({ children }: any) => (
+                      <Text as="li" fontSize="sm" mb={1} color="gray.300">
+                        {children}
+                      </Text>
+                    ),
+                    strong: ({ children }: any) => (
+                      <Text as="strong" fontWeight="bold" color="white">
+                        {children}
+                      </Text>
+                    ),
+                    code: ({ children }: any) => (
+                      <Code colorPalette="purple" fontSize="xs">
+                        {children}
+                      </Code>
+                    ),
+                    hr: () => <Box as="hr" my={3} borderColor="gray.700" />,
+                  }}
+                >
+                  {(() => {
+                    try {
+                      const parsed = JSON.parse(securityReport.report)
+                      return parsed.output || securityReport.report
+                    } catch {
+                      return securityReport.report
+                    }
+                  })()}
+                </ReactMarkdown>
+              </Box>
+            </VStack>
+          )}
         </Box>
       </VStack>
 
