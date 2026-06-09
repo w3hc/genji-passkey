@@ -402,14 +402,15 @@ const SettingsPage = () => {
   }, [user])
 
   useEffect(() => {
-    loadAccounts()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadAccounts()
   }, [loadAccounts])
 
   useEffect(() => {
     const isValid = validateUsername(registerUsername)
-    if (isValid) {
-      setIsRegisterUsernameInvalid(false)
-    }
+    if (!isValid) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsRegisterUsernameInvalid(false)
   }, [registerUsername])
 
   useEffect(() => {
@@ -473,10 +474,10 @@ const SettingsPage = () => {
   }, [isAuthenticated, user])
 
   useEffect(() => {
-    if (isAuthenticated && getSocialRecoveryConfig) {
-      const config = getSocialRecoveryConfig()
-      setSocialRecoveryConfig(config)
-    }
+    if (!isAuthenticated || !getSocialRecoveryConfig) return
+    const config = getSocialRecoveryConfig()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSocialRecoveryConfig(config)
   }, [isAuthenticated, getSocialRecoveryConfig])
 
   const handleDeleteAccount = (account: StoredAccount) => {

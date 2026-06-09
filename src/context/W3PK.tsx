@@ -295,6 +295,7 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsMounted(true)
   }, [])
 

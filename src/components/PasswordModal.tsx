@@ -31,11 +31,8 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
 
   // Validate password strength in real-time
   useEffect(() => {
-    if (password) {
-      setIsPasswordStrong(isStrongPassword(password))
-    } else {
-      setIsPasswordStrong(false)
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsPasswordStrong(password ? isStrongPassword(password) : false)
   }, [password])
 
   const handleSubmit = async () => {
