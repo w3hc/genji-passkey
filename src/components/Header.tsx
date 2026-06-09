@@ -265,9 +265,9 @@ export default function Header() {
 
   useEffect(() => {
     const isValid = validateUsername(username)
-    if (isValid) {
-      setIsUsernameInvalid(false)
-    }
+    if (!isValid) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsUsernameInvalid(false)
   }, [username])
 
   const handleLogout = async () => {
