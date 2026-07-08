@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { inspect } from 'w3pk'
 import {
   Box,
@@ -122,17 +122,30 @@ const SettingsPage = () => {
     return days >= 1 && days <= 30 ? days : 7
   })
 
-  // Handler for session duration change
-  const handleSessionDurationChange = async (details: { value: number[] }) => {
+  // Pending logout/login cycle scheduled after a duration change; kept in a ref
+  // so a new change cancels the previous cycle instead of stacking logins
+  const sessionRelogTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Fires on every step while dragging: only update the displayed value
+  const handleSessionDurationChange = (details: { value: number[] }) => {
+    setPersistentSessionDays(details.value[0])
+  }
+
+  // Fires once when the user releases the slider: persist and re-login
+  const handleSessionDurationChangeEnd = (details: { value: number[] }) => {
     const days = details.value[0]
-    setPersistentSessionDays(days)
     localStorage.setItem('persistentSessionDuration', days.toString())
 
+    if (sessionRelogTimeoutRef.current) {
+      clearTimeout(sessionRelogTimeoutRef.current)
+    }
+
     // Wait 3 seconds then logout and login to apply the new duration
-    setTimeout(async () => {
+    sessionRelogTimeoutRef.current = setTimeout(() => {
       logout()
       // Wait a bit for logout to complete, then trigger login
-      setTimeout(async () => {
+      sessionRelogTimeoutRef.current = setTimeout(async () => {
+        sessionRelogTimeoutRef.current = null
         try {
           await login()
         } catch (error) {
@@ -2243,6 +2256,7 @@ const SettingsPage = () => {
                 <SliderRoot
                   value={[persistentSessionDays]}
                   onValueChange={handleSessionDurationChange}
+                  onValueChangeEnd={handleSessionDurationChangeEnd}
                   min={1}
                   max={30}
                   step={1}

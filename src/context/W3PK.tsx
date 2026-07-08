@@ -208,6 +208,11 @@ export function isUserCancelledError(error: unknown): boolean {
   return false
 }
 
+export function isRequestPendingError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : ''
+  return message.includes('request is already pending')
+}
+
 export function isNoPasskeyError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : ''
   return (
@@ -462,9 +467,14 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('[W3PK] Login failed:', error)
 
-      // Silence cancellations and "no passkey on this device" errors —
-      // the Header handles the latter by offering registration
-      if (!isUserCancelledError(error) && !isNoPasskeyError(error)) {
+      // Silence cancellations, "no passkey on this device" (the Header handles
+      // it by offering registration), and duplicate concurrent login attempts —
+      // the already-pending request will surface its own outcome
+      if (
+        !isUserCancelledError(error) &&
+        !isNoPasskeyError(error) &&
+        !isRequestPendingError(error)
+      ) {
         toaster.create({
           title: 'Authentication Failed',
           description: error instanceof Error ? error.message : 'Failed to authenticate with w3pk',
