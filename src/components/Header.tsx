@@ -22,14 +22,14 @@ import { HiMenu } from 'react-icons/hi'
 import LanguageSelector from './LanguageSelector'
 import Spinner from './Spinner'
 import { useTranslation } from '@/hooks/useTranslation'
-import { useW3PK } from '@/context/W3PK'
+import { useW3PK, isNoPasskeyError } from '@/context/W3PK'
 import { useState, useEffect } from 'react'
 import { FaGithub } from 'react-icons/fa'
 import { toaster } from '@/components/ui/toaster'
 import { brandColors } from '@/theme'
 
 export default function Header() {
-  const { isAuthenticated, user, isLoading, login, register, logout } = useW3PK()
+  const { isAuthenticated, login, register, logout } = useW3PK()
   const t = useTranslation()
   const { open: isOpen, onOpen, onClose } = useDisclosure()
   const [username, setUsername] = useState('')
@@ -89,43 +89,15 @@ export default function Header() {
 
   const handleLogin = async () => {
     /**
-     * Comprehensive Login Workflow:
-     * 1. Check for existing persistent session (already handled by W3PK context on mount)
-     * 2. Check for existing account in local storage + IndexedDB
-     * 3. Check for existing account in passkey password manager (cloud-synced)
-     * 4. If none found, prompt for registration
+     * Login Workflow:
+     * 1. Existing persistent sessions are restored by the W3PK context on mount
+     * 2. login() prompts for any available passkey (local or cloud-synced)
+     * 3. If no passkey exists anywhere, prompt for registration
      */
-
     try {
-      // Step 2: Check if credentials exist in localStorage or IndexedDB
-      const hasLocalCredentials = await checkForExistingCredentials()
-
-      if (hasLocalCredentials) {
-        // User has local credentials - perform normal login
-        console.log('[Login] Local credentials found, attempting login')
-        await login()
-        return
-      }
-
-      // Step 3: No local credentials found - check for cloud-synced passkeys
-      // This will prompt the passkey manager (e.g., Google Password Manager, iCloud Keychain)
-      console.log('[Login] No local credentials, checking for cloud-synced passkeys')
       await login()
-      console.log('[Login] Login successful with cloud-synced passkey')
     } catch (error) {
-      // Login failed - determine why
-      const errorMessage = error instanceof Error ? error.message : ''
-      console.log('[Login] Login failed:', errorMessage)
-
-      const noPasskeysAvailable =
-        errorMessage.includes('not available on this device') ||
-        errorMessage.includes('not available') ||
-        errorMessage.includes('restore your wallet from a backup') ||
-        errorMessage.includes('No credentials available')
-
-      if (noPasskeysAvailable) {
-        // Step 4: No passkeys anywhere (local or cloud) - prompt for registration
-        console.log('[Login] No passkeys found anywhere, opening registration modal')
+      if (isNoPasskeyError(error)) {
         toaster.create({
           title: 'No Account Found',
           description: 'No passkey found. Please register to create a new account.',
@@ -134,73 +106,8 @@ export default function Header() {
         })
         onOpen()
       }
-      // If it's a different error (user cancelled, timeout, etc.), don't show registration modal
-      // The error toast is already shown by the login() function in W3PK context
-    }
-  }
-
-  const checkForExistingCredentials = async (): Promise<boolean> => {
-    try {
-      if (typeof window === 'undefined') {
-        return false
-      }
-
-      // First check for persistent session in IndexedDB
-      if (window.indexedDB) {
-        const dbName = 'Web3PasskeyPersistentSessions'
-        const storeName = 'sessions'
-
-        const hasPersistentSession = await new Promise<boolean>(resolve => {
-          const request = indexedDB.open(dbName)
-
-          request.onerror = () => {
-            resolve(false)
-          }
-
-          request.onsuccess = event => {
-            const db = (event.target as IDBOpenDBRequest).result
-
-            if (!db.objectStoreNames.contains(storeName)) {
-              db.close()
-              resolve(false)
-              return
-            }
-
-            try {
-              const transaction = db.transaction([storeName], 'readonly')
-              const objectStore = transaction.objectStore(storeName)
-              const countRequest = objectStore.count()
-
-              countRequest.onsuccess = () => {
-                db.close()
-                resolve(countRequest.result > 0)
-              }
-
-              countRequest.onerror = () => {
-                db.close()
-                resolve(false)
-              }
-            } catch {
-              db.close()
-              resolve(false)
-            }
-          }
-        })
-
-        if (hasPersistentSession) {
-          return true
-        }
-      }
-
-      // Then check for w3pk_credential_index in localStorage
-      const credentialIndex = localStorage.getItem('w3pk_credential_index')
-      if (credentialIndex) {
-        return true
-      }
-
-      return false
-    } catch {
-      return false
+      // Other errors (user cancelled, timeout, etc.) are already handled
+      // by the login() function in the W3PK context
     }
   }
 
@@ -234,31 +141,13 @@ export default function Header() {
 
     try {
       setIsRegistering(true)
-      console.log('[Header] Starting registration for:', username.trim())
-
-      // Add timeout to prevent infinite loading
-      const registrationPromise = register(username.trim())
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Registration timeout after 60 seconds')), 60000)
-      )
-
-      await Promise.race([registrationPromise, timeoutPromise])
-
-      console.log('[Header] Registration completed successfully')
+      // register() handles its own timeout and error/success toasts
+      await register(username.trim())
       setUsername('')
       onClose()
-    } catch (error: any) {
+    } catch (error) {
       console.error('[Header] Registration failed:', error)
-
-      // Show user-friendly error message
-      toaster.create({
-        title: 'Registration Failed',
-        description: error.message || 'Unable to complete registration. Please try again.',
-        type: 'error',
-        duration: 8000,
-      })
     } finally {
-      console.log('[Header] Cleaning up registration state')
       setIsRegistering(false)
     }
   }
