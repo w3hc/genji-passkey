@@ -2299,10 +2299,10 @@ const SettingsPage = () => {
                   <Box p={3} bg="yellow.900/90" borderRadius="md" mb={6}>
                     <Text fontSize="xs" color="gray.200">
                       <strong>No stored session on this device.</strong> Your authenticator
-                      doesn&apos;t appear to support the WebAuthn PRF extension, which w3pk
-                      requires to keep sessions alive securely. Your session will stay in memory
-                      only: it ends when you close the tab, and each visit will ask for your
-                      biometric/PIN. Everything else works normally.
+                      doesn&apos;t appear to support the WebAuthn PRF extension, which w3pk requires
+                      to keep sessions alive securely. Your session will stay in memory only: it
+                      ends when you close the tab, and each visit will ask for your biometric/PIN.
+                      Everything else works normally.
                     </Text>
                   </Box>
                 )}
@@ -2345,11 +2345,10 @@ const SettingsPage = () => {
                   <Text fontSize="xs" color="gray.300">
                     <strong>How it works:</strong> Each time you log in with your biometric/PIN,
                     your authenticator releases a hardware-backed secret (WebAuthn PRF extension)
-                    that encrypts your session on this device — nothing stored on disk can
-                    recreate that key. The countdown starts fresh at each real login: with a 7-day
-                    duration, logging in today keeps you signed in until 7 days from today, when
-                    you&apos;ll be prompted once and the session is re-encrypted under a fresh
-                    key.
+                    that encrypts your session on this device — nothing stored on disk can recreate
+                    that key. The countdown starts fresh at each real login: with a 7-day duration,
+                    logging in today keeps you signed in until 7 days from today, when you&apos;ll
+                    be prompted once and the session is re-encrypted under a fresh key.
                   </Text>
                 </Box>
               </Box>
