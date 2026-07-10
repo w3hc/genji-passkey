@@ -968,13 +968,25 @@ const SettingsPage = () => {
           <BuildVerification />
 
           {/* Restore from Backup - Available without authentication */}
-          <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
+          <Box
+            id="restore-backup"
+            bg="gray.900"
+            p={6}
+            borderRadius="lg"
+            border="1px solid"
+            borderColor="gray.700"
+          >
             <HStack mb={4}>
               <Icon as={FiUpload} color={brandColors.primary} boxSize={6} />
               <Heading size="md">Restore from Backup</Heading>
             </HStack>
             <Text fontSize="sm" color="gray.400" mb={4}>
               If you have a backup file, you can restore your wallet without logging in first.
+            </Text>
+            <Text fontSize="sm" color="gray.400" mb={4}>
+              To sync with another device: log in on your other device, go to{' '}
+              <strong>Settings → Create Backup</strong> to download an encrypted backup file, then
+              upload it here and enter the same password.
             </Text>
             <Button
               bg={brandColors.primary}
