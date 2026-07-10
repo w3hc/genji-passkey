@@ -131,10 +131,13 @@ const SettingsPage = () => {
     setPersistentSessionDays(details.value[0])
   }
 
-  // Fires once when the user releases the slider: persist and re-login
+  // Fires once when the user releases the slider: persist and re-login.
+  // The re-login matters beyond applying the new duration: the persistent
+  // session blob is encrypted under a key from the WebAuthn PRF extension,
+  // and only a real (prompted) login can re-key it.
   const handleSessionDurationChangeEnd = (details: { value: number[] }) => {
     const days = details.value[0]
-    localStorage.setItem('persistentSessionDuration', days.toString())
+    setPersistentSessionDuration(days)
 
     if (sessionRelogTimeoutRef.current) {
       clearTimeout(sessionRelogTimeoutRef.current)
@@ -205,7 +208,32 @@ const SettingsPage = () => {
     generateGuardianInvite,
     recoverFromGuardians,
     clearSocialRecoveryConfig,
+    setPersistentSessionDuration,
+    hasPersistentSession,
   } = useW3PK()
+
+  // null = unknown, true = a persistent session blob exists, false = none —
+  // when authenticated and false, the authenticator likely lacks WebAuthn
+  // PRF support and "Remember Me" is unavailable on this device
+  const [persistentSessionStored, setPersistentSessionStored] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return
+    }
+    let cancelled = false
+    hasPersistentSession()
+      .then(stored => {
+        if (!cancelled) setPersistentSessionStored(stored)
+      })
+      .catch(() => {
+        if (!cancelled) setPersistentSessionStored(null)
+      })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated])
 
   const validateUsername = (input: string): boolean => {
     if (!input.trim()) {
@@ -968,13 +996,25 @@ const SettingsPage = () => {
           <BuildVerification />
 
           {/* Restore from Backup - Available without authentication */}
-          <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="gray.700">
+          <Box
+            id="restore-backup"
+            bg="gray.900"
+            p={6}
+            borderRadius="lg"
+            border="1px solid"
+            borderColor="gray.700"
+          >
             <HStack mb={4}>
               <Icon as={FiUpload} color={brandColors.primary} boxSize={6} />
               <Heading size="md">Restore from Backup</Heading>
             </HStack>
             <Text fontSize="sm" color="gray.400" mb={4}>
               If you have a backup file, you can restore your wallet without logging in first.
+            </Text>
+            <Text fontSize="sm" color="gray.400" mb={4}>
+              To sync with another device: log in on your other device, go to{' '}
+              <strong>Settings → Create Backup</strong> to download an encrypted backup file, then
+              upload it here and enter the same password.
             </Text>
             <Button
               bg={brandColors.primary}
@@ -2248,11 +2288,23 @@ const SettingsPage = () => {
                   <Heading size="md">Keep my session alive</Heading>
                 </HStack>
                 <Text fontSize="sm" color="gray.400" mb={6}>
-                  Set how long your session should stay active. The duration timer resets every time
-                  you log in. This setting applies to STANDARD and YOLO modes only. STRICT and
-                  PRIMARY modes always require fresh authentication and do not use persistent
-                  sessions.
+                  Set how long your session should stay active without a passkey prompt. When it
+                  expires, your next visit asks for your biometric/PIN once and starts a fresh
+                  session — so this is also how often you re-authenticate. This setting applies to
+                  STANDARD and YOLO modes only. STRICT and PRIMARY modes always require fresh
+                  authentication and do not use persistent sessions.
                 </Text>
+                {isAuthenticated && persistentSessionStored === false && (
+                  <Box p={3} bg="yellow.900/90" borderRadius="md" mb={6}>
+                    <Text fontSize="xs" color="gray.200">
+                      <strong>No stored session on this device.</strong> Your authenticator
+                      doesn&apos;t appear to support the WebAuthn PRF extension, which w3pk requires
+                      to keep sessions alive securely. Your session will stay in memory only: it
+                      ends when you close the tab, and each visit will ask for your biometric/PIN.
+                      Everything else works normally.
+                    </Text>
+                  </Box>
+                )}
                 <SliderRoot
                   value={[persistentSessionDays]}
                   onValueChange={handleSessionDurationChange}
@@ -2290,10 +2342,12 @@ const SettingsPage = () => {
                 </HStack>
                 <Box p={3} bg="blue.900/90" borderRadius="md" mt={4}>
                   <Text fontSize="xs" color="gray.300">
-                    <strong>How it works:</strong> Your session is encrypted with your WebAuthn
-                    credentials and stored securely in IndexedDB. The countdown starts fresh each
-                    time you log in. For example, with a 7-day duration, if you log in today, your
-                    session will expire 7 days from today.
+                    <strong>How it works:</strong> Each time you log in with your biometric/PIN,
+                    your authenticator releases a hardware-backed secret (WebAuthn PRF extension)
+                    that encrypts your session on this device — nothing stored on disk can recreate
+                    that key. The countdown starts fresh at each real login: with a 7-day duration,
+                    logging in today keeps you signed in until 7 days from today, when you&apos;ll
+                    be prompted once and the session is re-encrypted under a fresh key.
                   </Text>
                 </Box>
               </Box>

@@ -174,6 +174,14 @@ interface W3pkType {
   clearSocialRecoveryConfig: () => void
   getStealthKeys: () => Promise<any>
   generateStealthAddressFor: (recipientMetaAddress: string) => Promise<StealthAddressResult>
+  /** Update the "Remember Me" window; applies at the next real (prompted) login */
+  setPersistentSessionDuration: (days: number) => void
+  /**
+   * Whether a persistent session blob exists in IndexedDB. When the user is
+   * authenticated but this is false, the authenticator lacks WebAuthn PRF
+   * support and w3pk keeps sessions in memory only (no "Remember Me").
+   */
+  hasPersistentSession: () => Promise<boolean>
 }
 
 const W3PK = createContext<W3pkType | null>(null)
@@ -335,6 +343,10 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
           enabled: true,
           duration: getPersistentSessionDuration() * 24, // Convert days to hours
           requireReauth: false, // Silent session restore (no biometric prompt on page refresh)
+          // The session blob is encrypted under a WebAuthn-PRF-derived key,
+          // re-keyed at every real (prompted) login — the duration above is
+          // the renewal interval. Authenticators without PRF support get
+          // in-memory sessions only (w3pk stores no persistent session).
         },
       }),
     [handleAuthStateChanged]
@@ -700,6 +712,18 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
         duration: 5000,
       })
     }
+  }
+
+  const setPersistentSessionDuration = (days: number): void => {
+    localStorage.setItem('persistentSessionDuration', days.toString())
+    // Update the live SDK instance so the next (re-)login persists with the
+    // new window — without this, the value read at SDK creation would apply
+    // only after a full page reload
+    w3pk.setPersistentSessionDuration(days * 24)
+  }
+
+  const hasPersistentSession = (): Promise<boolean> => {
+    return checkIndexedDBForPersistentSession()
   }
 
   const getBackupStatus = async (): Promise<BackupStatus> => {
@@ -1076,6 +1100,8 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
         clearSocialRecoveryConfig,
         getStealthKeys,
         generateStealthAddressFor,
+        setPersistentSessionDuration,
+        hasPersistentSession,
       }}
     >
       {children}

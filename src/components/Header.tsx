@@ -324,7 +324,17 @@ export default function Header() {
                         underscores, and hyphens. It must start and end with a letter or number.
                       </Field.ErrorText>
                     )}
-                  </Field>
+                  </Field>{' '}
+                  <ChakraLink
+                    as={Link}
+                    href="/settings#restore-backup"
+                    onClick={handleModalClose}
+                    fontSize="sm"
+                    color={brandColors.accent}
+                    alignSelf="flex-start"
+                  >
+                    I already registered on another device
+                  </ChakraLink>
                 </VStack>
               </Dialog.Body>
 
