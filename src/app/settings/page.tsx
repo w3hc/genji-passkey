@@ -219,7 +219,6 @@ const SettingsPage = () => {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      setPersistentSessionStored(null)
       return
     }
     let cancelled = false
@@ -2295,7 +2294,7 @@ const SettingsPage = () => {
                   STANDARD and YOLO modes only. STRICT and PRIMARY modes always require fresh
                   authentication and do not use persistent sessions.
                 </Text>
-                {persistentSessionStored === false && (
+                {isAuthenticated && persistentSessionStored === false && (
                   <Box p={3} bg="yellow.900/90" borderRadius="md" mb={6}>
                     <Text fontSize="xs" color="gray.200">
                       <strong>No stored session on this device.</strong> Your authenticator
