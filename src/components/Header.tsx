@@ -29,7 +29,7 @@ import { toaster } from '@/components/ui/toaster'
 import { brandColors } from '@/theme'
 
 export default function Header() {
-  const { isAuthenticated, login, register, logout } = useW3PK()
+  const { isAuthenticated, login, register, logout, hasLocalCredentials } = useW3PK()
   const t = useTranslation()
   const { open: isOpen, onOpen, onClose } = useDisclosure()
   const [username, setUsername] = useState('')
@@ -91,10 +91,18 @@ export default function Header() {
     /**
      * Login Workflow:
      * 1. Existing persistent sessions are restored by the W3PK context on mount
-     * 2. login() prompts for any available passkey (local or cloud-synced)
-     * 3. If no passkey exists anywhere, prompt for registration
+     * 2. If no passkey was ever registered on this device, open the
+     *    registration modal directly — calling login() with no local
+     *    credential would make the browser show its cross-device
+     *    "scan this QR code" dialog instead of failing
+     * 3. Otherwise login() prompts for the passkey; if it turns out to be
+     *    unavailable after all, fall back to the registration modal
      */
     try {
+      if (!(await hasLocalCredentials())) {
+        onOpen()
+        return
+      }
       await login()
     } catch (error) {
       if (isNoPasskeyError(error)) {
