@@ -16,13 +16,19 @@ Includes:
 
 ## Fork
 
-You can [use this template directly](https://github.com/w3hc/genji-passkey/generate), then run the customization script so you start with a fresh app:
+You can [use this template directly](https://github.com/w3hc/genji-passkey/generate), or bootstrap it with create-next-app:
+
+```bash
+npx create-next-app --example https://github.com/w3hc/genji-passkey my-app
+```
+
+Then run the customization script so you start with a fresh app:
 
 ```bash
 pnpm customize
 ```
 
-The script itself will also self-destruct.
+A reminder to run it is printed after `pnpm install` (npm hides it during create-next-app's install step). The script itself will also self-destruct and remove the reminder.
 
 ## Install
 
