@@ -84,6 +84,12 @@ async function main() {
       console.log('   ✓ Removed "customize" script from package.json')
     }
 
+    // Remove the postinstall hint so future installs stay silent
+    if (packageJson.scripts && packageJson.scripts.postinstall) {
+      delete packageJson.scripts.postinstall
+      console.log('   ✓ Removed "postinstall" hint from package.json')
+    }
+
     fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n')
     console.log(`   ✓ Updated name to "${packageJson.name}"`)
   }
