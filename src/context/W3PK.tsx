@@ -182,6 +182,13 @@ interface W3pkType {
    * support and w3pk keeps sessions in memory only (no "Remember Me").
    */
   hasPersistentSession: () => Promise<boolean>
+  /**
+   * Whether at least one passkey was registered on this device. Check this
+   * before calling login(): with no local credential, the WebAuthn prompt
+   * falls back to the browser's cross-device (QR code) dialog instead of
+   * failing, so the caller should offer registration directly.
+   */
+  hasLocalCredentials: () => Promise<boolean>
 }
 
 const W3PK = createContext<W3pkType | null>(null)
@@ -226,7 +233,8 @@ export function isNoPasskeyError(error: unknown): boolean {
   return (
     message.includes('not available') ||
     message.includes('restore your wallet from a backup') ||
-    message.includes('No credentials available')
+    message.includes('No credentials available') ||
+    message.includes('No passkey found')
   )
 }
 
@@ -726,6 +734,13 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
     return checkIndexedDBForPersistentSession()
   }
 
+  const hasLocalCredentials = async (): Promise<boolean> => {
+    // listExistingCredentials() reads the local credential store and
+    // returns [] on any storage error, so this never throws
+    const credentials = await w3pk.listExistingCredentials()
+    return credentials.length > 0
+  }
+
   const getBackupStatus = async (): Promise<BackupStatus> => {
     if (!isAuthenticated || !user) {
       throw new Error('User not authenticated. Cannot check backup status.')
@@ -1102,6 +1117,7 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
         generateStealthAddressFor,
         setPersistentSessionDuration,
         hasPersistentSession,
+        hasLocalCredentials,
       }}
     >
       {children}
