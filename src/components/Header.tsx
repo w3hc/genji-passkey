@@ -160,12 +160,12 @@ export default function Header() {
     }
   }
 
-  useEffect(() => {
-    const isValid = validateUsername(username)
-    if (!isValid) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsUsernameInvalid(false)
-  }, [username])
+  const handleUsernameChange = (value: string) => {
+    setUsername(value)
+    if (validateUsername(value)) {
+      setIsUsernameInvalid(false)
+    }
+  }
 
   const handleLogout = async () => {
     await logout()
@@ -317,7 +317,7 @@ export default function Header() {
                       }
                       aria-invalid={isUsernameInvalid && username.trim() ? true : undefined}
                       value={username}
-                      onChange={e => setUsername(e.target.value)}
+                      onChange={e => handleUsernameChange(e.target.value)}
                       placeholder="Enter your username"
                       pl={3}
                       onKeyDown={e => {
