@@ -18,6 +18,7 @@ type TranslationKeys = {
     subtitle: string
     greeting: string
     greetingSubtitle: string
+    signMessage: string
   }
   navigation: {
     about: string
@@ -48,6 +49,7 @@ export const translations: Translations = {
       subtitle: "It's a pleasure to have you here!",
       greeting: 'Hello Anon!',
       greetingSubtitle: 'Sit back, relax, and build something cool!',
+      signMessage: 'Sign a message',
     },
     navigation: {
       about: 'About',
@@ -72,6 +74,7 @@ export const translations: Translations = {
       subtitle: '很高兴您来到这里！',
       greeting: '你好，匿名用户！',
       greetingSubtitle: '坐下来，放松，创造一些很酷的东西！',
+      signMessage: '签署消息',
     },
     navigation: {
       about: '关于',
@@ -96,6 +99,7 @@ export const translations: Translations = {
       subtitle: 'आपका यहाँ स्वागत है!',
       greeting: 'नमस्ते मित्र!',
       greetingSubtitle: 'आराम से बैठें और कुछ शानदार बनाएं!',
+      signMessage: 'संदेश पर हस्ताक्षर करें',
     },
     navigation: {
       about: 'के बारे में',
@@ -120,6 +124,7 @@ export const translations: Translations = {
       subtitle: '¡Es un placer tenerte aquí!',
       greeting: '¡Hola Anon!',
       greetingSubtitle: '¡Siéntate, relájate y crea algo genial!',
+      signMessage: 'Firmar un mensaje',
     },
     navigation: {
       about: 'Acerca de',
@@ -144,6 +149,7 @@ export const translations: Translations = {
       subtitle: "C'est un plaisir de vous avoir ici !",
       greeting: 'Bonjour Anon !',
       greetingSubtitle: 'Détendez-vous et créez quelque chose de cool !',
+      signMessage: 'Signer un message',
     },
     navigation: {
       about: 'À propos',
@@ -168,6 +174,7 @@ export const translations: Translations = {
       subtitle: 'يسعدنا وجودك هنا!',
       greeting: 'مرحبا أيها المجهول!',
       greetingSubtitle: 'استرخ وابنِ شيئاً رائعاً!',
+      signMessage: 'توقيع رسالة',
     },
     navigation: {
       about: 'حول',
@@ -192,6 +199,7 @@ export const translations: Translations = {
       subtitle: 'আপনাকে এখানে পেয়ে আনন্দিত!',
       greeting: 'হ্যালো বন্ধু!',
       greetingSubtitle: 'বসুন, আরাম করুন এবং কিছু দুর্দান্ত তৈরি করুন!',
+      signMessage: 'একটি বার্তায় স্বাক্ষর করুন',
     },
     navigation: {
       about: 'সম্পর্কে',
@@ -216,6 +224,7 @@ export const translations: Translations = {
       subtitle: 'Рады видеть вас здесь!',
       greeting: 'Привет, незнакомец!',
       greetingSubtitle: 'Расслабьтесь и создайте что-нибудь крутое!',
+      signMessage: 'Подписать сообщение',
     },
     navigation: {
       about: 'О нас',
@@ -240,6 +249,7 @@ export const translations: Translations = {
       subtitle: 'É um prazer tê-lo aqui!',
       greeting: 'Olá Anon!',
       greetingSubtitle: 'Sente-se, relaxe e construa algo legal!',
+      signMessage: 'Assinar uma mensagem',
     },
     navigation: {
       about: 'Sobre',
@@ -264,6 +274,7 @@ export const translations: Translations = {
       subtitle: 'آپ کا یہاں ہونا خوشی کی بات ہے!',
       greeting: 'ہیلو دوست!',
       greetingSubtitle: 'آرام سے بیٹھیں اور کچھ شاندار بنائیں!',
+      signMessage: 'پیغام پر دستخط کریں',
     },
     navigation: {
       about: 'کے بارے میں',

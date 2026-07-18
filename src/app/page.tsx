@@ -152,7 +152,7 @@ export default function Home() {
                     disabled={!mainAddress}
                     size="sm"
                   >
-                    Sign a message
+                    {t.home.signMessage}
                   </Button>
                 </VStack>
                 {mintTxHash && (
