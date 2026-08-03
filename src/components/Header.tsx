@@ -107,8 +107,8 @@ export default function Header() {
     } catch (error) {
       if (isNoPasskeyError(error)) {
         toaster.create({
-          title: 'No Account Found',
-          description: 'No passkey found. Please register to create a new account.',
+          title: t.header.noAccountFoundTitle,
+          description: t.header.noAccountFoundDescription,
           type: 'info',
           duration: 4000,
         })
@@ -122,8 +122,8 @@ export default function Header() {
   const handleRegister = async () => {
     if (!username.trim()) {
       toaster.create({
-        title: 'Username Required',
-        description: 'Please enter a username to register.',
+        title: t.header.usernameRequiredTitle,
+        description: t.header.usernameRequiredDescription,
         type: 'warning',
         duration: 3000,
       })
@@ -184,7 +184,7 @@ export default function Header() {
         <Container maxW="100%" px={{ base: 4, md: 6 }} overflow="visible">
           <Flex
             as="nav"
-            aria-label="Main navigation"
+            aria-label={t.header.mainNavAriaLabel}
             justify="space-between"
             align="center"
             overflow="visible"
@@ -255,7 +255,7 @@ export default function Header() {
               )}
               <MenuRoot>
                 <MenuTrigger asChild>
-                  <IconButton aria-label="Options" variant="ghost" size="sm">
+                  <IconButton aria-label={t.header.optionsAriaLabel} variant="ghost" size="sm">
                     <HiMenu />
                   </IconButton>
                 </MenuTrigger>
@@ -292,13 +292,12 @@ export default function Header() {
           <Dialog.Positioner>
             <Dialog.Content p={6}>
               <Dialog.Header>
-                <Dialog.Title>Register New Account</Dialog.Title>
+                <Dialog.Title>{t.header.registerTitle}</Dialog.Title>
               </Dialog.Header>
               <Dialog.Body pt={4}>
                 <VStack gap={4}>
                   <Text fontSize="sm" color="gray.400">
-                    An Ethereum wallet will be created and securely stored on your device, protected
-                    by your biometric or PIN thanks to{' '}
+                    {t.header.walletInfoText}{' '}
                     <ChakraLink
                       href={'https://github.com/w3hc/w3pk/blob/main/src/auth/register.ts#L17-L102'}
                       color={brandColors.accent}
@@ -309,7 +308,7 @@ export default function Header() {
                     </ChakraLink>
                     .
                   </Text>
-                  <Field invalid={isUsernameInvalid} label="Username">
+                  <Field invalid={isUsernameInvalid} label={t.header.usernameLabel}>
                     <Input
                       id="username-input"
                       aria-describedby={
@@ -318,7 +317,7 @@ export default function Header() {
                       aria-invalid={isUsernameInvalid && username.trim() ? true : undefined}
                       value={username}
                       onChange={e => handleUsernameChange(e.target.value)}
-                      placeholder="Enter your username"
+                      placeholder={t.header.usernamePlaceholder}
                       pl={3}
                       onKeyDown={e => {
                         if (e.key === 'Enter' && username.trim()) {
@@ -328,8 +327,7 @@ export default function Header() {
                     />
                     {isUsernameInvalid && username.trim() && (
                       <Field.ErrorText id="username-error">
-                        Username must be 3-50 characters long and contain only letters, numbers,
-                        underscores, and hyphens. It must start and end with a letter or number.
+                        {t.header.usernameError}
                       </Field.ErrorText>
                     )}
                   </Field>{' '}
@@ -341,18 +339,18 @@ export default function Header() {
                     color={brandColors.accent}
                     alignSelf="flex-start"
                   >
-                    I already registered on another device
+                    {t.header.alreadyRegisteredLink}
                   </ChakraLink>
                 </VStack>
               </Dialog.Body>
 
               <Dialog.Footer gap={3} pt={6}>
                 <Dialog.ActionTrigger asChild>
-                  <Button variant="outline">Cancel</Button>
+                  <Button variant="outline">{t.common.cancel}</Button>
                 </Dialog.ActionTrigger>
                 <Button colorPalette="blue" onClick={handleRegister} disabled={!username.trim()}>
                   {isRegistering && <Spinner size="50px" />}
-                  {!isRegistering && 'Create Account'}
+                  {!isRegistering && t.header.createAccount}
                 </Button>
               </Dialog.Footer>
               <Dialog.CloseTrigger asChild>
