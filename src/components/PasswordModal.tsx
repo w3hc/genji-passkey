@@ -8,6 +8,7 @@ import { Field } from '@/components/ui/field'
 import { MdCheckCircle, MdWarning } from 'react-icons/md'
 import { isStrongPassword } from 'w3pk'
 import { toaster } from '@/components/ui/toaster'
+import { useTranslation } from '@/hooks/useTranslation'
 
 interface PasswordModalProps {
   isOpen: boolean
@@ -24,6 +25,7 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
   title,
   description, // Use the description prop here
 }) => {
+  const t = useTranslation()
   const [password, setPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isPasswordStrong, setIsPasswordStrong] = useState(false)
@@ -38,8 +40,8 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
   const handleSubmit = async () => {
     if (!password.trim()) {
       toaster.create({
-        title: 'Password Required.',
-        description: 'Please enter your password.',
+        title: t.passwordModal.passwordRequiredTitle,
+        description: t.passwordModal.passwordRequiredDescription,
         type: 'warning',
         duration: 3000,
       })
@@ -48,8 +50,8 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
 
     if (!isPasswordStrong) {
       toaster.create({
-        title: 'Weak Password.',
-        description: 'Please use a stronger password that meets all requirements.',
+        title: t.passwordModal.weakPasswordTitle,
+        description: t.passwordModal.weakPasswordDescription,
         type: 'warning',
         duration: 3000,
       })
@@ -64,8 +66,8 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
     } catch (error) {
       console.error('Error in password modal submit:', error)
       toaster.create({
-        title: 'Submission Error.',
-        description: (error as Error).message || 'An unexpected error occurred.',
+        title: t.passwordModal.submissionErrorTitle,
+        description: (error as Error).message || t.passwordModal.submissionErrorDefaultDescription,
         type: 'error',
         duration: 5000,
       })
@@ -111,11 +113,11 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
             <Dialog.Body pt={4}>
               <Text mb={4}>{description}</Text>
               <Field required invalid={passwordTouched && !isPasswordStrong}>
-                <Field.Label htmlFor="password">Password</Field.Label>
+                <Field.Label htmlFor="password">{t.passwordModal.passwordLabel}</Field.Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Enter your password"
+                  placeholder={t.passwordModal.passwordPlaceholder}
                   value={password}
                   onChange={handlePasswordChange}
                   aria-describedby="password-requirements password-status"
@@ -125,12 +127,12 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
                 />
                 {passwordTouched && !isPasswordStrong && (
                   <Field.ErrorText id="password-status">
-                    Password does not meet all requirements
+                    {t.passwordModal.requirementsNotMet}
                   </Field.ErrorText>
                 )}
                 {passwordTouched && isPasswordStrong && (
                   <Field.HelperText id="password-status" color="green.400">
-                    Strong password!
+                    {t.passwordModal.strongPassword}
                   </Field.HelperText>
                 )}
               </Field>
@@ -138,40 +140,50 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
               {/* Password Requirements */}
               <Box mt={4} id="password-requirements" aria-live="polite" aria-atomic="false">
                 <Text fontSize="sm" fontWeight="bold" mb={2} color="white">
-                  Password must include:
+                  {t.passwordModal.mustInclude}
                 </Text>
                 <Flex align="center" gap={2}>
                   {hasMinLength ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
-                  At least 12 characters
-                  <span className="sr-only">{hasMinLength ? ' (satisfied)' : ' (required)'}</span>
+                  {t.passwordModal.reqMinLength}
+                  <span className="sr-only">
+                    {hasMinLength ? t.passwordModal.satisfied : t.passwordModal.required}
+                  </span>
                 </Flex>
 
                 <Flex align="center" gap={2}>
                   {hasUpperCase ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
-                  One uppercase letter
+                  {t.passwordModal.reqUpperCase}
                 </Flex>
-                <span className="sr-only">{hasUpperCase ? ' (satisfied)' : ' (required)'}</span>
+                <span className="sr-only">
+                  {hasUpperCase ? t.passwordModal.satisfied : t.passwordModal.required}
+                </span>
                 <Flex align="center" gap={2}>
                   {hasLowerCase ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
-                  One lowercase letter
+                  {t.passwordModal.reqLowerCase}
                 </Flex>
-                <span className="sr-only">{hasLowerCase ? ' (satisfied)' : ' (required)'}</span>
+                <span className="sr-only">
+                  {hasLowerCase ? t.passwordModal.satisfied : t.passwordModal.required}
+                </span>
                 <Flex align="center" gap={2}>
                   {hasNumber ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
-                  One number
+                  {t.passwordModal.reqNumber}
                 </Flex>
-                <span className="sr-only">{hasNumber ? ' (satisfied)' : ' (required)'}</span>
+                <span className="sr-only">
+                  {hasNumber ? t.passwordModal.satisfied : t.passwordModal.required}
+                </span>
                 <Flex align="center" gap={2}>
                   {hasSpecialChar ? <MdCheckCircle color="green" /> : <MdWarning color="gray" />}
-                  One special character
+                  {t.passwordModal.reqSpecialChar}
                 </Flex>
-                <span className="sr-only">{hasSpecialChar ? ' (satisfied)' : ' (required)'}</span>
+                <span className="sr-only">
+                  {hasSpecialChar ? t.passwordModal.satisfied : t.passwordModal.required}
+                </span>
               </Box>
             </Dialog.Body>
 
             <Dialog.Footer gap={3} pt={6}>
               <Dialog.ActionTrigger asChild>
-                <Button variant="outline">Cancel</Button>
+                <Button variant="outline">{t.common.cancel}</Button>
               </Dialog.ActionTrigger>
               <Button
                 colorPalette="blue"
@@ -179,7 +191,7 @@ const PasswordModal: React.FC<PasswordModalProps> = ({
                 loading={isSubmitting}
                 disabled={!isPasswordStrong}
               >
-                Submit
+                {t.passwordModal.submit}
               </Button>
             </Dialog.Footer>
             <Dialog.CloseTrigger asChild>
