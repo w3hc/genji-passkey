@@ -425,6 +425,7 @@ export default function About() {
           >
             {t.about.feature16}
           </List.Item>
+          {/* AI Inspection feature (disabled)
           <List.Item
             cursor="pointer"
             transition="color 0.2s"
@@ -432,6 +433,7 @@ export default function About() {
           >
             {t.about.feature17}
           </List.Item>
+          */}
         </List.Root>
       </Box>
     </VStack>

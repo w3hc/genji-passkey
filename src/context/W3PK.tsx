@@ -20,8 +20,9 @@ import {
   createWeb3Passkey,
   getCurrentBuildHash,
   verifyBuildHash,
-  inspect,
-  inspectNow,
+  // AI Inspection feature (disabled)
+  // inspect,
+  // inspectNow,
   SocialRecoveryManager,
 } from 'w3pk'
 import { toaster } from '@/components/ui/toaster'
@@ -367,8 +368,9 @@ export const W3pkProvider: React.FC<W3pkProviderProps> = ({ children }) => {
         ...w3pk,
         getCurrentBuildHash,
         verifyBuildHash,
-        inspect,
-        inspectNow,
+        // AI Inspection feature (disabled)
+        // inspect,
+        // inspectNow,
       }
     }
   }, [w3pk])

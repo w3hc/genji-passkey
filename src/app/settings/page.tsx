@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { inspect } from 'w3pk'
+// AI Inspection feature (disabled)
+// import { inspect } from 'w3pk'
 import {
   Box,
   Heading,
@@ -49,8 +50,9 @@ import { useTranslation } from '@/hooks/useTranslation'
 import Spinner from '../../../src/components/Spinner'
 import PasswordModal from '../../components/PasswordModal'
 import { CodeBlock } from '@/components/CodeBlock'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+// AI Inspection feature (disabled) - only used to render the security report
+// import ReactMarkdown from 'react-markdown'
+// import remarkGfm from 'remark-gfm'
 import { detectBrowser, isWebAuthnAvailable } from '../../../src/utils/browserDetection'
 import { brandColors } from '@/theme'
 import { BuildVerification } from '@/components/BuildVerification'
@@ -184,13 +186,13 @@ const SettingsPage = () => {
   const [isRegistering, setIsRegistering] = useState(false)
   const [isRegisterUsernameInvalid, setIsRegisterUsernameInvalid] = useState(false)
 
-  // Inspect state
-  const [isInspecting, setIsInspecting] = useState(false)
-  const [securityReport, setSecurityReport] = useState<{
-    report: string
-    analyzedFiles: string[]
-    appUrl: string
-  } | null>(null)
+  // AI Inspection feature (disabled)
+  // const [isInspecting, setIsInspecting] = useState(false)
+  // const [securityReport, setSecurityReport] = useState<{
+  //   report: string
+  //   analyzedFiles: string[]
+  //   appUrl: string
+  // } | null>(null)
 
   const {
     isAuthenticated,
@@ -745,75 +747,75 @@ const SettingsPage = () => {
     setSelectedBackupFile(null)
   }
 
-  // Inspect handler
-  const handleInspect = async () => {
-    setIsInspecting(true)
-    console.log('🔍 W3PK Security Inspection Starting...')
+  // AI Inspection feature (disabled)
+  // const handleInspect = async () => {
+  //   setIsInspecting(true)
+  //   console.log('🔍 W3PK Security Inspection Starting...')
 
-    try {
-      const result = await inspect({
-        focusMode: 'transactions',
-      })
+  //   try {
+  //     const result = await inspect({
+  //       focusMode: 'transactions',
+  //     })
 
-      console.log('✅ Security report generated')
-      console.log(`Analyzed ${result.analyzedFiles.length} files from ${result.appUrl}`)
+  //     console.log('✅ Security report generated')
+  //     console.log(`Analyzed ${result.analyzedFiles.length} files from ${result.appUrl}`)
 
-      // Store report and display on page
-      setSecurityReport(result)
+  //     // Store report and display on page
+  //     setSecurityReport(result)
 
-      // Also log to console
-      try {
-        const parsed = JSON.parse(result.report)
-        console.log('📋 SECURITY REPORT')
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n')
-        console.log(parsed.output || result.report)
-        console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-      } catch {
-        console.log('📋 SECURITY REPORT')
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n')
-        console.log(result.report)
-        console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-      }
+  //     // Also log to console
+  //     try {
+  //       const parsed = JSON.parse(result.report)
+  //       console.log('📋 SECURITY REPORT')
+  //       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n')
+  //       console.log(parsed.output || result.report)
+  //       console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  //     } catch {
+  //       console.log('📋 SECURITY REPORT')
+  //       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n')
+  //       console.log(result.report)
+  //       console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  //     }
 
-      toaster.create({
-        title: t.settings.securityReportGeneratedTitle,
-        description: t.settings.securityReportGeneratedDescription,
-        type: 'success',
-        duration: 5000,
-      })
-    } catch (error: any) {
-      console.error('❌ Inspection failed:', error)
-      toaster.create({
-        title: t.settings.inspectionFailedTitle,
-        description: t.settings.inspectionFailedDescription,
-        type: 'error',
-        duration: 8000,
-      })
-    } finally {
-      setIsInspecting(false)
-    }
-  }
+  //     toaster.create({
+  //       title: t.settings.securityReportGeneratedTitle,
+  //       description: t.settings.securityReportGeneratedDescription,
+  //       type: 'success',
+  //       duration: 5000,
+  //     })
+  //   } catch (error: any) {
+  //     console.error('❌ Inspection failed:', error)
+  //     toaster.create({
+  //       title: t.settings.inspectionFailedTitle,
+  //       description: t.settings.inspectionFailedDescription,
+  //       type: 'error',
+  //       duration: 8000,
+  //     })
+  //   } finally {
+  //     setIsInspecting(false)
+  //   }
+  // }
 
-  // Expose inspect to window for console access
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      ;(window as any).w3pk = {
-        ...(window as any).w3pk,
-        inspect: async () => {
-          console.log('🔍 W3PK Security Inspection Starting...')
-          const result = await inspect({ focusMode: 'transactions' })
-          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-          console.log('📋 SECURITY REPORT')
-          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n')
-          console.log(result.report)
-          console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-          console.log(`✅ Analyzed ${result.analyzedFiles.length} files`)
-          console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-          return result
-        },
-      }
-    }
-  }, [])
+  // // Expose inspect to window for console access
+  // useEffect(() => {
+  //   if (typeof window !== 'undefined') {
+  //     ;(window as any).w3pk = {
+  //       ...(window as any).w3pk,
+  //       inspect: async () => {
+  //         console.log('🔍 W3PK Security Inspection Starting...')
+  //         const result = await inspect({ focusMode: 'transactions' })
+  //         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  //         console.log('📋 SECURITY REPORT')
+  //         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n')
+  //         console.log(result.report)
+  //         console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  //         console.log(`✅ Analyzed ${result.analyzedFiles.length} files`)
+  //         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  //         return result
+  //       },
+  //     }
+  //   }
+  // }, [])
 
   if (!isAuthenticated || !getBackupStatus || !createBackup) {
     const browserInfo = detectBrowser()
@@ -1077,7 +1079,7 @@ const SettingsPage = () => {
             </SimpleGrid>
           </Box>
 
-          {/* Security Inspect Section */}
+          {/* AI Inspection feature (disabled)
           <Box bg="gray.900" p={6} borderRadius="lg" border="2px solid" borderColor="purple.500">
             {!securityReport ? (
               <>
@@ -1223,6 +1225,7 @@ const SettingsPage = () => {
               </VStack>
             )}
           </Box>
+          */}
 
           {localStorageData.length > 0 && (
             <Box bg="gray.900" p={6} borderRadius="lg" border="1px solid" borderColor="purple.600">
@@ -3374,7 +3377,7 @@ const SettingsPage = () => {
           </TabsContent>
         </TabsRoot>
 
-        {/* Security Inspect Section */}
+        {/* AI Inspection feature (disabled)
         <Box
           mt={12}
           bg="gray.900"
@@ -3513,6 +3516,7 @@ const SettingsPage = () => {
             </VStack>
           )}
         </Box>
+        */}
       </VStack>
 
       <PasswordModal
