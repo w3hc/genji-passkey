@@ -7,16 +7,18 @@ import { brandColors } from '@/theme'
 import { FaGithub, FaNpm } from 'react-icons/fa'
 import { useState } from 'react'
 import { toaster } from '@/components/ui/toaster'
+import { useTranslation } from '@/hooks/useTranslation'
 
 export default function About() {
+  const t = useTranslation()
   const [email, setEmail] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleEmailSubmit = async () => {
     if (!email || !email.includes('@')) {
       toaster.create({
-        title: 'Invalid email',
-        description: 'Please enter a valid email address',
+        title: t.about.invalidEmailTitle,
+        description: t.about.invalidEmailDescription,
         type: 'error',
         duration: 3000,
       })
@@ -35,8 +37,8 @@ export default function About() {
 
       if (response.ok) {
         toaster.create({
-          title: 'Success!',
-          description: 'You have been subscribed to w3pk updates',
+          title: t.about.subscribeSuccessTitle,
+          description: t.about.subscribeSuccessDescription,
           type: 'success',
           duration: 3000,
         })
@@ -46,8 +48,8 @@ export default function About() {
       }
     } catch (error) {
       toaster.create({
-        title: 'Error',
-        description: 'Failed to subscribe. Please try again.',
+        title: t.about.subscribeErrorTitle,
+        description: t.about.subscribeErrorDescription,
         type: 'error',
         duration: 3000,
       })
@@ -59,15 +61,14 @@ export default function About() {
   return (
     <VStack gap={8} align="stretch" py={20}>
       <Heading size="xl" textAlign="center">
-        About{' '}
+        {t.about.headingPrefix}{' '}
         <Text as="span" color={brandColors.accent}>
           w3pk
         </Text>
       </Heading>
 
       <Text fontSize="lg">
-        w3pk is a passwordless Web3 authentication SDK with encrypted wallets and privacy features.
-        You can use it in any JS/TS-based web app (Next.js, Vue, Angular, Svelte, …).{' '}
+        {t.about.introPart1}{' '}
         <Link
           href="https://github.com/w3hc/genji-passkey"
           target="_blank"
@@ -77,18 +78,17 @@ export default function About() {
         >
           Genji
         </Link>{' '}
-        is a Next.js app template, feel free to fork it and build whatever you want!
+        {t.about.introPart2}
       </Text>
 
       {/* Email Subscription Box */}
       <Box p={6} borderRadius="lg" bg="gray.900" borderWidth="1px" borderColor="gray.700">
         <Text fontSize="sm" color="gray.300" mb={4}>
-          w3pk is under dev. Receive emails when we ship new features (EIP-1193 support, AI
-          capacities, Viem helpers, chain abstraction, and more)
+          {t.about.emailBoxText}
         </Text>
         <HStack gap={3}>
           <Input
-            placeholder="your@email.com"
+            placeholder={t.about.emailPlaceholder}
             value={email}
             onChange={e => setEmail(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleEmailSubmit()}
@@ -110,7 +110,7 @@ export default function About() {
             _active={{ bg: '#2780d6' }}
             px={8}
           >
-            Subscribe
+            {t.about.subscribeButton}
           </Button>
         </HStack>
       </Box>
@@ -122,7 +122,7 @@ export default function About() {
             href="https://github.com/w3hc/w3pk"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="View w3pk on GitHub (opens in new tab)"
+            aria-label={t.about.githubAriaLabel}
           >
             <Flex
               align="center"
@@ -143,7 +143,7 @@ export default function About() {
             >
               <Icon as={FaGithub} boxSize={6} color={brandColors.accent} />
               <Text fontSize="md" fontWeight="medium">
-                GitHub
+                {t.about.githubLabel}
               </Text>
             </Flex>
           </Link>
@@ -152,7 +152,7 @@ export default function About() {
             href="https://www.npmjs.com/package/w3pk"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="View w3pk on NPM (opens in new tab)"
+            aria-label={t.about.npmAriaLabel}
           >
             <Flex
               align="center"
@@ -173,7 +173,7 @@ export default function About() {
             >
               <Icon as={FaNpm} boxSize={6} color={brandColors.primary} />
               <Text fontSize="md" fontWeight="medium">
-                NPM
+                {t.about.npmLabel}
               </Text>
             </Flex>
           </Link>
@@ -219,7 +219,7 @@ export default function About() {
           </Text>
           <Text mb={2}>&nbsp;</Text>
           <Text color="#6b7280" mb={1}>
-            {'// Register'}
+            {t.about.codeRegisterComment}
           </Text>
           <Text color="#ffffff" mb={1}>
             <Text as="span" color="#ffffff">
@@ -255,7 +255,7 @@ export default function About() {
           </Text>
           <Text mb={2}>&nbsp;</Text>
           <Text color="#6b7280" mb={1}>
-            {'// Login'}
+            {t.about.codeLoginComment}
           </Text>
           <Text color="#ffffff" mb={1}>
             <Text as="span" color="#ffffff">
@@ -276,7 +276,7 @@ export default function About() {
           </Text>
           <Text mb={2}>&nbsp;</Text>
           <Text color="#6b7280" mb={1}>
-            {'// Logout'}
+            {t.about.codeLogoutComment}
           </Text>
           <Text color="#ffffff">
             <Text as="span" color="#ffffff">
@@ -301,7 +301,7 @@ export default function About() {
       {/* Features List */}
       <Box mt={12}>
         <Heading size="xl" mb={6}>
-          Features
+          {t.about.featuresHeading}
         </Heading>
         <List.Root
           gap={2}
@@ -318,119 +318,119 @@ export default function About() {
             transition="color 0.2s"
             _hover={{ color: brandColors.accent }}
           >
-            Passwordless authentication (WebAuthn/FIDO2)
+            {t.about.feature1}
           </List.Item>
           <List.Item
             cursor="pointer"
             transition="color 0.2s"
             _hover={{ color: brandColors.accent }}
           >
-            Origin-specific key isolation with tag-based access control
+            {t.about.feature2}
           </List.Item>
           <List.Item
             cursor="pointer"
             transition="color 0.2s"
             _hover={{ color: brandColors.accent }}
           >
-            Session management (in-memory + optional persistent)
+            {t.about.feature3}
           </List.Item>
           <List.Item
             cursor="pointer"
             transition="color 0.2s"
             _hover={{ color: brandColors.accent }}
           >
-            HD wallet generation (BIP39/BIP44)
+            {t.about.feature4}
           </List.Item>
           <List.Item
             cursor="pointer"
             transition="color 0.2s"
             _hover={{ color: brandColors.accent }}
           >
-            Multi-address derivation with security modes (STANDARD/STRICT/YOLO)
+            {t.about.feature5}
           </List.Item>
           <List.Item
             cursor="pointer"
             transition="color 0.2s"
             _hover={{ color: brandColors.accent }}
           >
-            Multiple signing methods (EIP-191, SIWE/EIP-4361, EIP-712, rawHash)
+            {t.about.feature6}
           </List.Item>
           <List.Item
             cursor="pointer"
             transition="color 0.2s"
             _hover={{ color: brandColors.accent }}
           >
-            On-chain transaction sending with automatic RPC resolution (`sendTransaction`)
+            {t.about.feature7}
           </List.Item>
           <List.Item
             cursor="pointer"
             transition="color 0.2s"
             _hover={{ color: brandColors.accent }}
           >
-            EIP-1193 provider for ethers, viem, wagmi, RainbowKit (`getEIP1193Provider`)
+            {t.about.feature8}
           </List.Item>
           <List.Item
             cursor="pointer"
             transition="color 0.2s"
             _hover={{ color: brandColors.accent }}
           >
-            ERC-5564 stealth addresses (opt-in)
+            {t.about.feature9}
           </List.Item>
           <List.Item
             cursor="pointer"
             transition="color 0.2s"
             _hover={{ color: brandColors.accent }}
           >
-            ZK primitives (zero-knowledge proof generation and verification)
+            {t.about.feature10}
           </List.Item>
           <List.Item
             cursor="pointer"
             transition="color 0.2s"
             _hover={{ color: brandColors.accent }}
           >
-            Chainlist support (2390+ networks)
+            {t.about.feature11}
           </List.Item>
           <List.Item
             cursor="pointer"
             transition="color 0.2s"
             _hover={{ color: brandColors.accent }}
           >
-            EIP-7702 network detection (329+ networks)
+            {t.about.feature12}
           </List.Item>
           <List.Item
             cursor="pointer"
             transition="color 0.2s"
             _hover={{ color: brandColors.accent }}
           >
-            External wallet integration (delegate MetaMask/Ledger to w3pk via EIP-7702)
+            {t.about.feature13}
           </List.Item>
           <List.Item
             cursor="pointer"
             transition="color 0.2s"
             _hover={{ color: brandColors.accent }}
           >
-            EIP-7951 PRIMARY mode (P-256 passkey signing)
+            {t.about.feature14}
           </List.Item>
           <List.Item
             cursor="pointer"
             transition="color 0.2s"
             _hover={{ color: brandColors.accent }}
           >
-            Build verification (IPFS CID hashing + DAO-maintained onchain registry)
+            {t.about.feature15}
           </List.Item>
           <List.Item
             cursor="pointer"
             transition="color 0.2s"
             _hover={{ color: brandColors.accent }}
           >
-            Three-layer backup & recovery (passkey sync, encrypted backups, social recovery)
+            {t.about.feature16}
           </List.Item>
           <List.Item
             cursor="pointer"
             transition="color 0.2s"
             _hover={{ color: brandColors.accent }}
           >
-            AI-powered host app inspection
+            {t.about.feature17}
           </List.Item>
         </List.Root>
       </Box>

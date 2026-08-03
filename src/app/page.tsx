@@ -77,8 +77,8 @@ export default function Home() {
       const signature = await signMessage(message)
       if (signature) {
         toaster.create({
-          title: 'Message Signed',
-          description: `Signature: ${signature.substring(0, 20)}...`,
+          title: t.home.messageSignedTitle,
+          description: t.home.messageSignedDescription(signature),
           type: 'success',
           duration: 5000,
         })
@@ -140,7 +140,7 @@ export default function Home() {
                 className="shimmer-text"
                 textAlign={'center'}
               >
-                {isLoadingMain ? 'Loading...' : mainAddress || 'Not available'}
+                {isLoadingMain ? t.common.loading : mainAddress || t.common.notAvailable}
               </Box>
               <Box textAlign="center" mt={10}>
                 <VStack gap={3}>
