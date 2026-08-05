@@ -1,11 +1,11 @@
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Settings | w3pk',
+  title: 'Settings | Genji',
   description: 'Manage your accounts, backups, and recovery options for your w3pk wallet.',
 
   openGraph: {
-    title: 'Settings | w3pk',
+    title: 'Settings | Genji',
     description: 'Manage your accounts, backups, and recovery options for your w3pk wallet.',
     siteName: 'Genji',
     images: [
