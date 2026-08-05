@@ -9,10 +9,10 @@ Next.js Web3 starter with passkey auth and [WCAG 2.1 AA](https://www.levelaccess
 
 Includes:
 
-- **[w3pk](https://w3pk.w3hc.org/)** `v0.9.3`
-- [Next.js](https://nextjs.org/) `v16.1.6`
-- [Ethers](https://docs.ethers.org/) `v6.16.0`
-- [Chakra UI](https://chakra-ui.com/) `v3.30.0`
+- **[w3pk](https://w3pk.w3hc.org/)** `v0.10.2`
+- [Next.js](https://nextjs.org/) `v16.2.10`
+- [Ethers](https://docs.ethers.org/) `v6.17.0`
+- [Chakra UI](https://chakra-ui.com/) `v3.36.0`
 
 ## Fork
 
@@ -63,7 +63,3 @@ GPL-3.0
 - Element: [@julienbrg:matrix.org](https://matrix.to/#/@julienbrg:matrix.org)
 - Farcaster: [julien-](https://warpcast.com/julien-)
 - Telegram: [@julienbrg](https://t.me/julienbrg)
-
----
-
-<img src="https://bafkreid5xwxz4bed67bxb2wjmwsec4uhlcjviwy7pkzwoyu5oesjd3sp64.ipfs.w3s.link" alt="built-with-ethereum-w3hc" width="100"/>

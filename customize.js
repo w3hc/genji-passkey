@@ -373,12 +373,12 @@ export default function Header() {
     }
   }
 
-  useEffect(() => {
-    const isValid = validateUsername(username)
-    if (isValid) {
+  const handleUsernameChange = (value: string) => {
+    setUsername(value)
+    if (validateUsername(value)) {
       setIsUsernameInvalid(false)
     }
-  }, [username])
+  }
 
   const handleLogout = () => {
     logout()
@@ -518,7 +518,7 @@ export default function Header() {
                       }
                       aria-invalid={isUsernameInvalid && username.trim() ? true : undefined}
                       value={username}
-                      onChange={e => setUsername(e.target.value)}
+                      onChange={e => handleUsernameChange(e.target.value)}
                       placeholder="Enter your username"
                       pl={3}
                       onKeyDown={e => {
@@ -580,8 +580,6 @@ export default function Header() {
 # ${projectName}
 
 ${description || '<DESCRIPTION>'}
-
-## Fork
 
 ## Install
 
