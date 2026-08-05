@@ -20,7 +20,6 @@ type TranslationKeys = {
   common: {
     login: string
     logout: string
-    register: string
     pleaseLogin: string
     cancel: string
     srLoadingText: string
@@ -424,7 +423,6 @@ export const translations: Translations = {
     common: {
       login: 'Login',
       logout: 'Logout',
-      register: 'Register',
       pleaseLogin: 'Please login',
       cancel: 'Cancel',
       srLoadingText: 'Loading, please wait...',
@@ -878,7 +876,6 @@ export const translations: Translations = {
     common: {
       login: '登录',
       logout: '登出',
-      register: '注册',
       pleaseLogin: '请登录',
       cancel: '取消',
       srLoadingText: '加载中，请稍候...',
@@ -1312,7 +1309,6 @@ export const translations: Translations = {
     common: {
       login: 'लॉगिन',
       logout: 'लॉगआउट',
-      register: 'रजिस्टर करें',
       pleaseLogin: 'कृपया लॉगिन करें',
       cancel: 'रद्द करें',
       srLoadingText: 'लोड हो रहा है, कृपया प्रतीक्षा करें...',
@@ -1778,7 +1774,6 @@ export const translations: Translations = {
     common: {
       login: 'Iniciar sesión',
       logout: 'Cerrar sesión',
-      register: 'Registrarse',
       pleaseLogin: 'Por favor inicia sesión',
       cancel: 'Cancelar',
       srLoadingText: 'Cargando, por favor espera...',
@@ -2262,7 +2257,6 @@ export const translations: Translations = {
     common: {
       login: 'Connexion',
       logout: 'Déconnexion',
-      register: "S'inscrire",
       pleaseLogin: 'Veuillez vous connecter',
       cancel: 'Annuler',
       srLoadingText: 'Chargement, veuillez patienter...',
@@ -2749,7 +2743,6 @@ export const translations: Translations = {
     common: {
       login: 'تسجيل الدخول',
       logout: 'تسجيل الخروج',
-      register: 'التسجيل',
       pleaseLogin: 'الرجاء تسجيل الدخول',
       cancel: 'إلغاء',
       srLoadingText: 'جارٍ التحميل، يرجى الانتظار...',
@@ -3200,7 +3193,6 @@ export const translations: Translations = {
     common: {
       login: 'লগ ইন',
       logout: 'লগ আউট',
-      register: 'নিবন্ধন করুন',
       pleaseLogin: 'অনুগ্রহ করে লগইন করুন',
       cancel: 'বাতিল করুন',
       srLoadingText: 'লোড হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন...',
@@ -3678,7 +3670,6 @@ export const translations: Translations = {
     common: {
       login: 'Вход',
       logout: 'Выход',
-      register: 'Регистрация',
       pleaseLogin: 'Пожалуйста, войдите',
       cancel: 'Отмена',
       srLoadingText: 'Загрузка, пожалуйста подождите...',
@@ -4157,7 +4148,6 @@ export const translations: Translations = {
     common: {
       login: 'Entrar',
       logout: 'Sair',
-      register: 'Registrar',
       pleaseLogin: 'Por favor faça login',
       cancel: 'Cancelar',
       srLoadingText: 'Carregando, por favor aguarde...',
@@ -4639,7 +4629,6 @@ export const translations: Translations = {
     common: {
       login: 'لاگ ان',
       logout: 'لاگ آؤٹ',
-      register: 'رجسٹر کریں',
       pleaseLogin: 'براہ کرم لاگ ان کریں',
       cancel: 'منسوخ کریں',
       srLoadingText: 'لوڈ ہو رہا ہے، براہ کرم انتظار کریں...',
