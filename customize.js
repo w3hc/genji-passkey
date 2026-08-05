@@ -581,8 +581,6 @@ export default function Header() {
 
 ${description || '<DESCRIPTION>'}
 
-## Fork
-
 ## Install
 
 \`\`\`bash
