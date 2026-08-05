@@ -24,11 +24,15 @@ async function main() {
   console.log('This will customize your project by:')
   console.log('  • Removing the /about page')
   console.log('  • Removing API routes')
+  console.log('  • Removing the docs directory')
+  console.log('  • Removing CHANGELOG.md')
   console.log('  • Changing the project name')
+  console.log('  • Updating metadata (title, description)')
   console.log('  • Removing deploy.yml workflow')
   console.log('  • Updating translations')
   console.log('  • Replacing homepage content')
   console.log('  • Replacing header component')
+  console.log('  • Updating settings page metadata')
   console.log('  • Updating README.md')
   console.log('  • Removing this script\n')
 
@@ -68,7 +72,23 @@ async function main() {
     console.log('   ✓ Removed src/app/api/')
   }
 
-  // 3. Update package.json
+  // 3. Remove docs directory
+  console.log('📚 Removing docs directory...')
+  const docsDir = path.join(__dirname, 'docs')
+  if (fs.existsSync(docsDir)) {
+    fs.rmSync(docsDir, { recursive: true, force: true })
+    console.log('   ✓ Removed docs/')
+  }
+
+  // 4. Remove CHANGELOG.md
+  console.log('📜 Removing CHANGELOG.md...')
+  const changelogPath = path.join(__dirname, 'CHANGELOG.md')
+  if (fs.existsSync(changelogPath)) {
+    fs.unlinkSync(changelogPath)
+    console.log('   ✓ Removed CHANGELOG.md')
+  }
+
+  // 5. Update package.json
   console.log('📦 Updating package.json...')
   const packageJsonPath = path.join(__dirname, 'package.json')
   if (fs.existsSync(packageJsonPath)) {
@@ -94,7 +114,23 @@ async function main() {
     console.log(`   ✓ Updated name to "${packageJson.name}"`)
   }
 
-  // 4. Remove deploy.yml
+  // 6. Update metadata.ts
+  console.log('🏷️  Updating metadata...')
+  const metadataPath = path.join(__dirname, 'src/app/metadata.ts')
+  if (fs.existsSync(metadataPath)) {
+    let metadataContent = fs.readFileSync(metadataPath, 'utf8')
+    metadataContent = metadataContent.replace(/Genji/g, projectName)
+    if (description) {
+      metadataContent = metadataContent.replace(
+        /Next\.js Web3 starter with passkey auth/g,
+        description
+      )
+    }
+    fs.writeFileSync(metadataPath, metadataContent)
+    console.log('   ✓ Updated src/app/metadata.ts')
+  }
+
+  // 7. Remove deploy.yml
   console.log('🚫 Removing deploy.yml...')
   const deployYmlPath = path.join(__dirname, '.github/workflows/deploy.yml')
   if (fs.existsSync(deployYmlPath)) {
@@ -102,7 +138,7 @@ async function main() {
     console.log('   ✓ Removed .github/workflows/deploy.yml')
   }
 
-  // 5. Update translations
+  // 8. Update translations
   console.log('🌐 Updating translations...')
   const translationsPath = path.join(__dirname, 'src/translations/index.ts')
   if (fs.existsSync(translationsPath)) {
@@ -126,7 +162,7 @@ async function main() {
     console.log('   ✓ Updated translations (removed about navigation)')
   }
 
-  // 6. Replace header component
+  // 9. Replace header component
   console.log('📋 Replacing header component...')
   const headerPath = path.join(__dirname, 'src/components/Header.tsx')
   if (fs.existsSync(headerPath)) {
@@ -525,7 +561,17 @@ export default function Header() {
     console.log('   ✓ Replaced header component in src/components/Header.tsx')
   }
 
-  // 7. Update README.md
+  // 10. Update settings page metadata
+  console.log('⚙️  Updating settings page metadata...')
+  const settingsLayoutPath = path.join(__dirname, 'src/app/settings/layout.tsx')
+  if (fs.existsSync(settingsLayoutPath)) {
+    let settingsLayoutContent = fs.readFileSync(settingsLayoutPath, 'utf8')
+    settingsLayoutContent = settingsLayoutContent.replace(/Genji/g, projectName)
+    fs.writeFileSync(settingsLayoutPath, settingsLayoutContent)
+    console.log('   ✓ Updated src/app/settings/layout.tsx')
+  }
+
+  // 11. Update README.md
   console.log('📝 Updating README.md...')
   const readmePath = path.join(__dirname, 'README.md')
   if (fs.existsSync(readmePath)) {
@@ -563,7 +609,7 @@ GPL-3.0
     console.log('   ✓ Updated README.md')
   }
 
-  // 8. Replace homepage content
+  // 12. Replace homepage content
   console.log('🏠 Replacing homepage content...')
   const homepagePath = path.join(__dirname, 'src/app/page.tsx')
   if (fs.existsSync(homepagePath)) {
@@ -733,7 +779,7 @@ export default function Home() {
     console.log('   ✓ Replaced homepage content in src/app/page.tsx')
   }
 
-  // 9. Self-destruct - Remove this script and related files
+  // 13. Self-destruct - Remove this script and related files
   console.log('🗑️  Removing customization scripts...')
   const scriptPath = path.join(__dirname, 'customize.js')
   const tsScriptPath = path.join(__dirname, 'customize.ts')

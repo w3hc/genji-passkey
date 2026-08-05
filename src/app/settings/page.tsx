@@ -45,15 +45,15 @@ import {
   FiClock,
   FiUserPlus,
 } from 'react-icons/fi'
-import { useW3PK } from '../../../src/context/W3PK'
+import { useW3PK } from '@/context/W3PK'
 import { useTranslation } from '@/hooks/useTranslation'
-import Spinner from '../../../src/components/Spinner'
-import PasswordModal from '../../components/PasswordModal'
+import Spinner from '@/components/Spinner'
+import PasswordModal from '@/components/PasswordModal'
 import { CodeBlock } from '@/components/CodeBlock'
 // AI Inspection feature (disabled) - only used to render the security report
 // import ReactMarkdown from 'react-markdown'
 // import remarkGfm from 'remark-gfm'
-import { detectBrowser, isWebAuthnAvailable } from '../../../src/utils/browserDetection'
+import { detectBrowser, isWebAuthnAvailable } from '@/utils/browserDetection'
 import { brandColors } from '@/theme'
 import { BuildVerification } from '@/components/BuildVerification'
 import {
@@ -65,7 +65,7 @@ import {
   clearIndexedDBRecord,
   type LocalStorageItem,
   type IndexedDBInfo,
-} from '../../../src/utils/storageInspection'
+} from '@/utils/storageInspection'
 import { QRCodeSVG } from 'qrcode.react'
 import {
   SliderRoot,
