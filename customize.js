@@ -190,13 +190,13 @@ import { HiMenu } from 'react-icons/hi'
 import LanguageSelector from './LanguageSelector'
 import Spinner from './Spinner'
 import { useTranslation } from '@/hooks/useTranslation'
-import { useW3PK } from '@/context/W3PK'
+import { useW3PK, isNoPasskeyError } from '@/context/W3PK'
 import { useState, useEffect } from 'react'
 import { toaster } from '@/components/ui/toaster'
 import { brandColors } from '@/theme'
 
 export default function Header() {
-  const { isAuthenticated, user, isLoading, login, register, logout } = useW3PK()
+  const { isAuthenticated, login, register, logout, hasLocalCredentials } = useW3PK()
   const t = useTranslation()
   const { open: isOpen, onOpen, onClose } = useDisclosure()
   const [username, setUsername] = useState('')
@@ -208,6 +208,7 @@ export default function Header() {
   const shouldSlide = scrollPosition > 0
   const leftSlideValue = shouldSlide ? 2000 : 0
   const rightSlideValue = shouldSlide ? 2000 : 0
+
 
   useEffect(() => {
     const handleScroll = () => {
@@ -237,88 +238,42 @@ export default function Header() {
   }
 
   const handleLogin = async () => {
-    // Check if credentials exist in localStorage or IndexedDB
-    const hasCredentials = await checkForExistingCredentials()
-
-    if (hasCredentials) {
-      // User has credentials - perform normal login
-      await login()
-    } else {
-      // No credentials - prompt for registration
-      onOpen()
-    }
-  }
-
-  const checkForExistingCredentials = async (): Promise<boolean> => {
+    /**
+     * Login Workflow:
+     * 1. Existing persistent sessions are restored by the W3PK context on mount
+     * 2. If no passkey was ever registered on this device, open the
+     *    registration modal directly — calling login() with no local
+     *    credential would make the browser show its cross-device
+     *    "scan this QR code" dialog instead of failing
+     * 3. Otherwise login() prompts for the passkey; if it turns out to be
+     *    unavailable after all, fall back to the registration modal
+     */
     try {
-      if (typeof window === 'undefined') {
-        return false
+      if (!(await hasLocalCredentials())) {
+        onOpen()
+        return
       }
-
-      // First check for persistent session in IndexedDB
-      if (window.indexedDB) {
-        const dbName = 'Web3PasskeyPersistentSessions'
-        const storeName = 'sessions'
-
-        const hasPersistentSession = await new Promise<boolean>(resolve => {
-          const request = indexedDB.open(dbName)
-
-          request.onerror = () => {
-            resolve(false)
-          }
-
-          request.onsuccess = event => {
-            const db = (event.target as IDBOpenDBRequest).result
-
-            if (!db.objectStoreNames.contains(storeName)) {
-              db.close()
-              resolve(false)
-              return
-            }
-
-            try {
-              const transaction = db.transaction([storeName], 'readonly')
-              const objectStore = transaction.objectStore(storeName)
-              const countRequest = objectStore.count()
-
-              countRequest.onsuccess = () => {
-                db.close()
-                resolve(countRequest.result > 0)
-              }
-
-              countRequest.onerror = () => {
-                db.close()
-                resolve(false)
-              }
-            } catch {
-              db.close()
-              resolve(false)
-            }
-          }
+      await login()
+    } catch (error) {
+      if (isNoPasskeyError(error)) {
+        toaster.create({
+          title: t.header.noAccountFoundTitle,
+          description: t.header.noAccountFoundDescription,
+          type: 'info',
+          duration: 4000,
         })
-
-        if (hasPersistentSession) {
-          return true
-        }
+        onOpen()
       }
-
-      // Then check for w3pk_credential_index in localStorage
-      const credentialIndex = localStorage.getItem('w3pk_credential_index')
-      if (credentialIndex) {
-        return true
-      }
-
-      return false
-    } catch {
-      return false
+      // Other errors (user cancelled, timeout, etc.) are already handled
+      // by the login() function in the W3PK context
     }
   }
 
   const handleRegister = async () => {
     if (!username.trim()) {
       toaster.create({
-        title: 'Username Required',
-        description: 'Please enter a username to register.',
+        title: t.header.usernameRequiredTitle,
+        description: t.header.usernameRequiredDescription,
         type: 'warning',
         duration: 3000,
       })
@@ -344,31 +299,13 @@ export default function Header() {
 
     try {
       setIsRegistering(true)
-      console.log('[Header] Starting registration for:', username.trim())
-
-      // Add timeout to prevent infinite loading
-      const registrationPromise = register(username.trim())
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Registration timeout after 60 seconds')), 60000)
-      )
-
-      await Promise.race([registrationPromise, timeoutPromise])
-
-      console.log('[Header] Registration completed successfully')
+      // register() handles its own timeout and error/success toasts
+      await register(username.trim())
       setUsername('')
       onClose()
-    } catch (error: any) {
+    } catch (error) {
       console.error('[Header] Registration failed:', error)
-
-      // Show user-friendly error message
-      toaster.create({
-        title: 'Registration Failed',
-        description: error.message || 'Unable to complete registration. Please try again.',
-        type: 'error',
-        duration: 8000,
-      })
     } finally {
-      console.log('[Header] Cleaning up registration state')
       setIsRegistering(false)
     }
   }
@@ -380,8 +317,8 @@ export default function Header() {
     }
   }
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    await logout()
   }
 
   const handleModalClose = () => {
@@ -396,7 +333,7 @@ export default function Header() {
         <Container maxW="100%" px={{ base: 4, md: 6 }} overflow="visible">
           <Flex
             as="nav"
-            aria-label="Main navigation"
+            aria-label={t.header.mainNavAriaLabel}
             justify="space-between"
             align="center"
             overflow="visible"
@@ -408,11 +345,9 @@ export default function Header() {
             >
               <Flex align="center" gap={3}>
                 <Link href="/">
-                  <Flex align="center" gap={5}>
-                    <Heading as="h3" size="md" textAlign="center">
-                      ${projectName}
-                    </Heading>
-                  </Flex>
+                  <Heading as="h3" size="md" textAlign="center">
+                    ${projectName}
+                  </Heading>
                 </Link>
               </Flex>
             </Box>
@@ -461,7 +396,7 @@ export default function Header() {
               )}
               <MenuRoot>
                 <MenuTrigger asChild>
-                  <IconButton aria-label="Options" variant="ghost" size="sm">
+                  <IconButton aria-label={t.header.optionsAriaLabel} variant="ghost" size="sm">
                     <HiMenu />
                   </IconButton>
                 </MenuTrigger>
@@ -493,13 +428,12 @@ export default function Header() {
           <Dialog.Positioner>
             <Dialog.Content p={6}>
               <Dialog.Header>
-                <Dialog.Title>Register New Account</Dialog.Title>
+                <Dialog.Title>{t.header.registerTitle}</Dialog.Title>
               </Dialog.Header>
               <Dialog.Body pt={4}>
                 <VStack gap={4}>
                   <Text fontSize="sm" color="gray.400">
-                    An Ethereum wallet will be created and securely stored on your device, protected
-                    by your biometric or PIN thanks to{' '}
+                    {t.header.walletInfoText}{' '}
                     <ChakraLink
                       href={'https://github.com/w3hc/w3pk/blob/main/src/auth/register.ts#L17-L102'}
                       color={brandColors.accent}
@@ -510,7 +444,7 @@ export default function Header() {
                     </ChakraLink>
                     .
                   </Text>
-                  <Field invalid={isUsernameInvalid} label="Username">
+                  <Field invalid={isUsernameInvalid} label={t.header.usernameLabel}>
                     <Input
                       id="username-input"
                       aria-describedby={
@@ -519,7 +453,7 @@ export default function Header() {
                       aria-invalid={isUsernameInvalid && username.trim() ? true : undefined}
                       value={username}
                       onChange={e => handleUsernameChange(e.target.value)}
-                      placeholder="Enter your username"
+                      placeholder={t.header.usernamePlaceholder}
                       pl={3}
                       onKeyDown={e => {
                         if (e.key === 'Enter' && username.trim()) {
@@ -529,21 +463,30 @@ export default function Header() {
                     />
                     {isUsernameInvalid && username.trim() && (
                       <Field.ErrorText id="username-error">
-                        Username must be 3-50 characters long and contain only letters, numbers,
-                        underscores, and hyphens. It must start and end with a letter or number.
+                        {t.header.usernameError}
                       </Field.ErrorText>
                     )}
-                  </Field>
+                  </Field>{' '}
+                  <ChakraLink
+                    as={Link}
+                    href="/settings#restore-backup"
+                    onClick={handleModalClose}
+                    fontSize="sm"
+                    color={brandColors.accent}
+                    alignSelf="flex-start"
+                  >
+                    {t.header.alreadyRegisteredLink}
+                  </ChakraLink>
                 </VStack>
               </Dialog.Body>
 
               <Dialog.Footer gap={3} pt={6}>
                 <Dialog.ActionTrigger asChild>
-                  <Button variant="outline">Cancel</Button>
+                  <Button variant="outline">{t.common.cancel}</Button>
                 </Dialog.ActionTrigger>
                 <Button colorPalette="blue" onClick={handleRegister} disabled={!username.trim()}>
                   {isRegistering && <Spinner size="50px" />}
-                  {!isRegistering && 'Create Account'}
+                  {!isRegistering && t.header.createAccount}
                 </Button>
               </Dialog.Footer>
               <Dialog.CloseTrigger asChild>
@@ -690,8 +633,8 @@ export default function Home() {
       const signature = await signMessage(message)
       if (signature) {
         toaster.create({
-          title: 'Message Signed',
-          description: \`Signature: \${signature.substring(0, 20)}...\`,
+          title: t.home.messageSignedTitle,
+          description: t.home.messageSignedDescription(signature),
           type: 'success',
           duration: 5000,
         })
@@ -753,17 +696,19 @@ export default function Home() {
                 className="shimmer-text"
                 textAlign={'center'}
               >
-                {isLoadingMain ? 'Loading...' : mainAddress || 'Not available'}
+                {isLoadingMain ? t.common.loading : mainAddress || t.common.notAvailable}
               </Box>
               <Box textAlign="center" mt={10}>
-                <Button
-                  colorPalette="blue"
-                  onClick={() => handleSignMessage('Hello world!', mainAddress)}
-                  disabled={!mainAddress}
-                  size="sm"
-                >
-                  Sign a message
-                </Button>
+                <VStack gap={3}>
+                  <Button
+                    colorPalette="blue"
+                    onClick={() => handleSignMessage('Hello world!', mainAddress)}
+                    disabled={!mainAddress}
+                    size="sm"
+                  >
+                    {t.home.signMessage}
+                  </Button>
+                </VStack>
               </Box>
             </VStack>
           </>
