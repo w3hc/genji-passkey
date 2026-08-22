@@ -48,6 +48,14 @@
     "typescript": "^6.0.3"
   },
   "pnpm": {
+    "overrides": {
+      "underscore@<1.13.8": ">=1.13.8",
+      "ws@>=8.0.0 <8.21.0": ">=8.21.0",
+      "brace-expansion@1": ">=1.1.18 <2",
+      "brace-expansion@2": ">=2.1.4 <3",
+      "js-yaml@4": ">=4.3.1 <5",
+      "esbuild@>=0.27.3 <0.28.1": ">=0.28.1"
+    },
     "onlyBuiltDependencies": [
       "blake-hash",
       "esbuild",

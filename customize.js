@@ -144,19 +144,11 @@ async function main() {
   if (fs.existsSync(translationsPath)) {
     let content = fs.readFileSync(translationsPath, 'utf8')
 
-    // Remove 'about' from navigation type and all translations
-    content = content.replace(/\s+navigation:\s*\{\s*about:\s*string[^}]*\}/gm, match => {
-      return match.replace(/\s*about:\s*string\s*/g, '')
-    })
-
-    // Remove about translation entries from each language
-    content = content.replace(/\s+navigation:\s*\{\s*about:\s*[^,\n]+,?\s*/gm, match => {
-      return match.replace(/about:\s*[^,\n]+,?\s*/g, '')
-    })
-
-    // Clean up empty navigation objects and trailing commas
-    content = content.replace(/navigation:\s*\{\s*,?\s*\}/g, 'navigation: {}')
-    content = content.replace(/,(\s*\})/g, '$1')
+    // Remove the 'about' entry from every navigation block (the type
+    // declaration and each language's translations). The removal is
+    // line-based and touches nothing else, so the file stays
+    // prettier-clean (trailing commas and formatting are preserved).
+    content = content.replace(/(navigation:\s*\{\n)\s*about:[^\n]*\n/g, '$1')
 
     fs.writeFileSync(translationsPath, content)
     console.log('   ✓ Updated translations (removed about navigation)')
@@ -208,7 +200,6 @@ export default function Header() {
   const shouldSlide = scrollPosition > 0
   const leftSlideValue = shouldSlide ? 2000 : 0
   const rightSlideValue = shouldSlide ? 2000 : 0
-
 
   useEffect(() => {
     const handleScroll = () => {
