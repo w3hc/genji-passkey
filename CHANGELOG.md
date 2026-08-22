@@ -4,12 +4,17 @@
 
 ### Added
 
+- HTTP security headers on every route in `next.config.ts`, adopted from the presidentielle security audit (22 Aug 2026): a Content-Security-Policy (`default-src 'self'`; `connect-src` limited to same-origin plus the Optimism RPC and the w3pk endpoints; `frame-ancestors 'none'`; `object-src 'none'`), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, a restrictive `Permissions-Policy`, and `Strict-Transport-Security` with `includeSubDomains; preload`
+- `pnpm.overrides` in `package.json` forcing patched versions of transitive dependencies with known advisories (`underscore`, `ws`, `brace-expansion` v1/v2, `js-yaml`, `esbuild`); `pnpm audit` now reports only the unpatched low-severity `elliptic` advisory (reachable only via the legacy ethers 5.8 bundled by `circomlibjs`), down from 7 high / 1 moderate / 2 low
+- `pnpm-workspace.yaml` with `minimumReleaseAge: 4320` (3 days), so freshly published — potentially hijacked — dependency versions cannot be installed immediately (`w3pk` excluded, as it is published by this project's own maintainer)
+- `.github/dependabot.yml` with weekly monitoring of npm dependencies and GitHub Actions
 - `postinstall` hint that reminds users to run `pnpm customize` after installing (e.g. after `npx create-next-app --example https://github.com/w3hc/genji-passkey my-app`); `customize.js` removes the hint along with itself when it self-destructs
 
 ### Fixed
 
 - Login button on a device with no registered passkey now opens the registration modal directly instead of triggering the browser's cross-device "scan this QR code" passkey dialog (the W3PK context now exposes `hasLocalCredentials()`, checked before calling `login()`)
 - `isNoPasskeyError` now recognizes the w3pk 0.10.x "No passkey found" error message, so cancelling a passkey prompt with no account still falls back to the registration modal
+- `customize.js` now produces prettier-clean output: the translations rewrite is a precise line-based removal of the `about` navigation entries (it no longer strips trailing commas across the whole file), and the doubled blank line in the generated `Header.tsx` template is gone — `pnpm format:check` and `pnpm lint` pass right after `pnpm customize`
 
 ### Changed
 
