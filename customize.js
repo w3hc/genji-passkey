@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Customization script for genji-passkey template
+ * Customization script for genji template
  * Removes example pages/routes and customizes the project name
  * Self-destructs after successful completion
  */
@@ -29,6 +29,7 @@ async function main() {
   console.log('  • Changing the project name')
   console.log('  • Updating metadata (title, description)')
   console.log('  • Removing deploy.yml workflow')
+  console.log('  • Recording the template version in .genji-version')
   console.log('  • Updating translations')
   console.log('  • Replacing homepage content')
   console.log('  • Replacing header component')
@@ -90,9 +91,18 @@ async function main() {
 
   // 5. Update package.json
   console.log('📦 Updating package.json...')
+  let templateVersion = null
   const packageJsonPath = path.join(__dirname, 'package.json')
   if (fs.existsSync(packageJsonPath)) {
     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+
+    // Remember which template release this project is being created from
+    // (written to .genji-version below, where the genji-sync skill reads it).
+    // The field itself is template metadata and has no place in the
+    // generated project.
+    templateVersion = packageJson.genji && packageJson.genji.templateVersion
+    delete packageJson.genji
+
     packageJson.name = projectName.toLowerCase().replace(/\s+/g, '-')
     if (description) {
       packageJson.description = description
@@ -713,7 +723,17 @@ export default function Home() {
     console.log('   ✓ Replaced homepage content in src/app/page.tsx')
   }
 
-  // 13. Self-destruct - Remove this script and related files
+  // 13. Record the template version for future syncs
+  console.log('📌 Recording template version...')
+  if (templateVersion) {
+    fs.writeFileSync(path.join(__dirname, '.genji-version'), templateVersion + '\n')
+    console.log(`   ✓ Wrote .genji-version (${templateVersion})`)
+    console.log('     Run /genji-sync later to pull in template updates')
+  } else {
+    console.log('   ⚠ No genji.templateVersion in package.json, skipping')
+  }
+
+  // 14. Self-destruct - Remove this script and related files
   console.log('🗑️  Removing customization scripts...')
   const scriptPath = path.join(__dirname, 'customize.js')
   const tsScriptPath = path.join(__dirname, 'customize.ts')

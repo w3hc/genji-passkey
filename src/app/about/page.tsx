@@ -70,7 +70,7 @@ export default function About() {
       <Text fontSize="lg">
         {t.about.introPart1}{' '}
         <Link
-          href="https://github.com/w3hc/genji-passkey"
+          href="https://github.com/w3hc/genji"
           target="_blank"
           rel="noopener noreferrer"
           color={brandColors.accent}
