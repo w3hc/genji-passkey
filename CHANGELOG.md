@@ -8,7 +8,11 @@
 - `pnpm.overrides` in `package.json` forcing patched versions of transitive dependencies with known advisories (`underscore`, `ws`, `brace-expansion` v1/v2, `js-yaml`, `esbuild`); `pnpm audit` now reports only the unpatched low-severity `elliptic` advisory (reachable only via the legacy ethers 5.8 bundled by `circomlibjs`), down from 7 high / 1 moderate / 2 low
 - `pnpm-workspace.yaml` with `minimumReleaseAge: 4320` (3 days), so freshly published — potentially hijacked — dependency versions cannot be installed immediately (`w3pk` excluded, as it is published by this project's own maintainer)
 - `.github/dependabot.yml` with weekly monitoring of npm dependencies and GitHub Actions
-- `postinstall` hint that reminds users to run `pnpm customize` after installing (e.g. after `npx create-next-app --example https://github.com/w3hc/genji-passkey my-app`); `customize.js` removes the hint along with itself when it self-destructs
+- Template propagation for downstream projects built from genji: `.genji-sync.json` declares which paths are chassis (synced), which need a judgment merge (`next.config.ts` CSP origins, `package.json`, `.env.template`, provider composition, root layout), and which are project-owned or scaffolding (never touched); the merge itself is done locally and reviewed by running the `genji-sync` Claude Code skill, which diffs the template against itself between two versions rather than against the project
+- `genji.templateVersion` field in `package.json`, the single source of truth for the current template release
+- Template version check in `.github/workflows/build.yml`, a warning-only step (`continue-on-error`) that reads the newest upstream tag with an unauthenticated `git ls-remote`: in a generated project it warns when `.genji-version` has fallen behind and points at `/genji-sync`; in genji itself, where no `.genji-version` exists, it instead warns when a tag has been pushed without bumping `genji.templateVersion`. Each project checks itself, so there is no token, no downstream repository list, and nothing that can go stale
+- `customize.js` now writes `.genji-version` (read from `genji.templateVersion`) so a generated project records which template release it came from, and strips the template-only `genji` field from its `package.json`
+- `postinstall` hint that reminds users to run `pnpm customize` after installing (e.g. after `npx create-next-app --example https://github.com/w3hc/genji my-app`); `customize.js` removes the hint along with itself when it self-destructs
 
 ### Fixed
 

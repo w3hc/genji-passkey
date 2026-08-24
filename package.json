@@ -1,7 +1,10 @@
 {
-  "name": "genji-passkey",
+  "name": "genji",
   "version": "0.1.0",
   "description": "Next.js Web3 starter with passkey auth",
+  "genji": {
+    "templateVersion": "1.2.0"
+  },
   "main": "index.js",
   "scripts": {
     "dev": "next dev",
@@ -11,9 +14,9 @@
     "lint:a11y": "eslint . --no-ignore",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:a11y": "echo '⚠️  Run Lighthouse in Chrome DevTools or install pa11y: npx pa11y http://localhost:3000'",
+    "test:a11y": "echo '\u26a0\ufe0f  Run Lighthouse in Chrome DevTools or install pa11y: npx pa11y http://localhost:3000'",
     "customize": "node customize.js",
-    "postinstall": "node -e \"const fs=require('fs');if(fs.existsSync('customize.js'))console.log('\\n👉  Run pnpm customize to remove the example content and make this project yours\\n')\""
+    "postinstall": "node -e \"const fs=require('fs');if(fs.existsSync('customize.js'))console.log('\\n\ud83d\udc49  Run pnpm customize to remove the example content and make this project yours\\n')\""
   },
   "dependencies": {
     "@chakra-ui/react": "^3.36.1",

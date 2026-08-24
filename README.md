@@ -1,6 +1,17 @@
+> [!WARNING]
+> **This repository is deprecated.** Its work continues in **[w3hc/genji](https://github.com/w3hc/genji)**, which is now the Next.js + [w3pk](https://w3pk.w3hc.org/) passkey starter.
+>
+> Start new projects from [w3hc/genji](https://github.com/w3hc/genji) instead:
+>
+> ```bash
+> npx create-next-app --example https://github.com/w3hc/genji my-app
+> ```
+>
+> Existing projects built from this template keep working. To move to the maintained line, point `.genji-version` at a `genji` release and sync from there.
+
 [![WCAG 2.1 AA](https://img.shields.io/badge/WCAG-2.1%20AA-green.svg)](https://www.w3.org/WAI/WCAG21/quickref/?versions=2.1&levels=aa)
 
-# Genji Passkey
+# Genji Passkey (deprecated)
 
 Next.js Web3 starter with passkey auth and [WCAG 2.1 AA](https://www.levelaccess.com/understanding-wcag-emea/) compliant accessibility.
 
@@ -18,10 +29,10 @@ Includes:
 
 ## Fork
 
-You can [use this template directly](https://github.com/w3hc/genji-passkey/generate), or bootstrap it with create-next-app:
+You can [use this template directly](https://github.com/w3hc/genji/generate), or bootstrap it with create-next-app:
 
 ```bash
-npx create-next-app --example https://github.com/w3hc/genji-passkey my-app
+npx create-next-app --example https://github.com/w3hc/genji my-app
 ```
 
 Then run the customization script so you start with a fresh app:
@@ -31,6 +42,20 @@ pnpm customize
 ```
 
 A reminder to run it is printed after `pnpm install` (npm hides it during create-next-app's install step). The script itself will also self-destruct and remove the reminder.
+
+`pnpm customize` also writes a `.genji-version` file recording which template release your project started from.
+
+## Staying up to date
+
+Projects made from this template keep getting template updates — security headers, dependency bumps, chassis fixes — without a fork or a merge.
+
+Each project's own CI checks its `.genji-version` against the newest tag here and prints a warning on the pull request when it has fallen behind — no tokens, no repository list, nothing to keep in sync. To apply the update, run the `genji-sync` [Claude Code](https://claude.com/claude-code) skill in your project:
+
+```
+/genji-sync
+```
+
+It diffs this template against _itself_ between your `.genji-version` and the new release, then applies that patch to your project: chassis files are taken as-is, files needing judgment are merged (your own CSP origins in `next.config.ts` are preserved, your `package.json` name and scripts survive a dependency bump), and anything your project owns is left alone. [`.genji-sync.json`](.genji-sync.json) declares which paths fall into which category. Nothing is committed or pushed for you — you review the diff and commit it yourself.
 
 ## Install
 

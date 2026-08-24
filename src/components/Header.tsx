@@ -203,7 +203,7 @@ export default function Header() {
                   </Link>
 
                   <Box className="spin-icon">
-                    <Link href="https://github.com/w3hc/genji-passkey" target={'_blank'}>
+                    <Link href="https://github.com/w3hc/genji" target={'_blank'}>
                       <GitHubIcon size={20} />
                     </Link>
                   </Box>
