@@ -19,7 +19,7 @@
     "postinstall": "node -e \"const fs=require('fs');if(fs.existsSync('customize.js'))console.log('\\n\ud83d\udc49  Run pnpm customize to remove the example content and make this project yours\\n')\""
   },
   "dependencies": {
-    "@chakra-ui/react": "^3.36.1",
+    "@chakra-ui/react": "^3.37.0",
     "@emotion/react": "^11.14.0",
     "@neondatabase/serverless": "^1.1.0",
     "@types/react-syntax-highlighter": "^15.5.13",
